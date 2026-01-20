@@ -1,0 +1,1 @@
+/* sales/src/core/promotion/domain/ports/out/customer-ports-out.ts */   

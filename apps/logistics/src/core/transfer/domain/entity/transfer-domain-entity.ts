@@ -1,0 +1,1 @@
+/* logistics/src/core/transfer/domain/entity/transfer-domain-entity.ts */

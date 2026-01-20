@@ -1,0 +1,1 @@
+/*  administration/src/core/permission/domain/ports/out/permission-ports-out.ts */

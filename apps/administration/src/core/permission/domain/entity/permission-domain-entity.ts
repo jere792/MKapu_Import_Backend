@@ -1,0 +1,1 @@
+/*  administration/src/core/permission/domain/entity/permission-domain-entity.ts */

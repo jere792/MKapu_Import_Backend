@@ -1,0 +1,1 @@
+/*  administration/src/core/role/domain/ports/out/role-ports-out.ts */

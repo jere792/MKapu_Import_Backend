@@ -1,6 +1,7 @@
-import { Headquarters } from './headquarters';
-import { Role } from './role';
-import { Usuario } from './user';
+/* auth/src/core/domain/entity/account-user.ts */
+import { Usuario } from 'apps/administration/src/core/user/domain/entity/user-domain-entity';
+import { Role } from 'apps/administration/src/core/role/domain/entity/role-domain-entity';
+import { Headquarters } from 'apps/administration/src/core/headquarters/domain/entity/headquarters-domain-entity';
 
 export interface AccountUserProps {
   id?: string;

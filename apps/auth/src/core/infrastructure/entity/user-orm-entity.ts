@@ -1,3 +1,4 @@
+/* auth/src/core/infrastructure/entity/user-orm-entity.ts */
 import { Column, Entity, OneToOne } from 'typeorm';
 import { AccountUserOrmEntity } from './account-user-orm-entity';
 

@@ -1,0 +1,1 @@
+/* logistics/src/core/purchase order/domain/ports/out/purchase_order-ports-out.ts */

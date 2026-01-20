@@ -1,0 +1,1 @@
+/* sales/src/core/customer/domain/entity/customer-domain-entity.ts */

@@ -1,3 +1,4 @@
+/*  administration/src/core/role/domain/entity/role-domain-entity.ts */
 export interface RoleProps {
   id?: number;
   nombre: string;

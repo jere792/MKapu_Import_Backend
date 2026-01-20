@@ -1,0 +1,1 @@
+/* logistics/src/core/supplier/domain/ports/out/supplier-ports-out.ts */

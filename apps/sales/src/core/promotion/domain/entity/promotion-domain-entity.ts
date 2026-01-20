@@ -1,0 +1,1 @@
+/* sales/src/core/promotion/domain/entity/promotion-domain-entity.ts */

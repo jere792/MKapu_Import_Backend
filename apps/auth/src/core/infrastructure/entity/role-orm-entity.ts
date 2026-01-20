@@ -1,3 +1,5 @@
+/* auth/src/core/infrastructure/entity/role-orm-entity.ts */
+
 import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { AccountUserOrmEntity } from './account-user-orm-entity';
 

@@ -21,6 +21,9 @@ export class AccountUserMapper {
       email: raw.cu_email_emp,
       estado: raw.cu_estado === 'ACTIVO',
       rolNombre: raw.rol_nombre,
+      isActive(): boolean {
+        return raw.cu_estado === 'ACTIVO';
+      },
     };
   }
 }

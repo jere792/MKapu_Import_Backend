@@ -1,3 +1,4 @@
+/* auth/src/core/domain/ports/out/account-user-port-out.ts */
 import { RegisterDto } from '../../../application/dto/in/registerDto';
 import { AccountUserResponseDto } from '../../../application/dto/out/AccountUserResponseDto';
 

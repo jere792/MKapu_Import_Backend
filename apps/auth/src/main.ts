@@ -1,3 +1,4 @@
+/* auth/src/main.ts */
 import { NestFactory } from '@nestjs/core';
 import { AuthModule } from './auth.module';
 import { ValidationPipe } from '@nestjs/common';

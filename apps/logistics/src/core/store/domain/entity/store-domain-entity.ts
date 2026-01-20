@@ -1,0 +1,1 @@
+/* logistics/src/core/store/domain/entity/store-domain-entity.ts */

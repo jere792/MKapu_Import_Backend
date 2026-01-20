@@ -1,0 +1,1 @@
+/* sales/src/core/checkout/domain/ports/in/checkout-ports-in.ts */

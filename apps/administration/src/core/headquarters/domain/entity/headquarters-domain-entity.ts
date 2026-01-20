@@ -1,3 +1,5 @@
+/*  administration/src/core/headquarters/domain/entity/headquarters-domain-entity.ts */
+
 export interface HeadquartersProps {
   id: number;
   nombre: string;

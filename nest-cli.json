@@ -16,6 +16,15 @@
         "tsConfigPath": "apps/administration/tsconfig.app.json"
       }
     },
+    "api-gateway": {
+      "type": "application",
+      "root": "apps/api-gateway",
+      "entryFile": "main",
+      "sourceRoot": "apps/api-gateway/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
+      }
+    },
     "auth": {
       "type": "application",
       "root": "apps/auth",
@@ -34,6 +43,15 @@
         "tsConfigPath": "libs/common/tsconfig.lib.json"
       }
     },
+    "logistics": {
+      "type": "application",
+      "root": "apps/logistics",
+      "entryFile": "main",
+      "sourceRoot": "apps/logistics/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/logistics/tsconfig.app.json"
+      }
+    },
     "main": {
       "type": "application",
       "root": "apps/main",
@@ -43,13 +61,13 @@
         "tsConfigPath": "apps/main/tsconfig.app.json"
       }
     },
-    "api-gateway": {  
+    "sales": {
       "type": "application",
-      "root": "apps/api-gateway",
+      "root": "apps/sales",
       "entryFile": "main",
-      "sourceRoot": "apps/api-gateway/src",
+      "sourceRoot": "apps/sales/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
+        "tsConfigPath": "apps/sales/tsconfig.app.json"
       }
     }
   }

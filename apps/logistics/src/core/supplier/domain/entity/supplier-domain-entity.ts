@@ -1,0 +1,1 @@
+/* logistics/src/core/supplier/domain/entity/supplier-domain-entity.ts */

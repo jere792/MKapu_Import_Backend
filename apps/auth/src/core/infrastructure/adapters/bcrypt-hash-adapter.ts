@@ -1,3 +1,4 @@
+/* auth/src/core/infrastructure/adapters/bcrypt-hash-adapter.ts */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';

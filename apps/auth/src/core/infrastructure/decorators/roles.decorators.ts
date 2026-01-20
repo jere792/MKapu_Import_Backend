@@ -1,3 +1,4 @@
+/* auth/src/core/infrastructure/decorators/roles.decorators.ts */
 import { SetMetadata } from '@nestjs/common';
 
 export const ROLES_KEY = 'roles';

@@ -1,3 +1,4 @@
+/* auth/src/auth.module.ts */
 /* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { BcryptHasherAdapter } from './core/infrastructure/adapters/bcrypt-hash-adapter';

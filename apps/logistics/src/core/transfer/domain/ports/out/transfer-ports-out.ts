@@ -1,0 +1,1 @@
+/* logistics/src/core/transfer/domain/ports/out/transfer-ports-out.ts */
