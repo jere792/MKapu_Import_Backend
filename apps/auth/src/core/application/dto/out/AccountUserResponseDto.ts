@@ -4,5 +4,4 @@ export interface AccountUserResponseDto {
   email: string;
   estado: boolean;
   rolNombre: string;
-  nombreCompletoPersona: string;
 }

@@ -21,7 +21,6 @@ export class AccountUserMapper {
       email: raw.cu_email_emp,
       estado: raw.cu_estado === 'ACTIVO',
       rolNombre: raw.rol_nombre,
-      nombreCompletoPersona: raw.p_nombre_completo || '',
     };
   }
 }

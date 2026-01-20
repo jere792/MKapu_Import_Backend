@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AccountUserPortsIn } from '../../domain/ports/in/account-user-port.in';
 import { LoginDto } from '../dto/in/loginDto';
@@ -23,12 +22,13 @@ export class AuthService implements AccountUserPortsIn {
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    if (!user.isActive()) {
+    if (!user.estado) {
       throw new UnauthorizedException('La cuenta está desactivada o bloqueada');
     }
+    const getPasswordById = await this.repository.getPasswordById(user.id);
     const isPasswordValid = await this.passwordHasher.comparePassword(
       password,
-      user.contrasenia,
+      getPasswordById,
     );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
