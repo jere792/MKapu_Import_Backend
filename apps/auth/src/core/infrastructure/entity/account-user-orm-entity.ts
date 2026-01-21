@@ -2,48 +2,45 @@
 import {
   Entity,
   Column,
-  PrimaryColumn,
   JoinColumn,
-  ManyToOne,
   OneToOne,
+  JoinTable,
+  ManyToMany,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { UserOrmEntity } from './user-orm-entity';
 import { RoleOrmEntity } from './role-orm-entity';
-import { HeadQuartersOrmEntity } from './headquarters-orm-entity';
 
 @Entity('cuenta_usuario')
 export class AccountUserOrmEntity {
-  @PrimaryColumn({ name: 'id_cuenta' })
-  id: string;
+  @PrimaryGeneratedColumn('uuid', { name: 'id_cuenta' })
+  id_cuenta_usuario: string;
 
-  @Column()
+  @Column({ name: 'username', type: 'varchar', length: 50, unique: true })
   username: string;
 
-  @Column()
+  @Column({ name: 'password', type: 'varchar', length: 255 })
   password: string;
 
-  @Column({ name: 'email_emp' })
-  email: string;
+  @Column({ name: 'activo', type: 'tinyint', default: 1 })
+  activo: number;
 
-  @Column()
-  estado: string;
-
-  @Column()
-  rol_id: number;
-
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ name: 'ultimo_acceso', type: 'datetime', nullable: true })
   ultimo_acceso: Date;
 
-  @OneToOne(() => UserOrmEntity)
+  @OneToOne(() => UserOrmEntity, (user) => user.cuenta)
   @JoinColumn({ name: 'id_usuario' })
   usuario: UserOrmEntity;
 
-  @ManyToOne(() => HeadQuartersOrmEntity)
-  @JoinColumn({ name: 'id_sede' })
-  sede: HeadQuartersOrmEntity;
-
-  @ManyToOne(() => RoleOrmEntity)
-  @JoinColumn({ name: 'rol_id' })
+  @ManyToMany(() => RoleOrmEntity, (role) => role.cuentas)
+  @JoinTable({
+    name: 'cuenta_usuario_roles', // Nombre de la tabla intermedia
+    joinColumn: {
+      name: 'id_cuenta_usuario',
+      referencedColumnName: 'id_cuenta_usuario',
+    },
+    inverseJoinColumn: { name: 'id_rol', referencedColumnName: 'id' },
+  })
   roles: RoleOrmEntity[];
 }
 export { UserOrmEntity };

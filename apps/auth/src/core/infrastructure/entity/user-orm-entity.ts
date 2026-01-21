@@ -2,30 +2,23 @@
 import { Column, Entity, OneToOne } from 'typeorm';
 import { AccountUserOrmEntity } from './account-user-orm-entity';
 
-@Entity('usuario')
+@Entity('usuario', { synchronize: false })
 export class UserOrmEntity {
-  @Column({ primary: true })
-  id: number;
-  @Column()
-  usu_nombre: string;
-  @Column()
-  ape_mat: string;
-  @Column()
-  ape_pat: string;
-  @Column()
-  dni: string;
-  @Column()
+  @Column({ name: 'id_usuario', primary: true })
+  id_usuario: number;
+
+  @Column({ name: 'email' })
   email: string;
-  @Column()
-  celular: string;
-  @Column()
-  direccion: string;
-  @Column()
-  genero: string;
-  @Column()
-  fec_nac: Date;
-  @Column()
-  activo: number;
+
+  @Column({ name: 'usu_nom' })
+  usu_nom: string;
+
+  @Column({ name: 'dni' })
+  dni: string;
+
+  @Column({ name: 'id_sede', type: 'int', nullable: true })
+  id_sede: number;
+
   @OneToOne(() => AccountUserOrmEntity, (account) => account.usuario)
   cuenta: AccountUserOrmEntity;
 }

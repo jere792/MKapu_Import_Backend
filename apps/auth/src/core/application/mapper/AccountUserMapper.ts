@@ -6,25 +6,27 @@ import { AccountUserResponseDto } from '../dto/out/AccountUserResponseDto';
 
 export class AccountUserMapper {
   static toDomain(ormEntity: AccountUserOrmEntity): AccountUser {
+    const email = ormEntity.usuario ? ormEntity.usuario.email : '';
+
     return AccountUser.create({
-      id: ormEntity.id,
+      id: ormEntity.id_cuenta_usuario,
       nombreUsuario: ormEntity.username,
       contrasenia: ormEntity.password,
-      email: ormEntity.email,
-      rolNombre: ormEntity.roles?.[0]?.nombre || '',
+      email: email,
+      rolNombre: ormEntity.roles?.[0]?.nombre || 'SIN_ROL',
     });
   }
-  static toAccountUserResponseDto(raw: any): AccountUserResponseDto {
+  static toAccountUserResponseDto(
+    entity: AccountUserOrmEntity,
+  ): AccountUserResponseDto {
     return {
-      id: raw.cu_id_cuenta,
-      nombreUsuario: raw.cu_username,
-      email: raw.cu_email_emp,
-      estado: raw.cu_estado === 'ACTIVO',
-      rolNombre: raw.rol_nombre,
-      nombreCompletoPersona: raw.p_nombre_completo || '',
-      contrasenia: raw.cu_password || '',
+      id: entity.id_cuenta_usuario,
+      nombreUsuario: entity.username,
+      email: entity.usuario?.email || '',
+      estado: entity.activo === 1,
+      rolNombre: entity.roles?.[0]?.nombre || '',
       isActive(): boolean {
-        return raw.cu_estado === 'ACTIVO';
+        return entity.activo === 1;
       },
     };
   }

@@ -11,9 +11,9 @@ async function bootstrap() {
   app.use(
     '/auth',
     createProxyMiddleware({
-      target: 'http://localhost:3001',
+      target: 'http://localhost:3001/auth',
       changeOrigin: true,
-      pathRewrite: { '^/auth': '' },
+      //pathRewrite: { '^/auth': '' },
     }),
   );
   
@@ -23,6 +23,7 @@ async function bootstrap() {
     createProxyMiddleware({
       target: 'http://localhost:3002',
       changeOrigin: true,
+      ws:true,
       pathRewrite: { '^/admin': '' },
     }),
   );

@@ -1,3 +1,7 @@
+/* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* ============================================
    administration/src/core/user/infrastructure/adapters/user-websocket.gateway.ts
    ============================================ */
@@ -13,14 +17,11 @@ import { Server, Socket } from 'socket.io';
 import { Inject } from '@nestjs/common';
 import { IUserQueryPort } from '../../domain/ports/in/user-port-in';
 import { ListUserFilterDto } from '../../application/dto/in';
-import {
-  UserResponseDto,
-  UserListResponse,
-} from '../../application/dto/out';
+import { UserResponseDto, UserListResponse } from '../../application/dto/out';
 
 @WebSocketGateway({
   cors: {
-    origin: '*', // Configura según tu frontend
+    origin: '*',
   },
   namespace: '/users',
 })
@@ -33,10 +34,6 @@ export class UserWebSocketGateway {
     private readonly userQueryService: IUserQueryPort,
   ) {}
 
-  /**
-   * WebSocket - Listar todos los usuarios
-   * Evento: "listUsers"
-   */
   @SubscribeMessage('listUsers')
   async handleListUsers(
     @MessageBody() filters: ListUserFilterDto,
@@ -54,10 +51,6 @@ export class UserWebSocketGateway {
     }
   }
 
-  /**
-   * WebSocket - Obtener usuario por ID
-   * Evento: "getUserById"
-   */
   @SubscribeMessage('getUserById')
   async handleGetUserById(
     @MessageBody() data: { id: number },
@@ -71,14 +64,10 @@ export class UserWebSocketGateway {
         event: 'getUserById',
         message: error.message,
       });
-      throw error;
+      return { error: error.message } as any;
     }
   }
 
-  /**
-   * WebSocket - Buscar usuario por DNI
-   * Evento: "getUserByDni"
-   */
   @SubscribeMessage('getUserByDni')
   async handleGetUserByDni(
     @MessageBody() data: { dni: string },
@@ -92,14 +81,10 @@ export class UserWebSocketGateway {
         event: 'getUserByDni',
         message: error.message,
       });
-      throw error;
+      return { error: error.message } as any;
     }
   }
 
-  /**
-   * WebSocket - Buscar usuario por Email
-   * Evento: "getUserByEmail"
-   */
   @SubscribeMessage('getUserByEmail')
   async handleGetUserByEmail(
     @MessageBody() data: { email: string },
@@ -117,10 +102,6 @@ export class UserWebSocketGateway {
     }
   }
 
-  /**
-   * Notificar a todos los clientes cuando hay cambios
-   * Este método puede ser llamado desde el Command Service
-   */
   notifyUserCreated(user: UserResponseDto): void {
     this.server.emit('userCreated', user);
   }

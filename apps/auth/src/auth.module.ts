@@ -21,11 +21,11 @@ import { AuthService } from './core/application/service/auth-service';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
-        host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT') || 3306,
-        username: configService.get<string>('DB_USER'),
-        password: configService.get<string>('DB_PASSWORD') || '',
-        database: configService.get<string>('DB_NAME'),
+        host: configService.get<string>('AUTH_DB_HOST'),
+        port: configService.get<number>('AUTH_DB_PORT') || 3306,
+        username: configService.get<string>('AUTH_DB_USER'),
+        password: configService.get<string>('AUTH_DB_PASSWORD') || '',
+        database: configService.get<string>('AUTH_DB_NAME'),
         // Carga todas las entidades
         entities: [AccountUserOrmEntity, UserOrmEntity, RoleOrmEntity, HeadQuartersOrmEntity],
         synchronize: true,
