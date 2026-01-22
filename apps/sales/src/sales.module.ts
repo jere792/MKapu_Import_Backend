@@ -8,17 +8,17 @@ import { SalesService } from './sales.service';
   imports: [
     // Configuración de variables de entorno
     ConfigModule.forRoot({
-      isGlobal:  true,
-      envFilePath:  '.env', // Lee el .env de la raíz
+      isGlobal: true,
+      envFilePath: '.env', // Lee el .env de la raíz
     }),
 
     // Configuración dinámica de TypeORM para Sales
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory:  (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         type: 'mysql',
-        host: configService. get('SALES_DB_HOST'),
-        port: configService. get<number>('SALES_DB_PORT'),
+        host: configService.get('SALES_DB_HOST'),
+        port: configService.get<number>('SALES_DB_PORT'),
         username: configService.get('SALES_DB_USERNAME'),
         password: configService.get('SALES_DB_PASSWORD'),
         database: configService.get('SALES_DB_DATABASE'),

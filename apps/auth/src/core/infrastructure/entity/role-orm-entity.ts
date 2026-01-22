@@ -8,9 +8,9 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { AccountUserOrmEntity } from './account-user-orm-entity';
-import { PermissionOrmEntity } from 'apps/administration/src/core/permission/infrastructure/entity/permission-orm-entity';
+import { PermissionOrmEntity } from './permission-orm-entity';
 
-@Entity({ name: 'rol', schema: 'mkp_administracion' })
+@Entity({ name: 'rol', schema: 'mkp_administracion', synchronize: false })
 export class RoleOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_rol' })
   id_rol: number;
@@ -25,6 +25,9 @@ export class RoleOrmEntity {
     inverseJoinColumn: { name: 'id_cuenta', referencedColumnName: 'id_cuenta' },
   })
   accounts: AccountUserOrmEntity[];
+
+  @Column({ name: 'descripcion', type: 'varchar', length: 50 })
+  descripcion: string;
 
   @ManyToMany(() => PermissionOrmEntity)
   @JoinTable({

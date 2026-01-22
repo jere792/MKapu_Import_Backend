@@ -10,7 +10,7 @@ import { RoleOrmEntity } from './core/infrastructure/entity/role-orm-entity';
 import { AuthService } from './core/application/service/auth-service';
 import { AuthController } from './core/infrastructure/adapters/in/controllers/auth.controller';
 import { AuthRepository } from './core/infrastructure/adapters/out/repository/auth-repository';
-import { PermissionOrmEntity } from 'apps/administration/src/core/permission/infrastructure/entity/permission-orm-entity';
+import { PermissionOrmEntity } from './core/infrastructure/entity/permission-orm-entity';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -27,7 +27,7 @@ import { PermissionOrmEntity } from 'apps/administration/src/core/permission/inf
         password: configService.get<string>('AUTH_DB_PASSWORD') || '',
         database: configService.get<string>('AUTH_DB_NAME'),
         // Carga todas las entidades
-        entities: [AccountUserOrmEntity, UserOrmEntity, RoleOrmEntity,PermissionOrmEntity],
+        entities: [AccountUserOrmEntity, UserOrmEntity, RoleOrmEntity, PermissionOrmEntity],
         synchronize: true,
         logging: true,
       }),

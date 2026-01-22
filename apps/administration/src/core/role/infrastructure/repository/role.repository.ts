@@ -1,4 +1,6 @@
-
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* ============================================
    administration/src/core/role/infrastructure/repository/role.repository.ts
    ============================================ */
@@ -83,7 +85,7 @@ export class RoleRepository implements IRoleRepositoryPort {
       id_rol: roleOrm.id_rol,
       nombre: roleOrm.nombre,
       descripcion: roleOrm.descripcion,
-      activo: roleOrm.activo === 1,
+      activo: roleOrm.activo,
     });
   }
 
@@ -92,7 +94,7 @@ export class RoleRepository implements IRoleRepositoryPort {
     roleOrm.id_rol = role.id_rol!;
     roleOrm.nombre = role.nombre;
     roleOrm.descripcion = role.descripcion!;
-    roleOrm.activo = role.activo ? 1 : 0;
+    roleOrm.activo = role.activo;
     return roleOrm;
   }
 }

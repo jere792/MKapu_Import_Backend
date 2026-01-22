@@ -7,13 +7,13 @@ import { LogisticsService } from './logistics.service';
 @Module({
   imports: [
     // Configuración de variables de entorno
-    ConfigModule. forRoot({
+    ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env', // Lee el .env de la raíz
     }),
 
     // Configuración dinámica de TypeORM para Logistics
-    TypeOrmModule. forRootAsync({
+    TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
@@ -32,7 +32,7 @@ import { LogisticsService } from './logistics.service';
 
     // Aquí puedes agregar otros módulos específicos de logistics
   ],
-  controllers:  [LogisticsController],
+  controllers: [LogisticsController],
   providers: [LogisticsService],
 })
 export class LogisticsModule {}

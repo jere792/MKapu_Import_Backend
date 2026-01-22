@@ -1,5 +1,6 @@
-
-
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* ============================================
    administration/src/core/role/application/service/role-command.service.ts
    ============================================ */
@@ -12,15 +13,8 @@ import {
 } from '@nestjs/common';
 import { IRoleCommandPort } from '../../domain/ports/in/role-port-in';
 import { IRoleRepositoryPort } from '../../domain/ports/out/role-port-out';
-import {
-  RegisterRoleDto,
-  UpdateRoleDto,
-  ChangeRoleStatusDto,
-} from '../dto/in';
-import {
-  RoleResponseDto,
-  RoleDeletedResponseDto,
-} from '../dto/out';
+import { RegisterRoleDto, UpdateRoleDto, ChangeRoleStatusDto } from '../dto/in';
+import { RoleResponseDto, RoleDeletedResponseDto } from '../dto/out';
 import { RoleMapper } from '../mapper/role.mapper';
 
 @Injectable()

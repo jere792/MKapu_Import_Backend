@@ -1,8 +1,8 @@
-
 /* ============================================
    administration/src/core/role/infrastructure/entity/role-orm.entity.ts
    ============================================ */
 
+import { BitToBooleanTransformer } from 'libs/common/src/infrastructure/transformers/bit-to-boolean.transformer';
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity('rol')
@@ -16,6 +16,11 @@ export class RoleOrmEntity {
   @Column({ name: 'descripcion', type: 'varchar', length: 45, nullable: true })
   descripcion: string;
 
-  @Column({ name: 'activo', type: 'tinyint', default: 1 })
-  activo: number;
+  @Column({
+    name: 'activo',
+    type: 'bit',
+    transformer: BitToBooleanTransformer,
+    default: () => "b'1'", // Default correcto para MySQL
+  })
+  activo: boolean;
 }
