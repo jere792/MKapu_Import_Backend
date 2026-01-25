@@ -6,9 +6,13 @@ import { LogisticsService } from './logistics.service';
 
 //módulos
 import { CategoryModule } from './core/catalog/category/category.module';
+import { SupplierModule } from './core/procurement/supplier/supplier.modul';
 import { StoreModule } from './core/warehouse/store/store.module';
+
 import { StoreOrmEntity } from './core/warehouse/store/infrastructure/entity/store-orm.entity';
 import { CategoryOrmEntity } from './core/catalog/category/infrastructure/entity/category-orm.entity';
+import { SupplierOrmEntity } from './core/procurement/supplier/infrastructure/entity/supplier-orm.entity';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,7 +30,7 @@ import { CategoryOrmEntity } from './core/catalog/category/infrastructure/entity
         username: configService.get<string>('LOGISTICS_DB_USERNAME'),
         password: configService.get<string>('LOGISTICS_DB_PASSWORD'),
         database: configService.get<string>('LOGISTICS_DB_DATABASE'),
-        entities: [CategoryOrmEntity, StoreOrmEntity],
+        entities: [CategoryOrmEntity, StoreOrmEntity, SupplierOrmEntity],
         synchronize: true,
         logging: true,
       }),
@@ -35,6 +39,8 @@ import { CategoryOrmEntity } from './core/catalog/category/infrastructure/entity
     // Módulos del microservicio
     CategoryModule,
     StoreModule,
+    SupplierModule,
+
   ],
   controllers: [LogisticsController],
   providers: [LogisticsService],
