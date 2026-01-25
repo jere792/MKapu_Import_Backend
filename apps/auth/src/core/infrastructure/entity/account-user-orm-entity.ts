@@ -6,7 +6,7 @@ import {
   OneToOne,
   JoinTable,
   ManyToMany,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { UserOrmEntity } from './user-orm-entity';
 import { RoleOrmEntity } from './role-orm-entity';
@@ -14,8 +14,8 @@ import { BitToBooleanTransformer } from 'libs/common/src/infrastructure/transfor
 
 @Entity({ name: 'cuenta_usuario', schema: 'mkp_administracion' })
 export class AccountUserOrmEntity {
-  @PrimaryColumn({ name: 'id_cuenta', length: 255 })
-  id_cuenta: string;
+  @PrimaryGeneratedColumn({ name: 'id_cuenta' })
+  id_cuenta: number;
 
   @OneToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'id_usuario' })

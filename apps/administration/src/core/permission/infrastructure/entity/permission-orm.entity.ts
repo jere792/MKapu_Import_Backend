@@ -1,15 +1,11 @@
 /* ============================================
    administration/src/core/permission/infrastructure/entity/permission-orm.entity.ts
    ============================================ */
-import { 
-  Entity,
-  PrimaryColumn,
-  Column } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'permiso', schema: 'mkp_administracion' })
 export class PermissionOrmEntity {
-
-  @PrimaryColumn({ name: 'id_permiso', type: 'int' })
+  @PrimaryGeneratedColumn({ name: 'id_permiso', type: 'int' })
   id_permiso: number;
 
   @Column({ name: 'nombre', type: 'varchar', length: 50 })

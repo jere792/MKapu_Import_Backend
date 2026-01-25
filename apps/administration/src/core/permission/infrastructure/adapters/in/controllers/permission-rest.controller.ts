@@ -1,9 +1,3 @@
-
-
-/* ============================================
-   administration/src/core/permission/infrastructure/adapters/in/controllers/permission-rest.controller.ts
-   ============================================ */
-
 import {
   Controller,
   Post,
@@ -18,7 +12,10 @@ import {
   Get,
   Query,
 } from '@nestjs/common';
-import { IPermissionCommandPort, IPermissionQueryPort } from '../../../../domain/ports/in/permission-ports-in';
+import {
+  IPermissionCommandPort,
+  IPermissionQueryPort,
+} from '../../../../domain/ports/in/permission-ports-in';
 import { PermissionWebSocketGateway } from '../../out/permission-websocket.gateway';
 import {
   ChangePermissionStatusDto,
@@ -47,7 +44,8 @@ export class PermissionRestController {
   async registerPermission(
     @Body() registerDto: RegisterPermissionDto,
   ): Promise<PermissionResponseDto> {
-    const newPermission = await this.permissionCommandService.registerPermission(registerDto);
+    const newPermission =
+      await this.permissionCommandService.registerPermission(registerDto);
     this.permissionGateway.notifyPermissionCreated(newPermission);
     return newPermission;
   }
@@ -62,7 +60,8 @@ export class PermissionRestController {
       ...updateDto,
       id_permiso: id,
     };
-    const updatedPermission = await this.permissionCommandService.updatePermission(fullUpdateDto);
+    const updatedPermission =
+      await this.permissionCommandService.updatePermission(fullUpdateDto);
     this.permissionGateway.notifyPermissionUpdated(updatedPermission);
     return updatedPermission;
   }
@@ -77,7 +76,10 @@ export class PermissionRestController {
       id_permiso: id,
       activo: statusDto.activo,
     };
-    const updatedPermission = await this.permissionCommandService.changePermissionStatus(changeStatusDto);
+    const updatedPermission =
+      await this.permissionCommandService.changePermissionStatus(
+        changeStatusDto,
+      );
     this.permissionGateway.notifyPermissionStatusChanged(updatedPermission);
     return updatedPermission;
   }

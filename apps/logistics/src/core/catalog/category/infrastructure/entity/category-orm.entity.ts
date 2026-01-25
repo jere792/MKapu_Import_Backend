@@ -1,13 +1,8 @@
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-/* ============================================
-   logistics/src/core/catalog/category/infrastructure/entity/category-orm.entity.ts
-   ============================================ */
-import { Entity, PrimaryColumn, Column } from 'typeorm';
-
-@Entity({ name: 'categoria', schema: 'mkp_logistica', synchronize: false })
+@Entity({ name: 'categoria', schema: 'mkp_logistica' })
 export class CategoryOrmEntity {
-
-  @PrimaryColumn({ name: 'id_categoria', type: 'int' })
+  @PrimaryGeneratedColumn({ name: 'id_categoria', type: 'int' })
   id_categoria: number;
 
   @Column({ name: 'nombre', type: 'varchar', length: 50 })

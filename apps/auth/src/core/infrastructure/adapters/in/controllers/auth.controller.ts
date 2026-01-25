@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* auth/src/core/infrastructure/controllers/auth.controller.ts */
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -12,7 +10,7 @@ import { AuthService } from 'apps/auth/src/core/application/service/auth-service
 
 
 @ApiTags('Auth')
-@Controller('auth')
+@Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
   @Post('login')
@@ -37,6 +35,7 @@ export class AuthController {
       dto.userId,
       dto.username,
       dto.password,
+      dto.roleId,
     );
   }
 }

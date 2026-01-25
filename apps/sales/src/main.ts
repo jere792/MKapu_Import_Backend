@@ -20,9 +20,7 @@ async function bootstrap() {
   const port = configService.get<number>('SALES_PORT') || 3004;
 
   await app.listen(port);
-  console.log(
-    `💰 Sales Microservice corriendo en: http://localhost:${port}`,
-  );
+  console.log(`💰 Sales Microservice corriendo en: http://localhost:${port}`);
 }
 
 bootstrap();

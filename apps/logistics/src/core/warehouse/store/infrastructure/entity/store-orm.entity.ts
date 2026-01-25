@@ -2,15 +2,20 @@
    logistics/src/core/warehouse/store/infrastructure/entity/store-orm.entity.ts
    ============================================ */
 
-import { Entity, PrimaryColumn, Column } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'almacen', schema: 'mkp_logistica' })
 export class StoreOrmEntity {
-
-  @PrimaryColumn({ name: 'id_almacen', type: 'int' })
+  @PrimaryGeneratedColumn({ name: 'id_almacen', type: 'int' })
   id_almacen: number;
 
-  @Column({ name: 'codigo', type: 'varchar', length: 10, unique: true, nullable: false })
+  @Column({
+    name: 'codigo',
+    type: 'varchar',
+    length: 10,
+    unique: true,
+    nullable: false,
+  })
   codigo: string;
 
   @Column({ name: 'nombre', type: 'varchar', length: 50, nullable: true })
@@ -30,7 +35,7 @@ export class StoreOrmEntity {
     type: 'bit',
     width: 1,
     nullable: false,
-    default: () => "b'1'"
+    default: () => "b'1'",
   })
   activo: boolean;
 }

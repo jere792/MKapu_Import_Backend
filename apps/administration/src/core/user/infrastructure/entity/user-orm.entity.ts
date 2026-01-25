@@ -5,10 +5,10 @@
 
 import {
   Entity,
-  PrimaryColumn,  
   Column,
   ManyToOne,
   JoinColumn,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 
 import { HeadquartersOrmEntity } from '../../../headquarters/infrastructure/entity/headquarters-orm.entity';
@@ -16,7 +16,7 @@ import { BitToBooleanTransformer } from 'libs/common/src/infrastructure/transfor
 
 @Entity({ name: 'usuario', schema: 'mkp_administracion' })
 export class UserOrmEntity {
-  @PrimaryColumn({ name: 'id_usuario', type: 'int' })
+  @PrimaryGeneratedColumn({ name: 'id_usuario' })
   id_usuario: number;
 
   @Column({ name: 'nombres', length: 100 })

@@ -15,15 +15,15 @@ async function bootstrap() {
 
   const authUrl = process.env.AUTH_SERVICE_URL ?? 'http://localhost:3001';
   const adminUrl = process.env.ADMIN_SERVICE_URL ?? 'http://localhost:3002';
-  const salesUrl = process.env.SALES_SERVICE_URL ?? 'http://localhost:3003';
-  const logisticsUrl = process.env.LOGISTICS_SERVICE_URL ?? 'http://localhost:3004';
+  const logisticsUrl = process.env.LOGISTICS_SERVICE_URL ?? 'http://localhost:3003';
+  const salesUrl = process.env.SALES_SERVICE_URL ?? 'http://localhost:3004';
   
   app.use(
     '/auth',
     createProxyMiddleware({
       target: `${authUrl}`, 
       changeOrigin: true,
-      // pathRewrite: { '^/auth': '' },
+      pathRewrite: { '^/auth': '' },
     }),
   );
   

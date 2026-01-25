@@ -1,1 +1,8 @@
-/* logistics/src/core/purchase order/domain/ports/in/purchase_order-ports-in.ts */
+export interface StockPortsIn {
+  updateStock(
+    productId: number,
+    warehouseId: number,
+    headquartersId: string,
+    quantityDelta: number,
+  ): Promise<void>;
+}

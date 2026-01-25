@@ -10,13 +10,14 @@ export interface AccountUserPortsOut {
     password: string;
   }): Promise<AccountUser>;
 
-  updateLastAccess(accountId: string): Promise<void>;
+  updateLastAccess(accountId: number): Promise<void>;
 
-  updatePassword(id: string, newPassword: string): Promise<void>;
+  updatePassword(id: number, newPassword: string): Promise<void>;
 
-  getProfileData(id: string): Promise<any>;
+  getProfileData(id: number): Promise<any>;
+  getPasswordById(id: number): Promise<string | null>;
 
-  getPasswordById(id: string): Promise<string | null>;
-
-  findById(id: string): Promise<AccountUser | null>;
+  findById(id: number): Promise<AccountUser | null>;
+  findByEmail(email: string): Promise<AccountUser | null>;
+  assignRole(accountId: number, roleId: number): Promise<void>;
 }

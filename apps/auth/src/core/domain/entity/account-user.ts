@@ -4,7 +4,7 @@ import { Role } from 'apps/administration/src/core/role/domain/entity/role-domai
 import { Headquarters } from 'apps/administration/src/core/headquarters/domain/entity/headquarters-domain-entity';
 
 export interface AccountUserProps {
-  id?: string;
+  id?: number;
   nombreUsuario: string;
   contrasenia: string;
   email: string;
