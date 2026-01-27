@@ -1,6 +1,5 @@
-
 /* ============================================
-   FIXED: CustomerMapper with defensive null checks
+   UPDATED: CustomerMapper - Accediendo a props de la entidad de dominio
    sales/src/core/customer/application/mapper/customer.mapper.ts
    ============================================ */
 
@@ -16,16 +15,19 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class CustomerMapper {
   static toResponseDto(customer: Customer): CustomerResponseDto {
+    // Acceder a props si la entidad de dominio las encapsula
+    const props = (customer as any).props || customer;
+    
     return {
-      id_cliente: customer.id_cliente!,
-      tipo_doc: customer.tipo_doc!,
-      num_doc: customer.num_doc!,
-      razon_social: customer.razon_social || null,
-      nombres: customer.nombres || null,
-      direccion: customer.direccion || null,
-      email: customer.email || null,
-      telefono: customer.telefono || null,
-      estado: customer.estado!,
+      id_cliente: props.id_cliente || customer.id_cliente,
+      tipo_doc: props.tipo_doc || customer.tipo_doc,
+      num_doc: props.num_doc || customer.num_doc,
+      razon_social: props.razon_social || customer.razon_social || null,
+      nombres: props.nombres || customer.nombres || null,
+      direccion: props.direccion || customer.direccion || null,
+      email: props.email || customer.email || null,
+      telefono: props.telefono || customer.telefono || null,
+      estado: props.estado !== undefined ? props.estado : customer.estado,
       displayName: customer.getDisplayName(),
       invoiceType: customer.getInvoiceType(),
     };
@@ -53,29 +55,33 @@ export class CustomerMapper {
   }
 
   static fromUpdateDto(customer: Customer, dto: UpdateCustomerDto): Customer {
+    const props = (customer as any).props || customer;
+    
     return Customer.create({
-      id_cliente: customer.id_cliente,
-      tipo_doc: customer.tipo_doc,
-      num_doc: customer.num_doc,
-      razon_social: dto.razon_social ?? customer.razon_social,
-      nombres: dto.nombres ?? customer.nombres,
-      direccion: dto.direccion ?? customer.direccion,
-      email: dto.email ?? customer.email,
-      telefono: dto.telefono ?? customer.telefono,
-      estado: customer.estado,
+      id_cliente: props.id_cliente || customer.id_cliente,
+      tipo_doc: props.tipo_doc || customer.tipo_doc,
+      num_doc: props.num_doc || customer.num_doc,
+      razon_social: dto.razon_social ?? (props.razon_social || customer.razon_social),
+      nombres: dto.nombres ?? (props.nombres || customer.nombres),
+      direccion: dto.direccion ?? (props.direccion || customer.direccion),
+      email: dto.email ?? (props.email || customer.email),
+      telefono: dto.telefono ?? (props.telefono || customer.telefono),
+      estado: props.estado !== undefined ? props.estado : customer.estado,
     });
   }
 
   static withStatus(customer: Customer, estado: boolean): Customer {
+    const props = (customer as any).props || customer;
+    
     return Customer.create({
-      id_cliente: customer.id_cliente,
-      tipo_doc: customer.tipo_doc,
-      num_doc: customer.num_doc,
-      razon_social: customer.razon_social,
-      nombres: customer.nombres,
-      direccion: customer.direccion,
-      email: customer.email,
-      telefono: customer.telefono,
+      id_cliente: props.id_cliente || customer.id_cliente,
+      tipo_doc: props.tipo_doc || customer.tipo_doc,
+      num_doc: props.num_doc || customer.num_doc,
+      razon_social: props.razon_social || customer.razon_social,
+      nombres: props.nombres || customer.nombres,
+      direccion: props.direccion || customer.direccion,
+      email: props.email || customer.email,
+      telefono: props.telefono || customer.telefono,
       estado: estado,
     });
   }
@@ -113,16 +119,18 @@ export class CustomerMapper {
   }
 
   static toOrmEntity(customer: Customer): CustomerOrmEntity {
+    const props = (customer as any).props || customer;
+    
     const customerOrm = new CustomerOrmEntity();
-    customerOrm.id_cliente = customer.id_cliente!;
-    customerOrm.tipo_doc = customer.tipo_doc!;
-    customerOrm.num_doc = customer.num_doc!;
-    customerOrm.razon_social = customer.razon_social || null;
-    customerOrm.nombres = customer.nombres || null;
-    customerOrm.direccion = customer.direccion || null;
-    customerOrm.email = customer.email || null;
-    customerOrm.telefono = customer.telefono || null;
-    customerOrm.estado = customer.estado ?? true;
+    customerOrm.id_cliente = props.id_cliente || customer.id_cliente;
+    customerOrm.tipo_doc = props.tipo_doc || customer.tipo_doc;
+    customerOrm.num_doc = props.num_doc || customer.num_doc;
+    customerOrm.razon_social = props.razon_social || customer.razon_social || null;
+    customerOrm.nombres = props.nombres || customer.nombres || null;
+    customerOrm.direccion = props.direccion || customer.direccion || null;
+    customerOrm.email = props.email || customer.email || null;
+    customerOrm.telefono = props.telefono || customer.telefono || null;
+    customerOrm.estado = props.estado !== undefined ? props.estado : (customer.estado ?? true);
     return customerOrm;
   }
 }
