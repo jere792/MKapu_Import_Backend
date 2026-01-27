@@ -11,6 +11,7 @@ import {
   ProductDeletedResponseDto,
 } from '../dto/out';
 import { ProductOrmEntity } from '../../infrastructure/entity/product-orm.entity';
+import { CategoryOrmEntity } from '../../../category/infrastructure/entity/category-orm.entity';
 
 export class ProductMapper {
   static toResponseDto(product: Product): ProductResponseDto {
@@ -118,7 +119,7 @@ export class ProductMapper {
   static toDomainEntity(productOrm: ProductOrmEntity): Product {
     return Product.create({
       id_producto: productOrm.id_producto,
-      id_categoria: productOrm.id_categoria,
+      id_categoria: productOrm.categoria?.id_categoria,
       codigo: productOrm.codigo,
       anexo: productOrm.anexo,
       descripcion: productOrm.descripcion,
@@ -140,7 +141,7 @@ export class ProductMapper {
     if (product.id_producto) {
       productOrm.id_producto = product.id_producto;
     }
-    productOrm.id_categoria = product.id_categoria;
+    productOrm.categoria = { id_categoria: product.id_categoria } as CategoryOrmEntity;
     productOrm.codigo = product.codigo;
     productOrm.anexo = product.anexo;
     productOrm.descripcion = product.descripcion;

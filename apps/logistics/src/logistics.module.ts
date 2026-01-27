@@ -6,6 +6,7 @@ import { LogisticsController } from './logistics.controller';
 import { LogisticsService } from './logistics.service';
 
 //módulos
+import { ProductModule } from './core/catalog/product/product.module';
 import { CategoryModule } from './core/catalog/category/category.module';
 import { StoreModule } from './core/warehouse/store/store.module';
 
@@ -52,6 +53,7 @@ import { TransferOrmEntity } from './core/warehouse/transfer/infrastructure/enti
     InventoryMovementModule,
     UnitModule,
     StockModule,
+    ProductModule,
     TransferModule,
   ],
   controllers: [LogisticsController],

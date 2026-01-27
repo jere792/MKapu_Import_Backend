@@ -82,7 +82,7 @@ export class ProductTypeOrmRepository implements IProductRepositoryPort {
 
   async findByCategory(id_categoria: number): Promise<Product[]> {
     const results = await this.repository.find({
-      where: { id_categoria },
+      where: { categoria: { id_categoria } },
       relations: ['categoria'],
     });
     return results.map(ProductMapper.toDomainEntity);
