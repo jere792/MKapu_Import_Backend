@@ -15,6 +15,7 @@ import {
   UserListResponse,
   UserDeletedResponseDto,
 } from '../../../application/dto/out';
+import { UserWithAccountResponseDto } from '../../../application/dto/out/user-with-account-response.dto';
 
 /**
  * Puerto de entrada para COMANDOS (Escritura)
@@ -38,4 +39,5 @@ export interface IUserQueryPort {
   getUserByDni(dni: string): Promise<UserResponseDto | null>;
 
   getUserByEmail(email: string): Promise<UserResponseDto | null>;
+  getUserWithAccount(id: number): Promise<UserWithAccountResponseDto>;
 }

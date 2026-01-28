@@ -17,4 +17,5 @@ export interface UserResponseDto {
   activo: boolean;
   id_sede?: number;
   sedeNombre?: string;
+  rolNombre?: string;
 }

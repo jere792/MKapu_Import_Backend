@@ -9,7 +9,6 @@ import { LogisticsService } from './logistics.service';
 import { ProductModule } from './core/catalog/product/product.module';
 import { CategoryModule } from './core/catalog/category/category.module';
 import { StoreModule } from './core/warehouse/store/store.module';
-
 import { StoreOrmEntity } from './core/warehouse/store/infrastructure/entity/store-orm.entity';
 import { CategoryOrmEntity } from './core/catalog/category/infrastructure/entity/category-orm.entity';
 import { InventoryMovementOrmEntity } from './core/warehouse/inventory-movement/infrastructure/entity/inventory-movement-orm.entity';

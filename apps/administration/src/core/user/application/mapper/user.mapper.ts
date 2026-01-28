@@ -29,6 +29,7 @@ export class UserMapper {
       activo: usuario.activo,
       id_sede: usuario.id_sede,
       sedeNombre: usuario.sedeNombre,
+      rolNombre: usuario.rolNombre,
     };
   }
 

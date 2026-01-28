@@ -3,6 +3,8 @@
    administration/src/core/user/domain/ports/out/user-port-out.ts
    ============================================ */
 
+import { HeadquartersOrmEntity } from 'apps/administration/src/core/headquarters/infrastructure/entity/headquarters-orm.entity';
+import { UserWithAccountResponseDto } from '../../../application/dto/out/user-with-account-response.dto';
 import { Usuario } from '../../entity/user-domain-entity';
 
 export interface IUserRepositoryPort {
@@ -23,4 +25,8 @@ export interface IUserRepositoryPort {
   existsByDni(dni: string): Promise<boolean>;
 
   existsByEmail(email: string): Promise<boolean>;
+  findUserWithAccountById(
+    id: number,
+  ): Promise<UserWithAccountResponseDto | null>;
+  findSedeById(idSede: number): Promise<HeadquartersOrmEntity | null>;
 }

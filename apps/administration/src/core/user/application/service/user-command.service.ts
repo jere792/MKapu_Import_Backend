@@ -21,22 +21,17 @@ export class UserCommandService implements IUserCommandPort {
     private readonly repository: IUserRepositoryPort,
   ) {}
 
-  /**
-   * POST - Registrar nuevo usuario
-   */
   async registerUser(dto: RegisterUserDto): Promise<UserResponseDto> {
     // Validar que no exista el DNI
     const existsByDni = await this.repository.existsByDni(dto.dni);
     if (existsByDni) {
       throw new ConflictException('Ya existe un usuario con ese DNI');
     }
-
     // Validar que no exista el email
     const existsByEmail = await this.repository.existsByEmail(dto.email);
     if (existsByEmail) {
       throw new ConflictException('Ya existe un usuario con ese email');
     }
-
     // Convertir DTO a Entidad de Dominio
     const usuario = UserMapper.fromRegisterDto(dto);
 

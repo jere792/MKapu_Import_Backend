@@ -94,4 +94,8 @@ export class UserRestController {
   ): Promise<UserListResponse> {
     return this.userQueryService.listUsers(filters);
   }
+  @Get(':id/full')
+  async getUserWithAccount(@Param('id') id: number) {
+    return await this.userQueryService.getUserWithAccount(id);
+  }
 }

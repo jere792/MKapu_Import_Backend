@@ -1,10 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* ============================================
    APPLICATION LAYER - MAPPER
    logistics/src/core/catalog/product/application/mapper/product.mapper.ts
    ============================================ */
 
 import { Product } from '../../domain/entity/product-domain-entity';
-import { RegisterProductDto, UpdateProductDto, UpdateProductPricesDto } from '../dto/in';
+import {
+  RegisterProductDto,
+  UpdateProductDto,
+  UpdateProductPricesDto,
+} from '../dto/in';
 import {
   ProductResponseDto,
   ProductListResponse,

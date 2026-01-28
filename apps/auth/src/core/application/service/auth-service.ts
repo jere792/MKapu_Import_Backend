@@ -7,6 +7,7 @@ import { PasswordHasherPort } from '../../domain/ports/out/password-hash-port-ou
 import { AccountUserResponseDto } from '../dto/out/AccountUserResponseDto';
 import { AccountUserMapper } from '../mapper/AccountUserMapper';
 import { AuthRepository } from '../../infrastructure/adapters/out/repository/auth-repository';
+import { ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -73,7 +74,10 @@ export class AuthService implements AccountUserPortsIn {
     roleId: number = 2,
   ): Promise<AccountUserResponseDto> {
     const hashedPassword = await this.passwordHasher.hashPassword(passwordRaw);
-
+    const existingAccount = await this.repository.findByUsername(username);
+    if (existingAccount) {
+      throw new ConflictException('El nombre de usuario ya existe');
+    }
     const account = await this.repository.createAccount({
       userId,
       username,

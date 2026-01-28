@@ -1,8 +1,3 @@
-/* eslint-disable prettier/prettier */
-/* ============================================
-   administration/src/core/user/infrastructure/entity/user-orm.entity.ts
-   ============================================ */
-
 import {
   Entity,
   Column,
@@ -59,7 +54,11 @@ export class UserOrmEntity {
   id_sede: number;
 
   // Relación con Sede
-  @ManyToOne(() => HeadquartersOrmEntity, (headquarters) => headquarters.usuarios, { nullable: true })
+  @ManyToOne(
+    () => HeadquartersOrmEntity,
+    (headquarters) => headquarters.usuarios,
+    { nullable: true },
+  )
   @JoinColumn({ name: 'id_sede' })
   sede?: HeadquartersOrmEntity;
 }

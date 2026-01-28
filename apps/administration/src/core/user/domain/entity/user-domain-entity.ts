@@ -18,6 +18,7 @@ export interface UserProps {
 
   id_sede?: number;
   sedeNombre?: string;
+  rolNombre?: string;
 }
 
 export class Usuario {
@@ -85,7 +86,15 @@ export class Usuario {
   get sedeNombre() {
     return this.props.sedeNombre;
   }
-
+  set sedeNombre(value: string | undefined) {
+    this.props.sedeNombre = value;
+  }
+  get rolNombre() {
+    return this.props.rolNombre;
+  }
+  set rolNombre(value: string | undefined) {
+    this.props.rolNombre = value;
+  }
   // Métodos de negocio
   isActive(): boolean {
     return this.props.activo === true;
