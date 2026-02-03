@@ -40,10 +40,25 @@ export class ProductMapper {
     };
   }
 
-  static toListResponse(products: Product[]): ProductListResponse {
+  /**
+   * CORRECCIÓN: Ahora recibe total, page y limit para la UI 5x5
+   * Resuelve el error subrayado en el QueryService
+   */
+  static toListResponse(
+    products: Product[],
+    total: number,
+    page: number,
+    limit: number,
+  ): ProductListResponse {
     return {
       products: products.map((p) => this.toResponseDto(p)),
-      total: products.length,
+      total, // Este es el total real (ej. 24) para mostrar en el footer de la tabla
+      meta: {
+        totalItems: total,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+      },
     };
   }
 
@@ -113,11 +128,15 @@ export class ProductMapper {
     });
   }
 
+  /**
+   * CORRECCIÓN: Cambiado a nombres de propiedades semánticos para borrado lógico
+   */
   static toDeletedResponse(id_producto: number): ProductDeletedResponseDto {
     return {
       id_producto,
-      message: 'Producto eliminado exitosamente',
-      deletedAt: new Date(),
+      message: 'Producto desactivado exitosamente',
+      inactiveAt: new Date(),
+      estado: false
     };
   }
 

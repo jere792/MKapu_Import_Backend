@@ -1,1 +1,0 @@
-/* sales/src/core/checkout/domain/entity/checkout-domain-entity.ts */

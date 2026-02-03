@@ -1,3 +1,8 @@
+/* ============================================
+   INFRASTRUCTURE LAYER - REPOSITORY
+   logistics/src/core/catalog/product/infrastructure/adapters/product-typeorm.repository.ts
+   ============================================ */
+
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -31,8 +36,11 @@ export class ProductTypeOrmRepository implements IProductRepositoryPort {
     return ProductMapper.toDomainEntity(saved);
   }
 
+  /**
+   * Borrado Lógico: Solo cambia el estado a inactivo
+   */
   async delete(id: number): Promise<void> {
-    await this.repository.delete(id);
+    await this.repository.update(id, { estado: false });
   }
 
   // ===============================
@@ -48,10 +56,14 @@ export class ProductTypeOrmRepository implements IProductRepositoryPort {
     return ProductMapper.toDomainEntity(found);
   }
 
-  async findAll(filters?: ListProductFilterDto): Promise<Product[]> {
+  /**
+   * Implementación de paginación 5x5 y búsqueda por coincidencia
+   */
+  async findAll(filters?: ListProductFilterDto): Promise<[Product[], number]> {
     const qb = this.repository.createQueryBuilder('p')
       .leftJoinAndSelect('p.categoria', 'c');
 
+    // Filtros de búsqueda
     if (filters?.estado !== undefined) {
       qb.andWhere('p.estado = :estado', { estado: filters.estado });
     }
@@ -62,13 +74,26 @@ export class ProductTypeOrmRepository implements IProductRepositoryPort {
 
     if (filters?.search) {
       qb.andWhere(
-        '(p.codigo LIKE :search OR p.descripcion LIKE :search)',
+        '(p.codigo LIKE :search OR p.descripcion LIKE :search OR p.anexo LIKE :search)',
         { search: `%${filters.search}%` },
       );
     }
 
-    const results = await qb.getMany();
-    return results.map(ProductMapper.toDomainEntity);
+    // Lógica de Paginación (5 registros por página)
+    const limit = filters?.limit || 5;
+    const page = filters?.page || 1;
+    const skip = (page - 1) * limit;
+
+    qb.skip(skip).take(limit);
+    qb.orderBy('p.fec_creacion', 'DESC');
+
+    // getManyAndCount devuelve [entidades, total_registros]
+    const [results, total] = await qb.getManyAndCount();
+    
+    return [
+      results.map(ProductMapper.toDomainEntity),
+      total
+    ];
   }
 
   async findByCode(codigo: string): Promise<Product | null> {

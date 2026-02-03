@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* ============================================
    administration/src/core/user/infrastructure/adapters/user-websocket.gateway.ts
    ============================================ */
@@ -35,93 +32,25 @@ export class UserWebSocketGateway implements OnGatewayConnection, OnGatewayDisco
     @Inject('IUserQueryPort')
     private readonly userQueryService: IUserQueryPort,
   ) {}
+
   handleConnection(client: Socket) {
-    console.log(`Cliente conectado al canal Users: ${client.id}`);
+    console.log(`✅ Cliente conectado al canal Users: ${client.id}`);
+    
+    // PRUEBA DE EMISIÓN INICIAL
+    this.server.emit('userCreated', {
+      id_usuario: 0,
+      nombre: 'Sistema MKapu',
+      email: 'admin@mkapu.com',
+      estado: true,
+      mensaje: 'Conexión exitosa a través del Gateway'
+    });
   }
+
   handleDisconnect(client: any) {
-    console.log(`Cliente desconectado: ${client.id}`);
-  }
-  notifyUserCreated(user: UserResponseDto): void {
-    this.server.emit('userCreated', user);
-  }
-  notifyUserUpdated(user: UserResponseDto): void {
-    this.server.emit('userUpdated', user);
-  }
-  notifyUserDeleted(userId: number): void {
-    this.server.emit('userDeleted', { id_usuario: userId });
-  }
-  notifyUserStatusChanged(user: UserResponseDto) {
-    this.server.emit('userStatusChanged', user);
+    console.log(`❌ Cliente desconectado: ${client.id}`);
   }
 
-/** 
-  @SubscribeMessage('listUsers')
-  async handleListUsers(
-    @MessageBody() filters: ListUserFilterDto,
-    @ConnectedSocket() client: Socket,
-  ): Promise<UserListResponse> {
-    try {
-      const result = await this.userQueryService.listUsers(filters);
-      return result;
-    } catch (error) {
-      client.emit('error', {
-        event: 'listUsers',
-        message: error.message,
-      });
-      throw error;
-    }
-  }
-
-  @SubscribeMessage('getUserById')
-  async handleGetUserById(
-    @MessageBody() data: { id: number },
-    @ConnectedSocket() client: Socket,
-  ): Promise<UserResponseDto | null> {
-    try {
-      const result = await this.userQueryService.getUserById(data.id);
-      return result;
-    } catch (error) {
-      client.emit('error', {
-        event: 'getUserById',
-        message: error.message,
-      });
-      return { error: error.message } as any;
-    }
-  }
-
-  @SubscribeMessage('getUserByDni')
-  async handleGetUserByDni(
-    @MessageBody() data: { dni: string },
-    @ConnectedSocket() client: Socket,
-  ): Promise<UserResponseDto | null> {
-    try {
-      const result = await this.userQueryService.getUserByDni(data.dni);
-      return result;
-    } catch (error) {
-      client.emit('error', {
-        event: 'getUserByDni',
-        message: error.message,
-      });
-      return { error: error.message } as any;
-    }
-  }
-
-  @SubscribeMessage('getUserByEmail')
-  async handleGetUserByEmail(
-    @MessageBody() data: { email: string },
-    @ConnectedSocket() client: Socket,
-  ): Promise<UserResponseDto | null> {
-    try {
-      const result = await this.userQueryService.getUserByEmail(data.email);
-      return result;
-    } catch (error) {
-      client.emit('error', {
-        event: 'getUserByEmail',
-        message: error.message,
-      });
-      throw error;
-    }
-  }
+  // --- MÉTODOS DE NOTIFICACIÓN (Llamados desde Use Cases) ---
 
   notifyUserCreated(user: UserResponseDto): void {
     this.server.emit('userCreated', user);
@@ -138,6 +67,34 @@ export class UserWebSocketGateway implements OnGatewayConnection, OnGatewayDisco
   notifyUserStatusChanged(user: UserResponseDto): void {
     this.server.emit('userStatusChanged', user);
   }
-}
-*/ 
+
+  // --- SUSCRIPCIONES (Lógica de entrada) ---
+  // Descomentar cuando necesites que el cliente solicite datos por Socket
+
+  /*
+  @SubscribeMessage('listUsers')
+  async handleListUsers(
+    @MessageBody() filters: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const result = await this.userQueryService.listUsers(filters);
+      return result;
+    } catch (error) {
+      client.emit('error', { event: 'listUsers', message: error.message });
+    }
+  }
+
+  @SubscribeMessage('getUserById')
+  async handleGetUserById(
+    @MessageBody() data: { id: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      return await this.userQueryService.getUserById(data.id);
+    } catch (error) {
+      client.emit('error', { event: 'getUserById', message: error.message });
+    }
+  }
+  */
 }

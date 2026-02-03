@@ -14,10 +14,12 @@ import { CustomerOrmEntity } from './core/customer/infrastructure/entity/custome
 import { DocumentTypeOrmEntity } from './core/customer/infrastructure/entity/document-type-orm.entity';
 import { PromotionOrmEntity } from './core/promotion/infrastructure/entity/promotion-orm.entity';
 import { SalesReceiptOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-receipt-orm.entity';
-import { SalesReceiptDetailOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-receipt-detail-orm.entity';
-import { SalesTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-type-orm.entity';
-import { ReceiptTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/receipt-type-orm.entity';
-import { SunatCurrencyOrmEntity } from './core/sales-receipt/infrastructure/entity/sunat-currency-orm.entity';
+import { SalesReceiptDetailOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-receipt-detail-orm.entity'; // ✅ Faltaba
+import { SalesTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-type-orm.entity'; // ✅ Para FK de tipo_venta
+import { ReceiptTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/receipt-type-orm.entity'; // ✅ Para FK de tipo_comprobante
+import { SunatCurrencyOrmEntity } from './core/sales-receipt/infrastructure/entity/sunat-currency-orm.entity'; // ✅ Para 'PEN'
+import { CashboxOrmEntity } from './core/cashbox/infrastructure/entity/cashbox-orm.entity';
+import { CashboxModule } from './core/cashbox/cashbox.module';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
@@ -54,6 +56,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
           SalesTypeOrmEntity,
           ReceiptTypeOrmEntity,
           SunatCurrencyOrmEntity,
+          CashboxOrmEntity,
         ],
         synchronize: false,
         autoLoadEntities: true,
@@ -69,6 +72,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     CustomerModule,
     PromotionModule,
     SalesReceiptModule,
+    CashboxModule,
   ],
   controllers: [SalesController],
   providers: [SalesService],
