@@ -1,4 +1,3 @@
-
 /* ============================================
    sales/src/core/customer/customer.module.ts
    ============================================ */
@@ -45,7 +44,7 @@ import { DocumentTypeRepository } from './infrastructure/adapters/out/repository
       useClass: CustomerRepository,
     },
 
-    // Tipo Documento Repository (NUEVO)
+    // Tipo Documento Repository
     {
       provide: 'IDocumentTypeRepositoryPort',
       useClass: DocumentTypeRepository,
@@ -54,6 +53,8 @@ import { DocumentTypeRepository } from './infrastructure/adapters/out/repository
   exports: [
     'ICustomerCommandPort',
     'ICustomerQueryPort',
+    'ICustomerRepositoryPort',     
+    'IDocumentTypeRepositoryPort',  
     CustomerCommandService,
     CustomerQueryService,
   ],
