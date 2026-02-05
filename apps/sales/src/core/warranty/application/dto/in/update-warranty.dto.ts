@@ -6,7 +6,7 @@ export class UpdateWarrantyDto {
   fec_recepcion?: string; // Cambiado a string para validación de entrada
 
   @IsOptional()
-  fec_recepcion?: Date;
+  observaciones?: string;
 
   @IsNumber()
   @IsOptional()

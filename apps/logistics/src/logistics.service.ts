@@ -15,21 +15,26 @@ export class LogisticsService {
     quantityDelta: number;
     reason: string;
   }): Promise<void> {
-    
-    const origin = data.reason as 'TRANSFERENCIA' | 'COMPRA' | 'VENTA' | 'AJUSTE';
+    const origin = data.reason as
+      | 'TRANSFERENCIA'
+      | 'COMPRA'
+      | 'VENTA'
+      | 'AJUSTE';
 
     // 1. Construimos el objeto CUMPLIENDO con todas las propiedades del DTO
     const movementRequest: MovementRequest = {
       originType: origin,
       // Agregamos estas propiedades que tu Omit heredó del DTO original
-      refId: 0, 
-      refTable: 'VENTA_TCP', 
+      refId: 0,
+      refTable: 'VENTA_TCP',
       observation: `Movimiento generado por ${data.reason}`,
-      items: [{
-        productId: data.productId,
-        warehouseId: data.warehouseId,
-        quantity: Math.abs(data.quantityDelta),
-      }]
+      items: [
+        {
+          productId: data.productId,
+          warehouseId: data.warehouseId,
+          quantity: Math.abs(data.quantityDelta),
+        },
+      ],
     };
 
     if (data.quantityDelta < 0) {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* sales/src/core/warranty/application/service/warranty-command.service.ts */
 
 import {
@@ -33,18 +34,22 @@ export class WarrantyCommandService implements IWarrantyCommandPort {
     private readonly salesPort: IWarrantySalesPort,
   ) {}
 
-  async registerWarranty(dto: RegisterWarrantyDto): Promise<WarrantyResponseDto> {
+  async registerWarranty(
+    dto: RegisterWarrantyDto,
+  ): Promise<WarrantyResponseDto> {
     // 1. Validar existencia del comprobante
     const receipt = await this.receiptRepository.findById(dto.id_comprobante);
     if (!receipt) {
-      throw new NotFoundException(`Comprobante con ID ${dto.id_comprobante} no encontrado.`);
+      throw new NotFoundException(
+        `Comprobante con ID ${dto.id_comprobante} no encontrado.`,
+      );
     }
 
     // 2. Validar límite de tiempo (60 días)
     const saleDate = new Date(receipt.fec_emision);
     const limitDate = new Date(saleDate);
     limitDate.setDate(limitDate.getDate() + this.WARRANTY_DAYS_LIMIT);
-    
+
     if (new Date() > limitDate) {
       throw new BadRequestException(
         `La fecha de emisión (${saleDate.toISOString().split('T')[0]}) excede el límite de ${this.WARRANTY_DAYS_LIMIT} días.`,
@@ -53,7 +58,8 @@ export class WarrantyCommandService implements IWarrantyCommandPort {
 
     // 3. Validar que el producto pertenezca al comprobante
     const itemInReceipt = receipt.items.find(
-      (item) => item.productId === dto.cod_prod || item.productName === dto.prod_nombre,
+      (item) =>
+        item.productId === dto.cod_prod || item.productName === dto.prod_nombre,
     );
 
     if (!itemInReceipt) {
@@ -80,7 +86,10 @@ export class WarrantyCommandService implements IWarrantyCommandPort {
     return WarrantyMapper.toResponseDto(savedEntity);
   }
 
-  async updateWarranty(id: number, dto: UpdateWarrantyDto): Promise<WarrantyResponseDto> {
+  async updateWarranty(
+    id: number,
+    dto: UpdateWarrantyDto,
+  ): Promise<WarrantyResponseDto> {
     const warranty = await this.repository.findById(id);
     if (!warranty) {
       throw new NotFoundException(`Garantía con ID ${id} no encontrada.`);
@@ -127,29 +136,36 @@ export class WarrantyCommandService implements IWarrantyCommandPort {
 
     // Validación de transición de estados (Ejemplo: No pasar de Rechazado a Aprobado directamente)
     if (warranty.id_estado_garantia === 3 && idEstado === 2) {
-      throw new BadRequestException('No se puede aprobar una garantía rechazada.');
+      throw new BadRequestException(
+        'No se puede aprobar una garantía rechazada.',
+      );
     }
 
     // Actualizamos estado y generamos tracking automáticamente
     warranty.changeStatus(idEstado, idUsuario, comentario);
-    
+
     const updatedWarranty = await this.repository.update(warranty);
 
     // Lógica de resolución (Logística o Ventas)
-    if (idEstado === 2 && resolutionAction) { // Supongamos 2 = APROBADO/RESUELTO
+    if (idEstado === 2 && resolutionAction) {
+      // Supongamos 2 = APROBADO/RESUELTO
       if (resolutionAction === 'REPLACE') {
         // Salida de stock para el nuevo producto de reemplazo
         await this.logisticsPort.registerProductEntry({
           productId: warranty.cod_prod,
           productName: warranty.prod_nombre,
-          quantity: -1, 
+          quantity: -1,
           storeId: warranty.id_sede_ref,
           warrantyId: warranty.id_garantia,
         });
       } else if (resolutionAction === 'REFUND') {
         // Generar Nota de Crédito en el microservicio de Ventas
-        const originalReceipt = await this.receiptRepository.findById(warranty.id_comprobante);
-        const itemPrice = originalReceipt?.items.find((i) => i.productId === warranty.cod_prod)?.unitPrice || 0;
+        const originalReceipt = await this.receiptRepository.findById(
+          warranty.id_comprobante,
+        );
+        const itemPrice =
+          originalReceipt?.items.find((i) => i.productId === warranty.cod_prod)
+            ?.unitPrice || 0;
 
         await this.salesPort.generateCreditNote({
           originalReceiptId: warranty.id_comprobante,
@@ -157,11 +173,13 @@ export class WarrantyCommandService implements IWarrantyCommandPort {
           branchId: warranty.id_sede_ref,
           amount: itemPrice,
           reason: `Resolución de Garantía #${warranty.num_garantia}`,
-          items: [{
-            cod_prod: warranty.cod_prod,
-            cantidad: 1,
-            price: itemPrice,
-          }],
+          items: [
+            {
+              cod_prod: warranty.cod_prod,
+              cantidad: 1,
+              price: itemPrice,
+            },
+          ],
         });
       }
     }
@@ -176,7 +194,9 @@ export class WarrantyCommandService implements IWarrantyCommandPort {
     }
 
     if (warranty.id_estado_garantia !== 1) {
-      throw new BadRequestException('Solo se pueden eliminar garantías en estado pendiente.');
+      throw new BadRequestException(
+        'Solo se pueden eliminar garantías en estado pendiente.',
+      );
     }
 
     await this.repository.delete(id);

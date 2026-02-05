@@ -17,17 +17,14 @@ import { PaymentOrmEntity } from './infrastructure/entity/payment-orm.entity';
 import { VoucherOrmEntity } from './infrastructure/entity/voucher-orm.entity';
 import { CashMovementOrmEntity } from './infrastructure/entity/cash-movement-orm.entity';
 
-// Servicios y Proxies
 import { SalesReceiptCommandService } from './application/service/sales-receipt-command.service';
 import { SalesReceiptQueryService } from './application/service/sales-receipt-query.service';
 import { LogisticsStockProxy } from './infrastructure/adapters/out/TCP/logistics-stock.proxy';
 
-// Repositorios
 import { SalesReceiptRepository } from './infrastructure/adapters/out/repository/sales-receipt.respository';
-import { PaymentRepository } from './infrastructure/adapters/out/repository/payment.repository'; 
+import { PaymentRepository } from './infrastructure/adapters/out/repository/payment.repository';
 import { CustomerRepository } from '../customer/infrastructure/adapters/out/repository/customer.repository';
 
-// Otros
 import { CustomerModule } from '../customer/customer.module';
 import { SalesReceiptRestController } from './infrastructure/adapters/in/controllers/sales-receipt-rest.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
@@ -43,7 +40,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         useFactory: (config: ConfigService) => ({
           transport: Transport.TCP,
           options: {
-            host: config.get('LOGISTICS_DB_HOST', 'localhost'), // O usa tu variable de entorno correcta
+            host: config.get('LOGISTICS_DB_HOST', 'localhost'),
             port: 3004,
           },
         }),
@@ -108,6 +105,5 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     SalesReceiptQueryService,
     'ISalesReceiptRepositoryPort',
   ],
-  exports: [SalesReceiptCommandService, SalesReceiptQueryService],
 })
 export class SalesReceiptModule {}
