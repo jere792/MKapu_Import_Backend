@@ -6,14 +6,12 @@ import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
 import { HttpModule } from '@nestjs/axios';
 
-// Módulos de Core
 import { CustomerModule } from './core/customer/customer.module';
 import { PromotionModule } from './core/promotion/promotion.module';
 import { SalesReceiptModule } from './core/sales-receipt/sales-receipt.module';
 import { CashboxModule } from './core/cashbox/cashbox.module';
 import { QuoteModule } from './core/quote/quote.module';
 
-// Entidades ORM (Asegúrate de incluir las de tipos y detalles)
 import { CustomerOrmEntity } from './core/customer/infrastructure/entity/customer-orm.entity';
 import { DocumentTypeOrmEntity } from './core/customer/infrastructure/entity/document-type-orm.entity';
 import { PromotionOrmEntity } from './core/promotion/infrastructure/entity/promotion-orm.entity';
@@ -24,6 +22,7 @@ import { ReceiptTypeOrmEntity } from './core/sales-receipt/infrastructure/entity
 import { SunatCurrencyOrmEntity } from './core/sales-receipt/infrastructure/entity/sunat-currency-orm.entity'; // ✅ Para 'PEN'
 import { CashboxOrmEntity } from './core/cashbox/infrastructure/entity/cashbox-orm.entity';
 import { QuoteOrmEntity } from './core/quote/infrastructure/entity/quote-orm.entity';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Module({
   imports: [
@@ -31,7 +30,16 @@ import { QuoteOrmEntity } from './core/quote/infrastructure/entity/quote-orm.ent
       isGlobal: true,
       envFilePath: '.env',
     }),
-
+    ClientsModule.register([
+      {
+        name: 'LOGISTICS_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: 'localhost',
+          port: 3004,
+        },
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -63,8 +71,7 @@ import { QuoteOrmEntity } from './core/quote/infrastructure/entity/quote-orm.ent
       }),
       inject: [ConfigService],
     }),
-    
-    HttpModule,  
+    HttpModule,
     CustomerModule,
     PromotionModule,
     SalesReceiptModule,
@@ -73,5 +80,6 @@ import { QuoteOrmEntity } from './core/quote/infrastructure/entity/quote-orm.ent
   ],
   controllers: [SalesController],
   providers: [SalesService],
+  exports: [ClientsModule],
 })
 export class SalesModule {}

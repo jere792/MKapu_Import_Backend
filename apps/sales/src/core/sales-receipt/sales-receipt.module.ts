@@ -20,7 +20,7 @@ import { CashMovementOrmEntity } from './infrastructure/entity/cash-movement-orm
 // Servicios y Proxies
 import { SalesReceiptCommandService } from './application/service/sales-receipt-command.service';
 import { SalesReceiptQueryService } from './application/service/sales-receipt-query.service';
-import { LogisticsStockProxy } from './infrastructure/adapters/out/http/logistics-stock.proxy';
+import { LogisticsStockProxy } from './infrastructure/adapters/out/TCP/logistics-stock.proxy';
 
 // Repositorios
 import { SalesReceiptRepository } from './infrastructure/adapters/out/repository/sales-receipt.respository';

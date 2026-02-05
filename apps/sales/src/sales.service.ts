@@ -18,7 +18,6 @@ export class SalesService {
         `INSERT INTO venta(fecha, cliente_id) VALUES (NOW(), ?)`,
         [dto.customerId],
       );
-
       const saleId = saleResult.insertId;
 
       // 2️⃣ Procesar items
@@ -43,7 +42,6 @@ export class SalesService {
           },
         );
       }
-
       return { ok: true, saleId };
     });
   }

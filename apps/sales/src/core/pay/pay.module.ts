@@ -13,14 +13,12 @@ import { CulqiPaymentAdapter } from './infrastructure/adapters/out/culqui-paymen
       provide: 'CULQI_CLIENT',
       useFactory: (configService: ConfigService) => {
         const Culqi = require('culqi-node');
-
         return new Culqi({
           privateKey: configService.get<string>('CULQI_PRIVATE_KEY'),
         });
       },
       inject: [ConfigService],
     },
-
     {
       provide: 'PaymentPortsOut',
       useClass: CulqiPaymentAdapter,

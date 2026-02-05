@@ -4,7 +4,7 @@ import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { ISalesReceiptCommandPort } from '../../domain/ports/in/sales_receipt-ports-in';
 import { ISalesReceiptRepositoryPort } from '../../domain/ports/out/sales_receipt-ports-out';
 import { ICustomerRepositoryPort } from '../../../customer/domain/ports/out/customer-port-out';
-import { LogisticsStockProxy } from '../../infrastructure/adapters/out/http/logistics-stock.proxy';
+import { LogisticsStockProxy } from '../../infrastructure/adapters/out/TCP/logistics-stock.proxy';
 import { IPaymentRepositoryPort } from '../../domain/ports/out/payment-repository-ports-out';
 
 import { RegisterSalesReceiptDto, AnnulSalesReceiptDto } from '../dto/in';
