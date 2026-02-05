@@ -6,16 +6,16 @@ import { WarrantyDetailOrmEntity } from '../../infrastructure/entity/warranty-de
 import { WarrantyOrmEntity } from '../../infrastructure/entity/warranty-orm-entity';
 import { WarrantyTrackingOrmEntity } from '../../infrastructure/entity/warranty-tracking-orm.entity';
 import { RegisterWarrantyDto } from '../dto/in/register-warranty.dto';
-import { WarrantyListResponse } from '../dto/out/warranty-list-response.dto'; // Asumo que existe este archivo base
+import { WarrantyListResponse } from '../dto/out/warranty-list-response.dto';
 import { WarrantyResponseDto } from '../dto/out/warranty-response.dto';
 
 export class WarrantyMapper {
   static toDomainEntity(orm: WarrantyOrmEntity): Warranty {
     return Warranty.create({
       id_garantia: orm.id_garantia,
-      id_estado_garantia: orm.estado?.id_estado, // Asegúrate que en WarrantyStatusOrmEntity la PK sea id_estado
+      id_estado_garantia: orm.estado?.id_estado,
       id_comprobante: orm.comprobante?.id_comprobante,
-      id_usuario_recepcion: orm.cliente?.id_cliente, // OJO: Verifica si mapea a 'cliente' o a otra relación
+      id_usuario_recepcion: orm.cliente?.id_cliente,
       id_sede_ref: orm.id_sede_ref,
       num_garantia: orm.num_garantia,
       fec_solicitud: orm.fec_solicitud,
@@ -39,7 +39,7 @@ export class WarrantyMapper {
           fecha: t.fecha,
           estado_anterior: t.estado_anterior,
           estado_nuevo: t.estado_nuevo,
-          observacion: t.observacion || '', // Manejo de nulo
+          observacion: t.observacion || '',
         })) || [],
     });
   }
@@ -49,12 +49,10 @@ export class WarrantyMapper {
 
     if (domain.id_garantia) orm.id_garantia = domain.id_garantia;
 
-    // Relaciones
     orm.estado = { id_estado: domain.id_estado_garantia } as any;
     orm.comprobante = { id_comprobante: domain.id_comprobante } as any;
     orm.cliente = { id_cliente: domain.id_usuario_recepcion } as any;
 
-    // Campos directos
     orm.id_sede_ref = domain.id_sede_ref;
     orm.num_garantia = domain.num_garantia;
     orm.fec_solicitud = domain.fec_solicitud;
@@ -62,7 +60,6 @@ export class WarrantyMapper {
     orm.cod_prod = domain.cod_prod;
     orm.prod_nombre = domain.prod_nombre;
 
-    // Detalles (Cascade)
     if (domain.detalles.length > 0) {
       orm.details = domain.detalles.map((d) => {
         const detail = new WarrantyDetailOrmEntity();
@@ -73,7 +70,6 @@ export class WarrantyMapper {
       });
     }
 
-    // Tracking (Cascade)
     if (domain.seguimientos.length > 0) {
       orm.tracking = domain.seguimientos.map((t) => {
         const track = new WarrantyTrackingOrmEntity();
@@ -95,16 +91,13 @@ export class WarrantyMapper {
       id_garantia: domain.id_garantia,
       id_comprobante: domain.id_comprobante,
 
-      // CORRECCIÓN: Usamos el campo real del dominio
       id_usuario_recepcion: domain.id_usuario_recepcion,
 
       estado: domain.estadoNombre || 'Desconocido',
 
-      // CORRECCIÓN: Usamos los campos de fecha reales
       fec_solicitud: domain.fec_solicitud,
       fec_recepcion: domain.fec_recepcion,
 
-      // CORRECCIÓN: Nuevos campos de producto
       cod_prod: domain.cod_prod,
       prod_nombre: domain.prod_nombre,
       num_garantia: domain.num_garantia,
@@ -132,24 +125,22 @@ export class WarrantyMapper {
   }
 
   static fromRegisterDto(dto: RegisterWarrantyDto): Warranty {
-    // Aquí definimos la lógica inicial de creación
     return Warranty.create({
       id_comprobante: dto.id_comprobante,
       id_usuario_recepcion: dto.id_usuario_recepcion,
       id_sede_ref: dto.id_sede_ref,
 
-      // Estado Inicial por defecto (ej. 1 = Pendiente)
       id_estado_garantia: 1,
 
-      fec_solicitud: new Date(), // Fecha actual
+      fec_solicitud: new Date(),
 
       // Datos del producto
       cod_prod: dto.cod_prod,
       prod_nombre: dto.prod_nombre,
-      num_garantia: dto.num_garantia || 'GENERAR-AUTO', // Lógica de generación de número
+      num_garantia: dto.num_garantia || 'GENERAR-AUTO',
 
       detalles: dto.detalles,
-      seguimientos: [], // Se inicia vacío, el servicio agregará el log inicial
+      seguimientos: [],
     });
   }
 }

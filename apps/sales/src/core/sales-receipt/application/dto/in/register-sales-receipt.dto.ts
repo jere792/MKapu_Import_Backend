@@ -1,8 +1,6 @@
-/* sales/src/core/sales-receipt/application/dto/in/register-sales-receipt.dto.ts */
-
 export interface SalesReceiptItemDto {
   productId: string;
-  quantity: number; 
+  quantity: number;
   unitPrice: number;
   description: string;
   total: number;
@@ -24,7 +22,5 @@ export interface RegisterSalesReceiptDto {
   responsibleId: string;
   branchId: number;
   items: SalesReceiptItemDto[];
-  
-  // ✅ Nuevo campo para el flujo de pago
-  paymentMethodId: number; 
+  paymentMethodId: number;
 }

@@ -20,68 +20,82 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     @Inject('ICustomerRepositoryPort')
     private readonly customerRepository: ICustomerRepositoryPort,
 
-    @Inject('IPaymentRepositoryPort') 
+    @Inject('IPaymentRepositoryPort')
     private readonly paymentRepository: IPaymentRepositoryPort,
 
     // Usamos el Proxy en lugar del repositorio de otro microservicio
-    private readonly stockProxy: LogisticsStockProxy, 
+    private readonly stockProxy: LogisticsStockProxy,
   ) {}
 
-async registerReceipt(dto: RegisterSalesReceiptDto): Promise<any> {
-    // 1. Validaciones base
+  async registerReceipt(dto: RegisterSalesReceiptDto): Promise<any> {
     const customer = await this.customerRepository.findById(dto.customerId);
-    if (!customer) throw new NotFoundException(`El cliente con ID ${dto.customerId} no existe.`);
+    if (!customer)
+      throw new NotFoundException(
+        `El cliente con ID ${dto.customerId} no existe.`,
+      );
 
-    // --- MEJORA: Lógica de Serie Automática ---
-    // Determinamos la serie según el tipo de comprobante enviado por el Frontend
-    // 1 = Factura (F001), 2 = Boleta (B001)
-    const assignedSerie = dto.receiptTypeId === 1 ? 'F001' : 'B001';
+    let assignedSerie = '';
+    switch (dto.receiptTypeId) {
+      case 1:
+        assignedSerie = 'F001';
+        break;
+      case 2:
+        assignedSerie = 'B001';
+        break;
+      case 3:
+        assignedSerie = 'NC01';
+        break;
+      default:
+        assignedSerie = 'T001';
+        break;
+    }
 
-    // Obtenemos el correlativo usando la serie calculada, ignorando lo que venga en el DTO
-    const nextNumber = await this.receiptRepository.getNextNumber(assignedSerie);
-    
-    // Sobrescribimos la serie en el mapeo para asegurar integridad
-    const receipt = SalesReceiptMapper.fromRegisterDto({ ...dto, serie: assignedSerie }, nextNumber);
+    const nextNumber =
+      await this.receiptRepository.getNextNumber(assignedSerie);
+
+    const receipt = SalesReceiptMapper.fromRegisterDto(
+      { ...dto, serie: assignedSerie },
+      nextNumber,
+    );
     receipt.validate();
 
-    // 2. Guardar Venta (Persistencia en base de datos)
     const savedReceipt = await this.receiptRepository.save(receipt);
 
-    // 3. 💵 Registro de Pago
-    // Se vincula al ID de comprobante generado (Ej: 12)
+    const tipoMovimiento = dto.receiptTypeId === 3 ? 'EGRESO' : 'INGRESO';
+
     await this.paymentRepository.savePayment({
       idComprobante: savedReceipt.id_comprobante,
-      idTipoPago: dto.paymentMethodId, 
-      monto: savedReceipt.total,
-    });
-
-    // 4. 📦 Movimiento de Caja
-    // Usamos el branchId como idCaja (Asegúrate de que la caja esté ABIERTA)
-    await this.paymentRepository.registerCashMovement({
-      idCaja: String(dto.branchId), 
       idTipoPago: dto.paymentMethodId,
-      tipoMov: 'INGRESO',
-      concepto: `VENTA: ${savedReceipt.getFullNumber()}`,
       monto: savedReceipt.total,
     });
 
-    // 5. 🚀 Actualizar Stock mediante Proxy (Microservicio Logística)
-    // Se procesan todos los productos de las categorías 1 a 9
-    for (const item of savedReceipt.items) {
-      await this.stockProxy.registerMovement({
-        productId: Number(item.productId),
-        warehouseId: dto.branchId,
-        headquartersId: dto.branchId,
-        quantityDelta: -item.quantity, // Descuento de inventario
-        reason: `VENTA: ${savedReceipt.getFullNumber()}`,
-      });
+    await this.paymentRepository.registerCashMovement({
+      idCaja: String(dto.branchId),
+      idTipoPago: dto.paymentMethodId,
+      tipoMov: tipoMovimiento,
+      concepto: `${tipoMovimiento === 'INGRESO' ? 'VENTA' : 'DEVOLUCION'}: ${savedReceipt.getFullNumber()}`,
+      monto: savedReceipt.total,
+    });
+
+    if (dto.receiptTypeId !== 3) {
+      for (const item of savedReceipt.items) {
+        await this.stockProxy.registerMovement({
+          productId: Number(item.productId),
+          warehouseId: dto.branchId,
+          headquartersId: dto.branchId,
+          quantityDelta: -item.quantity,
+          reason: `VENTA: ${savedReceipt.getFullNumber()}`,
+        });
+      }
     }
 
     return SalesReceiptMapper.toResponseDto(savedReceipt);
   }
 
   async annulReceipt(dto: AnnulSalesReceiptDto): Promise<any> {
-    const existingReceipt = await this.receiptRepository.findById(dto.receiptId);
+    const existingReceipt = await this.receiptRepository.findById(
+      dto.receiptId,
+    );
     if (!existingReceipt) {
       throw new NotFoundException(`Comprobante ${dto.receiptId} no encontrado`);
     }
@@ -89,7 +103,6 @@ async registerReceipt(dto: RegisterSalesReceiptDto): Promise<any> {
     const annulledReceipt = existingReceipt.anular();
     const savedReceipt = await this.receiptRepository.update(annulledReceipt);
 
-    // 🚀 Devolver stock al anular
     for (const item of savedReceipt.items) {
       await this.stockProxy.registerMovement({
         productId: Number(item.productId),

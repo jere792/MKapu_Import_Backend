@@ -2,7 +2,7 @@ export interface WarrantyProps {
   id_garantia?: number;
   id_estado_garantia: number;
   id_comprobante: number;
-  id_usuario_recepcion: string; // Asumiendo que es UUID o varchar del cliente/empleado
+  id_usuario_recepcion?: string; // Asumiendo que es UUID o varchar del cliente/empleado
   id_sede_ref: number;
   num_garantia: string;
   fec_solicitud: Date;
@@ -96,5 +96,20 @@ export class Warranty {
       estado_nuevo: newStatusId,
       observacion: observation,
     });
+  }
+  addTracking(tracking: {
+    id_usuario_ref: string;
+    fecha: Date;
+    estado_anterior: number | null;
+    estado_nuevo: number;
+    observacion: string;
+  }) {
+    if (!this.props.seguimientos) {
+      this.props.seguimientos = [];
+    }
+    this.props.seguimientos.push(tracking);
+  }
+  registerReception(date: Date) {
+    this.props.fec_recepcion = date;
   }
 }

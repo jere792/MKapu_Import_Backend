@@ -16,3 +16,22 @@ export interface IWarrantyRepositoryPort {
   addTracking(tracking: any): Promise<void>;
   delete(id: number): Promise<void>;
 }
+export interface IWarrantyLogisticsPort {
+  registerProductEntry(data: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    storeId: number;
+    warrantyId: number;
+  }): Promise<void>;
+}
+export interface IWarrantySalesPort {
+  generateCreditNote(data: {
+    originalReceiptId: number;
+    customerId: number;
+    amount: number;
+    reason: string;
+    items: any[];
+    branchId: number;
+  }): Promise<void>;
+}

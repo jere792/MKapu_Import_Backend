@@ -7,6 +7,7 @@ import {
   IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { Optional } from '@nestjs/common';
 
 export class RegisterWarrantyDetailDto {
   @IsString()
@@ -21,20 +22,25 @@ export class RegisterWarrantyDto {
   id_comprobante: number;
 
   @IsString()
-  id_usuario_recepcion: string; // ID del cliente o empleado que recepciona
+  @Optional()
+  id_usuario_recepcion: string;
+
+  @IsOptional()
+  @IsString()
+  id_usuario_ref?: string;
 
   @IsInt()
   id_sede_ref: number;
 
   @IsString()
-  cod_prod: string; // Código del producto reclamado
+  cod_prod: string;
 
   @IsString()
-  prod_nombre: string; // Nombre del producto
+  prod_nombre: string;
 
   @IsString()
   @IsOptional()
-  num_garantia?: string; // Si se genera en el front o backend
+  num_garantia?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

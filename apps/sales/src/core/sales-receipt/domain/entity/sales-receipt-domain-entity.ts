@@ -8,6 +8,7 @@ export enum ReceiptStatus {
 
 // ✅ Definición de la estructura de cada producto en el comprobante
 export interface SalesReceiptItem {
+  productName: string;
   productId: string;
   quantity: number;
   unitPrice: number;
