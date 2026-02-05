@@ -1,7 +1,6 @@
-
 /* ============================================
    sales/src/core/customer/infrastructure/entity/customer-orm.entity.ts
-   ============================================ */  
+   ============================================ */
 
 import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { DocumentTypeOrmEntity } from './document-type-orm.entity';
@@ -33,20 +32,20 @@ export class CustomerOrmEntity {
   @Column({ name: 'telefono', type: 'varchar', length: 10, nullable: true })
   telefono?: string;
 
-  @Column({ 
-    name: 'estado', 
-    type: 'bit', 
-    width: 1, 
+  @Column({
+    name: 'estado',
+    type: 'bit',
+    width: 1,
     default: () => "b'1'",
     transformer: {
-      to: (value: boolean) => value ? 1 : 0,
+      to: (value: boolean) => (value ? 1 : 0),
       from: (value: Buffer | number | boolean) => {
         if (typeof value === 'boolean') return value;
         if (typeof value === 'number') return value === 1;
         if (Buffer.isBuffer(value)) return value[0] === 1;
         return true;
-      }
-    }
+      },
+    },
   })
   estado: boolean;
 }

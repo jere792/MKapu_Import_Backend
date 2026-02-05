@@ -1,7 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* sales/src/core/sales-receipt/application/mapper/sales-receipt.mapper.ts */
 
-import { SalesReceipt, ReceiptStatus } from '../../domain/entity/sales-receipt-domain-entity';
-import { SalesReceiptOrmEntity, ReceiptStatusOrm } from '../../infrastructure/entity/sales-receipt-orm.entity';
+import {
+  SalesReceipt,
+  ReceiptStatus,
+  SalesReceiptItem,
+} from '../../domain/entity/sales-receipt-domain-entity';
+import {
+  SalesReceiptOrmEntity,
+  ReceiptStatusOrm,
+} from '../../infrastructure/entity/sales-receipt-orm.entity';
 import { SalesReceiptDetailOrmEntity } from '../../infrastructure/entity/sales-receipt-detail-orm.entity';
 import { SalesTypeOrmEntity } from '../../infrastructure/entity/sales-type-orm.entity';
 import { ReceiptTypeOrmEntity } from '../../infrastructure/entity/receipt-type-orm.entity';
@@ -10,19 +18,21 @@ import { CustomerOrmEntity } from '../../../customer/infrastructure/entity/custo
 import { RegisterSalesReceiptDto } from '../dto/in';
 
 export class SalesReceiptMapper {
-  
-  static fromRegisterDto(dto: RegisterSalesReceiptDto, nextNumber: number): SalesReceipt {
-    // 1. Mapeamos los items primero para cumplir con la validación de dominio
-    const domainItems = dto.items ? dto.items.map(item => ({
-      productId: item.productId,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      description: item.description,
-      total: item.total,
-      igv: item.igv || 0
-    })) : [];
+  static fromRegisterDto(
+    dto: RegisterSalesReceiptDto,
+    nextNumber: number,
+  ): SalesReceipt {
+    const domainItems: SalesReceiptItem[] = dto.items
+      ? dto.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          productName: item.description,
+          total: item.total || item.quantity * item.unitPrice,
+          igv: item.igv || 0,
+        }))
+      : [];
 
-    // 2. Creamos la entidad de dominio
     return SalesReceipt.createNew(
       dto.customerId,
       dto.saleTypeId,
@@ -39,14 +49,14 @@ export class SalesReceiptMapper {
       dto.responsibleId,
       dto.branchId,
       dto.currencyCode,
-      domainItems
+      domainItems,
     );
   }
 
   static toDomain(orm: SalesReceiptOrmEntity): SalesReceipt {
     return SalesReceipt.create({
       id_comprobante: orm.id_comprobante,
-      id_cliente: orm.cliente?.id_cliente, 
+      id_cliente: orm.cliente?.id_cliente,
       id_tipo_venta: orm.tipoVenta?.id_tipo_venta,
       id_tipo_comprobante: orm.tipoComprobante?.id_tipo_comprobante,
       cod_moneda: orm.moneda?.codigo,
@@ -62,25 +72,29 @@ export class SalesReceiptMapper {
       estado: orm.estado as unknown as ReceiptStatus,
       id_responsable_ref: orm.id_responsable_ref,
       id_sede_ref: orm.id_sede_ref,
-      items: orm.details?.map(d => ({
-        productId: d.id_prod_ref,
-        quantity: Number(d.cantidad),
-        unitPrice: Number(d.pre_uni),
-        description: d.descripcion,
-        total: Number(d.cantidad) * Number(d.pre_uni),
-        igv: Number(d.igv)
-      })) || []
+      items:
+        orm.details?.map((d) => ({
+          productId: d.id_prod_ref,
+          quantity: Number(d.cantidad),
+          unitPrice: Number(d.pre_uni),
+          productName: d.descripcion || '',
+          total: Number(d.cantidad) * Number(d.pre_uni),
+          igv: Number(d.igv),
+        })) || [],
     });
   }
 
   static toOrm(domain: SalesReceipt): SalesReceiptOrmEntity {
     const orm = new SalesReceiptOrmEntity();
-    if (domain.id_comprobante !== undefined) orm.id_comprobante = domain.id_comprobante;
-
-    // Relaciones
+    if (domain.id_comprobante !== undefined)
+      orm.id_comprobante = domain.id_comprobante;
     orm.cliente = { id_cliente: domain.id_cliente } as CustomerOrmEntity;
-    orm.tipoVenta = { id_tipo_venta: domain.id_tipo_venta } as SalesTypeOrmEntity;
-    orm.tipoComprobante = { id_tipo_comprobante: domain.id_tipo_comprobante } as ReceiptTypeOrmEntity;
+    orm.tipoVenta = {
+      id_tipo_venta: domain.id_tipo_venta,
+    } as SalesTypeOrmEntity;
+    orm.tipoComprobante = {
+      id_tipo_comprobante: domain.id_tipo_comprobante,
+    } as ReceiptTypeOrmEntity;
     orm.moneda = { codigo: domain.cod_moneda } as SunatCurrencyOrmEntity;
 
     orm.serie = domain.serie;
@@ -96,25 +110,21 @@ export class SalesReceiptMapper {
     orm.id_responsable_ref = domain.id_responsable_ref;
     orm.id_sede_ref = domain.id_sede_ref;
 
-    // Mapeo de Detalle
     if (domain.items && domain.items.length > 0) {
-      orm.details = domain.items.map(item => {
+      orm.details = domain.items.map((item) => {
         const detail = new SalesReceiptDetailOrmEntity();
         detail.id_prod_ref = item.productId;
-        detail.cantidad = Math.round(item.quantity); 
+        detail.cantidad = Math.round(item.quantity);
         detail.pre_uni = item.unitPrice;
-        detail.valor_uni = item.unitPrice; 
+        detail.valor_uni = item.unitPrice;
         detail.igv = item.igv || 0;
-        detail.descripcion = item.description ? item.description.substring(0, 45) : '';
-        
-        // ✅ CORRECCIÓN: Usamos el ID 1 que ya existe en tu tabla (Gravado)
-        (detail as any).tipo_afectacion_igv = 1; 
-        
-        // ⚠️ IMPORTANTE: Solo asignar id_descuento si creaste la tabla 'descuento'.
-        // Si aún no existe, podrías necesitar comentar la siguiente línea o 
-        // asegurar que la columna en la DB permita NULL.
-        (detail as any).id_descuento = 1; 
-        
+        detail.descripcion = item.description
+          ? item.description.substring(0, 45)
+          : '';
+
+        (detail as any).tipo_afectacion_igv = 1;
+        (detail as any).id_descuento = 1;
+
         return detail;
       });
     }
@@ -132,7 +142,7 @@ export class SalesReceiptMapper {
       fecEmision: domain.fec_emision,
       total: domain.total,
       estado: domain.estado,
-      items: domain.items
+      items: domain.items,
     };
   }
 }

@@ -32,3 +32,8 @@ export class WarrantyResponseDto {
   detalles: WarrantyDetailResponseDto[];
   seguimientos: WarrantyTrackingResponseDto[];
 }
+export class WarrantyDeleteResponseDto {
+  id_garantia: number;
+  message: string;
+  deletedAt: Date;
+}

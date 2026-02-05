@@ -1,5 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { CustomerOrmEntity } from './customer-orm.entity';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { CustomerOrmEntity } from '../../../customer/infrastructure/entity/customer-orm.entity';
 
 @Entity('cotizacion')
 export class QuoteOrmEntity {
@@ -24,14 +32,18 @@ export class QuoteOrmEntity {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   total: number;
 
-  @Column({ type: 'enum', enum: ['PENDIENTE', 'APROBADA', 'VENCIDA'], default: 'PENDIENTE' })
+  @Column({
+    type: 'enum',
+    enum: ['PENDIENTE', 'APROBADA', 'VENCIDA'],
+    default: 'PENDIENTE',
+  })
   estado: string;
 
   @Column({ type: 'bit', transformer: { to: (v) => v, from: (v) => !!v[0] } })
   activo: boolean;
 
   // Relación: Muchas cotizaciones pertenecen a un cliente
-  @ManyToOne(() => CustomerOrmEntity, (customer) => customer.quotes)
+  @ManyToOne(() => CustomerOrmEntity)
   @JoinColumn({ name: 'id_cliente' })
   customer: CustomerOrmEntity;
 }

@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'estado_garantia', schema: 'mkp_ventas' })
+@Entity({ name: 'estado_garantia' })
 export class WarrantyStatusOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_estado', type: 'int' })
   id_estado: number;

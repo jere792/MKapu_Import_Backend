@@ -20,8 +20,6 @@ import { ListWarrantyFilterDto } from '../../../application/dto/in/list-warranty
 import { UpdateWarrantyDto } from '../../../application/dto/in/update-warranty.dto';
 
 @Controller('warranties')
-@UseGuards(RoleGuard)
-@Roles('GP_Garantias')
 export class WarrantyRestController {
   constructor(
     private readonly commandService: WarrantyCommandService,
@@ -43,13 +41,20 @@ export class WarrantyRestController {
   @Put(':id/status')
   async changeStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { id_estado: number; comentario: string; id_usuario: string },
+    @Body()
+    body: {
+      id_estado: number;
+      comentario: string;
+      id_usuario: string;
+      resolutionAction?: 'REFUND' | 'REPLACE';
+    },
   ) {
     return this.commandService.changeStatus(
       id,
       body.id_estado,
       body.comentario,
       body.id_usuario,
+      body.resolutionAction,
     );
   }
 

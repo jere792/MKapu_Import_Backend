@@ -78,14 +78,20 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     });
 
     if (dto.receiptTypeId !== 3) {
+      console.log('➡️ [5] Intentando conectar con Logística (TCP)...'); // LOG 5
       for (const item of savedReceipt.items) {
-        await this.stockProxy.registerMovement({
-          productId: Number(item.productId),
-          warehouseId: dto.branchId,
-          headquartersId: dto.branchId,
-          quantityDelta: -item.quantity,
-          reason: `VENTA: ${savedReceipt.getFullNumber()}`,
-        });
+        try {
+          await this.stockProxy.registerMovement({
+            productId: Number(item.productId),
+            warehouseId: dto.branchId,
+            headquartersId: dto.branchId,
+            quantityDelta: -item.quantity,
+            reason: `VENTA: ${savedReceipt.getFullNumber()}`,
+          });
+          console.log(`➡️ [5.1] Item ${item.productId} procesado en Logística`);
+        } catch (err) {
+          console.error(`❌ Error llamando a Logística:`, err);
+        }
       }
     }
 

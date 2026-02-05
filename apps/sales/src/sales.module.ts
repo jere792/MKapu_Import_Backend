@@ -22,7 +22,19 @@ import { ReceiptTypeOrmEntity } from './core/sales-receipt/infrastructure/entity
 import { SunatCurrencyOrmEntity } from './core/sales-receipt/infrastructure/entity/sunat-currency-orm.entity'; // ✅ Para 'PEN'
 import { CashboxOrmEntity } from './core/cashbox/infrastructure/entity/cashbox-orm.entity';
 import { QuoteOrmEntity } from './core/quote/infrastructure/entity/quote-orm.entity';
+import { WarrantyOrmEntity } from './core/warranty/infrastructure/entity/warranty-orm-entity';
+import { WarrantyDetailOrmEntity } from './core/warranty/infrastructure/entity/warranty-detail-orm.entity';
+import { WarrantyStatusOrmEntity } from './core/warranty/infrastructure/entity/warranty-status-orm.entity';
+import { WarrantyTrackingOrmEntity } from './core/warranty/infrastructure/entity/warranty-tracking-orm.entity';
+import { WarrantyRestController } from './core/warranty/infrastructure/adapters/in/warranty-rest.controller';
+import { WarrantyCommandService } from './core/warranty/application/service/warranty-command.service';
+import { WarrantyQueryService } from './core/warranty/application/service/warranty-query.service';
+import { WarrantyLogisticsAdapter } from './core/warranty/infrastructure/adapters/out/warranty-logistics.adapter';
+import { WarrantySalesAdapter } from './core/warranty/infrastructure/adapters/out/warranty-sales.adapter';
+import { WarrantyRepository } from './core/warranty/infrastructure/adapters/out/warranty.repository';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { PaymentTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/payment-type-orm.entity';
+import { PaymentOrmEntity } from './core/sales-receipt/infrastructure/entity/payment-orm.entity';
 
 @Module({
   imports: [
@@ -35,7 +47,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
         name: 'LOGISTICS_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: 'localhost',
+          host: '127.0.0.1',
           port: 3004,
         },
       },
@@ -60,9 +72,15 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
           SunatCurrencyOrmEntity,
           CashboxOrmEntity,
           QuoteOrmEntity,
+          WarrantyOrmEntity,
+          WarrantyDetailOrmEntity,
+          WarrantyStatusOrmEntity,
+          WarrantyTrackingOrmEntity,
+          PaymentTypeOrmEntity,
+          PaymentOrmEntity,
         ],
-        synchronize: false,
-        autoLoadEntities: true,
+        synchronize: true,
+        logging: true,
         extra: {
           connectionLimit: 10,
           waitForConnections: true,
@@ -71,6 +89,12 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
       }),
       inject: [ConfigService],
     }),
+    TypeOrmModule.forFeature([
+      WarrantyOrmEntity,
+      WarrantyDetailOrmEntity,
+      WarrantyStatusOrmEntity,
+      WarrantyTrackingOrmEntity,
+    ]),
     HttpModule,
     CustomerModule,
     PromotionModule,
@@ -78,8 +102,24 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     CashboxModule,
     QuoteModule,
   ],
-  controllers: [SalesController],
-  providers: [SalesService],
-  exports: [ClientsModule],
+  controllers: [SalesController, WarrantyRestController],
+  providers: [
+    SalesService,
+    WarrantyCommandService,
+    WarrantyQueryService,
+    {
+      provide: 'IWarrantyRepositoryPort',
+      useClass: WarrantyRepository,
+    },
+    {
+      provide: 'IWarrantyLogisticsPort',
+      useClass: WarrantyLogisticsAdapter,
+    },
+    {
+      provide: 'IWarrantySalesPort',
+      useClass: WarrantySalesAdapter,
+    },
+  ],
+  exports: [SalesReceiptModule],
 })
 export class SalesModule {}

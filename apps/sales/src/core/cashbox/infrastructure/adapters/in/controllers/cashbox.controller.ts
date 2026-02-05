@@ -1,9 +1,24 @@
 /* ============================================
    administration/src/core/cashbox/infrastructure/adapters/in/cashbox.controller.ts
    ============================================ */
-import { Controller, Post, Body, Get, Param, ParseIntPipe, Inject, Patch } from '@nestjs/common';
-import { ICashboxCommandPort, ICashboxQueryPort } from '../../../../domain/ports/in/cashbox-ports-in';
-import { OpenCashboxDto, CloseCashboxDto } from '../../../../application/dto/in';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  ParseIntPipe,
+  Inject,
+  Patch,
+} from '@nestjs/common';
+import {
+  ICashboxCommandPort,
+  ICashboxQueryPort,
+} from '../../../../domain/ports/in/cashbox-ports-in';
+import {
+  OpenCashboxDto,
+  CloseCashboxDto,
+} from '../../../../application/dto/in';
 
 @Controller('cashbox')
 export class CashboxController {

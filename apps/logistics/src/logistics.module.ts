@@ -46,7 +46,6 @@ import { SupplierOrmEntity } from './core/procurement/supplier/infrastructure/en
         entities: [CategoryOrmEntity, StoreOrmEntity, InventoryMovementOrmEntity, InventoryMovementDetailOrmEntity, ProductOrmEntity, StockOrmEntity, UnitOrmEntity,TransferOrmEntity, TransferDetailOrmEntity, SupplierOrmEntity],
         autoLoadEntities: true,
         synchronize: true,
-        logging: true,
       }),
     }),
 

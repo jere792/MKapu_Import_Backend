@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { WarrantyOrmEntity } from './warranty-orm-entity';
 
-@Entity({ name: 'seguimiento_garantia', schema: 'mkp_ventas' })
+@Entity({ name: 'seguimiento_garantia' })
 export class WarrantyTrackingOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_seguimiento', type: 'int' })
   id_seguimiento: number;

@@ -8,7 +8,7 @@ import { WarrantyStatusOrmEntity } from './warranty-status-orm.entity';
 import { WarrantyTrackingOrmEntity } from './warranty-tracking-orm.entity';
 import { WarrantyDetailOrmEntity } from './warranty-detail-orm.entity';
 
-@Entity({ name: 'garantia', schema: 'mkp_ventas' })
+@Entity({ name: 'garantia'})
 export class WarrantyOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_garantia', type: 'int' })
   id_garantia: number;

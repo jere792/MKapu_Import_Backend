@@ -4,7 +4,7 @@
 
 import { Entity, Column, PrimaryColumn, CreateDateColumn } from 'typeorm';
 
-@Entity('caja') 
+@Entity('caja')
 export class CashboxOrmEntity {
   @PrimaryColumn({ type: 'varchar', length: 255 })
   id_caja: string;
@@ -19,9 +19,10 @@ export class CashboxOrmEntity {
   })
   estado: 'ABIERTA' | 'CERRADA';
 
-  @CreateDateColumn({ 
+  @CreateDateColumn({
     type: 'datetime',
-    default: () => 'CURRENT_TIMESTAMP' 
+    precision: 0,
+    default: () => 'CURRENT_TIMESTAMP',
   })
   fec_apertura: Date;
 
