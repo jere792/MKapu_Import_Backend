@@ -108,7 +108,7 @@ services:
       - SALES_DB_PASSWORD=root
       - SALES_DB_DATABASE=mkp_ventas 
       - PORT=3003   # Puerto interno HTTP
-      - LOGISTICS_HOST=logistics_service # Variable específica para conectar
+      - LOGISTICS_HOST=logistics_service
     depends_on:
       mysql_db:
         condition: service_healthy

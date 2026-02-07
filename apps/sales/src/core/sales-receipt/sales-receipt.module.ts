@@ -40,7 +40,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         useFactory: (config: ConfigService) => ({
           transport: Transport.TCP,
           options: {
-            host: config.get('LOGISTICS_DB_HOST', 'localhost'),
+            host: config.get('LOGISTICS_HOST', 'localhost'),
             port: 3004,
           },
         }),
