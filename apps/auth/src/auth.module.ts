@@ -22,13 +22,13 @@ import { PermissionOrmEntity } from './core/infrastructure/entity/permission-orm
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
         host: configService.get<string>('AUTH_DB_HOST'),
-        port: configService.get<number>('AUTH_DB_PORT') || 3306,
+        port: Number(configService.get<string>('AUTH_DB_PORT')),
         username: configService.get<string>('AUTH_DB_USERNAME'),
         password: configService.get<string>('AUTH_DB_PASSWORD') || '',
         database: configService.get<string>('AUTH_DB_DATABASE'),
         // Carga todas las entidades
         entities: [AccountUserOrmEntity, UserOrmEntity, RoleOrmEntity, PermissionOrmEntity],
-        synchronize: false,
+        synchronize: true,
         logging: true,
       }),
     }),

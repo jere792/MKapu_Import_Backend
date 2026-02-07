@@ -73,4 +73,9 @@ export class RoleCommandService implements IRoleCommandPort {
     await this.repository.delete(id);
     return RoleMapper.toDeletedResponse(id);
   }
+
+  async getAllRoles(): Promise<RoleResponseDto[]> {
+    const roles = await this.repository.findAll();
+    return roles.map(RoleMapper.toResponseDto);
+  }
 }

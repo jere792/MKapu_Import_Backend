@@ -28,8 +28,8 @@ export class AuthController {
     return await this.authService.login(loginDto);
   }
   
-  @UseGuards(RoleGuard)
-  @Roles('Administrador')
+  //@UseGuards(RoleGuard)
+  //@Roles('Administrador')
   @Post('create-account')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear credenciales para un usuario existente' })

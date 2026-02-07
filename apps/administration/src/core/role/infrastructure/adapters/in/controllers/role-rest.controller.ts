@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   Inject,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import { IRoleCommandPort } from '../../../../domain/ports/in/role-port-in';
 import {
@@ -24,8 +25,8 @@ import {
 import { Roles } from 'libs/common/src/infrastructure/decorators/roles.decorators';
 import { RoleGuard } from 'libs/common/src/infrastructure/guard/roles.guard';
 @Controller('roles')
-@UseGuards(RoleGuard)
-@Roles('Administrador')
+//@UseGuards(RoleGuard)
+//@Roles('Administrador')
 export class RoleRestController {
   constructor(
     @Inject('IRoleCommandPort')
@@ -72,5 +73,11 @@ export class RoleRestController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<RoleDeletedResponseDto> {
     return this.roleCommandService.deleteRole(id);
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  async getAllRoles(): Promise<RoleResponseDto[]> {
+    return this.roleCommandService.getAllRoles();
   }
 }

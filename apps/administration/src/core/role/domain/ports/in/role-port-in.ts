@@ -23,6 +23,7 @@ export interface IRoleCommandPort {
   updateRole(dto: UpdateRoleDto): Promise<RoleResponseDto>;
   changeRoleStatus(dto: ChangeRoleStatusDto): Promise<RoleResponseDto>;
   deleteRole(id: number): Promise<RoleDeletedResponseDto>;
+  getAllRoles(): Promise<RoleResponseDto[]>;
 }
 
 // Query Port (WebSockets - GET)

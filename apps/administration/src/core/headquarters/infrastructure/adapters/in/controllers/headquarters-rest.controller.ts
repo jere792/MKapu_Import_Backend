@@ -16,8 +16,8 @@ import { Roles } from "libs/common/src/infrastructure/decorators/roles.decorator
 import { RoleGuard } from "libs/common/src/infrastructure/guard/roles.guard";
 
 @Controller('headquarters')
-@UseGuards(RoleGuard)
-@Roles('Administrador')
+//@UseGuards(RoleGuard)
+//@Roles('Administrador')
 export class HeadquarterRestController {
    constructor(
       @Inject('IHeadquartersQueryPort')

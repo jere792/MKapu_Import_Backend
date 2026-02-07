@@ -32,6 +32,7 @@ export class HeadquarterWebSocketGateway
   ) {}
 
   handleConnection(client: Socket) {
+    console.log('WS conectado: ', client.id, 'namespace: ', client.nsp.name);
     console.log(`Cliente conectado al canal Headquarters: ${client.id}`);
   }
 
