@@ -104,6 +104,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     SalesReceiptCommandService,
     SalesReceiptQueryService,
     'ISalesReceiptRepositoryPort',
+    'ISalesReceiptQueryPort',
   ],
 })
 export class SalesReceiptModule {}

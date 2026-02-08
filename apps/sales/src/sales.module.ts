@@ -42,6 +42,9 @@ import { CashMovementOrmEntity } from './core/sales-receipt/infrastructure/entit
 import { ClaimModule } from './core/claim/claim.module';
 import { ClaimOrmEntity } from './core/claim/infrastructure/entity/claim-orm.entity';
 import { ClaimDetailOrmEntity } from './core/claim/infrastructure/entity/claim-detail-orm.entity';
+import { CommissionModule } from './core/commission/commission.module';
+import { CommissionOrmEntity } from './core/commission/infrastructure/entity/commission-orm.entity';
+import { CommissionRuleOrmEntity } from './core/commission/infrastructure/entity/commission-rule-orm.entity';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -88,6 +91,8 @@ import { ClaimDetailOrmEntity } from './core/claim/infrastructure/entity/claim-d
           CashMovementOrmEntity,
           ClaimOrmEntity,
           ClaimDetailOrmEntity,
+          CommissionOrmEntity,
+          CommissionRuleOrmEntity,
         ],
         synchronize: true,
         logging: true,
@@ -114,6 +119,7 @@ import { ClaimDetailOrmEntity } from './core/claim/infrastructure/entity/claim-d
     AccountingModule,
     ReportsModule,
     ClaimModule,
+    CommissionModule,
   ],
   controllers: [SalesController, WarrantyRestController],
   providers: [

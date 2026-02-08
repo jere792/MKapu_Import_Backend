@@ -1,8 +1,3 @@
-
-/* ============================================
-   sales/src/core/customer/infrastructure/adapters/in/controllers/customer-rest.controller.ts
-   ============================================ */
-
 import {
   Controller,
   Post,
@@ -16,7 +11,10 @@ import {
   Get,
   Query,
 } from '@nestjs/common';
-import { ICustomerCommandPort, ICustomerQueryPort } from '../../../../domain/ports/in/cunstomer-port-in';
+import {
+  ICustomerCommandPort,
+  ICustomerQueryPort,
+} from '../../../../domain/ports/in/cunstomer-port-in';
 import {
   RegisterCustomerDto,
   UpdateCustomerDto,
@@ -27,7 +25,7 @@ import {
   CustomerResponseDto,
   CustomerListResponse,
   CustomerDeletedResponseDto,
-  DocumentTypeResponseDto, 
+  DocumentTypeResponseDto,
 } from '../../../../application/dto/out';
 
 @Controller('customers')
@@ -65,11 +63,11 @@ export class CustomerRestController {
   @HttpCode(HttpStatus.OK)
   async updateCustomer(
     @Param('id') id: string,
-    @Body() updateDto: Omit<UpdateCustomerDto, 'customerId'>,  // ✅ customerId en inglés
+    @Body() updateDto: Omit<UpdateCustomerDto, 'customerId'>, // ✅ customerId en inglés
   ): Promise<CustomerResponseDto> {
     const fullUpdateDto: UpdateCustomerDto = {
       ...updateDto,
-      customerId: id,  // ✅ customerId en inglés
+      customerId: id, // ✅ customerId en inglés
     };
     return this.customerCommandService.updateCustomer(fullUpdateDto);
   }
@@ -78,11 +76,11 @@ export class CustomerRestController {
   @HttpCode(HttpStatus.OK)
   async changeCustomerStatus(
     @Param('id') id: string,
-    @Body() statusDto: { status: boolean },  // ✅ status en inglés
+    @Body() statusDto: { status: boolean }, // ✅ status en inglés
   ): Promise<CustomerResponseDto> {
     const changeStatusDto: ChangeCustomerStatusDto = {
-      customerId: id,  // ✅ customerId en inglés
-      status: statusDto.status,  // ✅ status en inglés
+      customerId: id, // ✅ customerId en inglés
+      status: statusDto.status, // ✅ status en inglés
     };
     return this.customerCommandService.changeCustomerStatus(changeStatusDto);
   }
@@ -107,26 +105,16 @@ export class CustomerRestController {
   }
 
   @Get(':id')
-  async getCustomer(@Param('id') id: string): Promise<CustomerResponseDto | null> {
+  async getCustomer(
+    @Param('id') id: string,
+  ): Promise<CustomerResponseDto | null> {
     return this.customerQueryService.getCustomerById(id);
   }
 
-  @Get('document/:documentValue')  // ✅ documentValue en inglés
+  @Get('document/:documentValue') // ✅ documentValue en inglés
   async getCustomerByDocument(
-    @Param('documentValue') documentValue: string,  // ✅ documentValue en inglés
+    @Param('documentValue') documentValue: string, // ✅ documentValue en inglés
   ): Promise<CustomerResponseDto | null> {
     return this.customerQueryService.getCustomerByDocument(documentValue);
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

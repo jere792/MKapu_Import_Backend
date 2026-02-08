@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* apps/sales/src/core/sales-receipt/infrastructure/adapters/out/repository/sales-receipt.respository.ts */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,6 +7,7 @@ import { ISalesReceiptRepositoryPort } from '../../../../domain/ports/out/sales_
 import { SalesReceipt } from '../../../../domain/entity/sales-receipt-domain-entity';
 import { SalesReceiptOrmEntity } from '../../../entity/sales-receipt-orm.entity';
 import { SalesReceiptMapper } from '../../../../application/mapper/sales-receipt.mapper';
+import { ListSalesReceiptFilterDto } from '../../../../application/dto/in';
 
 @Injectable()
 export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
@@ -15,16 +17,15 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     private readonly dataSource: DataSource,
   ) {}
 
-  // ✅ MÉTODO PARA OBTENER EL RUNNER DESDE EL SERVICIO
   getQueryRunner(): QueryRunner {
     return this.dataSource.createQueryRunner();
   }
-
-  // ✅ MÉTODO CON BLOQUEO PESSIMISTIC_WRITE
-  // Esto evita que dos ventas paralelas tomen el mismo número B001-32
-  async getNextNumberWithLock(serie: string, queryRunner: QueryRunner): Promise<number> {
+  async getNextNumberWithLock(
+    serie: string,
+    queryRunner: QueryRunner,
+  ): Promise<number> {
     const lastReceipt = await queryRunner.manager
-      .createQueryBuilder(SalesReceiptOrmEntity, 'receipt') 
+      .createQueryBuilder(SalesReceiptOrmEntity, 'receipt')
       .where('receipt.serie = :serie', { serie })
       .orderBy('receipt.numero', 'DESC')
       .getOne();
@@ -43,7 +44,13 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
   async findById(id: number): Promise<SalesReceipt | null> {
     const receiptOrm = await this.receiptOrmRepository.findOne({
       where: { id_comprobante: id },
-      relations: ['details', 'cliente', 'tipoVenta', 'tipoComprobante', 'moneda'],
+      relations: [
+        'details',
+        'cliente',
+        'tipoVenta',
+        'tipoComprobante',
+        'moneda',
+      ],
     });
     return receiptOrm ? SalesReceiptMapper.toDomain(receiptOrm) : null;
   }
@@ -67,9 +74,49 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     return receiptsOrm.map((r) => SalesReceiptMapper.toDomain(r));
   }
 
-  async findAll(filters?: any): Promise<SalesReceipt[]> {
-      // (Mantén tu lógica de queryBuilder actual aquí...)
-      return []; // Placeholder para no alargar el código
+  async findAll(filters?: ListSalesReceiptFilterDto): Promise<SalesReceipt[]> {
+    const query = this.receiptOrmRepository
+      .createQueryBuilder('receipt')
+      .leftJoinAndSelect('receipt.details', 'details')
+      .leftJoinAndSelect('receipt.cliente', 'cliente')
+      .leftJoinAndSelect('receipt.tipoVenta', 'tipoVenta')
+      .leftJoinAndSelect('receipt.tipoComprobante', 'tipoComprobante')
+      .leftJoinAndSelect('receipt.moneda', 'moneda');
+    if (filters?.status) {
+      query.andWhere('receipt.estado = :status', { status: filters.status });
+    }
+
+    if (filters?.dateFrom) {
+      query.andWhere('receipt.fec_emision >= :dateFrom', {
+        dateFrom: filters.dateFrom,
+      });
+    }
+    if (filters?.dateTo) {
+      const dateTo = new Date(filters.dateTo);
+      dateTo.setHours(23, 59, 59, 999);
+      query.andWhere('receipt.fec_emision <= :dateTo', { dateTo });
+    }
+    if (filters?.customerId) {
+      query.andWhere('cliente.id_cliente = :customerId', {
+        customerId: filters.customerId,
+      });
+    }
+    if (filters?.receiptTypeId) {
+      query.andWhere('tipoComprobante.id = :typeId', {
+        typeId: filters.receiptTypeId,
+      });
+    }
+    if (filters?.search) {
+      query.andWhere(
+        '(receipt.serie LIKE :search OR receipt.numero LIKE :search OR cliente.razon_social LIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+    query.orderBy('receipt.fec_emision', 'DESC');
+
+    const receiptsOrm = await query.getMany();
+
+    return receiptsOrm.map((r) => SalesReceiptMapper.toDomain(r));
   }
 
   async getNextNumber(serie: string): Promise<number> {
