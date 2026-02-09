@@ -36,7 +36,7 @@ import { HeadquartersModule } from './core/headquarters/headquarters.module';
         password: configService.get('ADMIN_DB_PASSWORD') || '',
         database: configService.get('ADMIN_DB_DATABASE'),
         entities: [UserOrmEntity, HeadquartersOrmEntity, RoleOrmEntity, PermissionOrmEntity],
-        synchronize: false,
+        synchronize: true,
         logging: true,
       }),
       inject: [ConfigService],

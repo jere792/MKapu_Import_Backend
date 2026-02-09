@@ -94,7 +94,7 @@ import { CommissionRuleOrmEntity } from './core/commission/infrastructure/entity
           CommissionOrmEntity,
           CommissionRuleOrmEntity,
         ],
-        synchronize: false,
+        synchronize: true,
         logging: true,
         extra: {
           connectionLimit: 10,

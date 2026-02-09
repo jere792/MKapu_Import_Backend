@@ -28,7 +28,7 @@ import { PermissionOrmEntity } from './core/infrastructure/entity/permission-orm
         database: configService.get<string>('AUTH_DB_DATABASE'),
         // Carga todas las entidades
         entities: [AccountUserOrmEntity, UserOrmEntity, RoleOrmEntity, PermissionOrmEntity],
-        synchronize: false,
+        synchronize: true,
         logging: true,
       }),
     }),
