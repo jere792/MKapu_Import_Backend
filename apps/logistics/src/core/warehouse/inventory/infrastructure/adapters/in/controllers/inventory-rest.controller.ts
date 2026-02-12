@@ -14,9 +14,7 @@ import { CreateInventoryMovementDto } from '../../../../application/dto/in/creat
 @Controller('movimiento_inventario')
 @UseGuards(RoleGuard)
 export class InventoryMovementRestController {
-  constructor(
-    private readonly commandService: InventoryCommandService,
-  ) {}
+  constructor(private readonly commandService: InventoryCommandService) {}
 
   @Post('income')
   @Roles('Administrador')
