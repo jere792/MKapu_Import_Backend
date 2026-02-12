@@ -77,12 +77,20 @@ export class TransferCommandService implements TransferPortsIn {
       const currentStatus = String(u.status || u.estado || '').toUpperCase();
       const currentWarehouseId = Number(u.warehouseId || u.id_almacen);
       const targetWarehouseId = Number(dto.originWarehouseId);
-      const realProductId = Number(u.productId || u.id_producto);
-      const expectedProductId = Number(seriesToProductMap.get(u.series));
-      const isCorrectProduct = realProductId === expectedProductId;
-      const isAvailable = currentStatus === 'AVAILABLE' || currentStatus === '1';
-      const isInOrigin = currentWarehouseId === targetWarehouseId;
 
+      const unitSerial = u.serialNumber || u.serie || u.series;
+      const realProductId = Number(u.productId || u.id_producto);
+      const expectedProductId = Number(seriesToProductMap.get(unitSerial));
+      const isCorrectProduct = realProductId === expectedProductId;
+      const isAvailable = currentStatus === 'DISPONIBLE' || currentStatus === '1';
+      const isInOrigin = currentWarehouseId === targetWarehouseId;
+      if (!isAvailable || !isInOrigin || !isCorrectProduct) {
+         console.log(`FALLO EN SERIE: ${unitSerial}`);
+         console.log(`- Disponible? ${isAvailable} (${currentStatus})`);
+         console.log(`- En Origen? ${isInOrigin} (Unit: ${currentWarehouseId} vs DTO: ${targetWarehouseId})`);
+         console.log(`- Producto Correcto? ${isCorrectProduct} (Real: ${realProductId} vs Esperado: ${expectedProductId})`);
+      }
+      
       return !isAvailable || !isInOrigin || !isCorrectProduct;
     });
     if (invalidUnits.length > 0) {

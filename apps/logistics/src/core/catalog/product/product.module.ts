@@ -60,7 +60,6 @@ import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
 
   providers: [
     ProductTypeOrmRepository,
-
     {
       provide: 'IProductRepositoryPort',
       useExisting: ProductTypeOrmRepository,
