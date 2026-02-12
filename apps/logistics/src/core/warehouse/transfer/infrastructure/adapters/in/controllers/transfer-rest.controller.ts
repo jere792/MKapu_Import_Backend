@@ -16,7 +16,7 @@ import {
 import { Transfer } from '../../../../domain/entity/transfer-domain-entity';
 import { RejectTransferDto } from '../../../../application/dto/in/reject-transfer.dto';
 
-@Controller('warehouse/transfer') 
+@Controller('warehouse/transfer')
 export class TransferRestController {
   constructor(
     @Inject('TransferPortsIn')

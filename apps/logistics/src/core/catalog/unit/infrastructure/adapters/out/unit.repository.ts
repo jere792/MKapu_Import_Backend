@@ -46,7 +46,16 @@ export class UnitRepository implements UnitPortsOut {
       },
       relations: ['producto', 'almacen'],
     });
-
+    console.log('--- REPO DEBUG ---');
+    entities.forEach((e) => {
+      console.log(`Serie: ${e.serie}`);
+      console.log(`ID Almacén (columna):`, e.id_almacen); // ¿Es undefined?
+      console.log(`Objeto Almacén:`, e.almacen); // ¿Existe?
+      console.log(
+        `ID Almacén (dentro del objeto):`,
+        e.almacen?.id_almacen || e.almacen?.id_almacen,
+      );
+    });
     return entities.map((e) => MapperUnit.toDomain(e));
   }
   updateStatus(id: number, status: UnitStatus): Promise<void> {
