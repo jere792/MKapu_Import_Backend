@@ -5,32 +5,35 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
   const app = await NestFactory.create(AdministrationModule);
+  const configService = app.get(ConfigService);
 
-  const tcpPort = 3011;
+  // Configuración TCP
+  const tcpHost = configService.get<string>('USERS_TCP_HOST', '0.0.0.0');
+  const tcpPort = configService.get<number>('USERS_TCP_PORT', 3011);
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.TCP,
     options: {
-      host: '0.0.0.0',
+      host: tcpHost,
       port: tcpPort,
+      retryAttempts: 5,
+      retryDelay: 3000,
     },
   });
 
   await app.startAllMicroservices();
 
-  const configService = app.get(ConfigService);
-
+  // Configuración HTTP
   app.enableCors({
     origin: '*',
     credentials: true,
   });
 
-  const port = configService.get<number>('ADMINISTRATION_PORT') || 3002;
+  const httpPort = configService.get<number>('ADMINISTRATION_PORT', 3002);
+  await app.listen(httpPort);
 
-  await app.listen(port);
-
-  console.log(`🏢 Administration HTTP: http://localhost:${port}`);
-  console.log(`🏢 Administration TCP interno: ${tcpPort}`);
+  console.log(`🏢 Administration HTTP: http://localhost:${httpPort}`);
+  console.log(`📡 Administration TCP: ${tcpHost}:${tcpPort}`);
 }
 
 bootstrap();

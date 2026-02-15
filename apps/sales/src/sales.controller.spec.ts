@@ -1,23 +1,52 @@
-/* sales/src/sales.controller.spec.ts */
 import { Test, TestingModule } from '@nestjs/testing';
-import { SalesController } from './sales.controller';
-import { SalesService } from './sales.service';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
 
-describe('SalesController', () => {
-  let salesController: SalesController;
+// Ajusta rutas
+import { SalesController } from './../src/sales.controller';
+import { SalesService } from './../src/sales.service';
+import { DataSource } from 'typeorm';
+import { HttpService } from '@nestjs/axios';
+
+describe('SalesController (e2e)', () => {
+  let app: INestApplication;
+
+  // Mocks mínimos
+  const mockDataSource: Partial<DataSource> = {
+    // agrega lo que SalesService realmente use (getRepository, manager, etc.) si llega a invocarlo
+  };
+
+  const mockHttpService: Partial<HttpService> = {
+    get: jest.fn(),
+    post: jest.fn(),
+  };
+
+  const mockSalesService = {
+    root: jest.fn().mockReturnValue('Hello World!'),
+  };
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+    const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [SalesController],
-      providers: [SalesService],
+      providers: [
+        { provide: SalesService, useValue: mockSalesService },
+        { provide: DataSource, useValue: mockDataSource },
+        { provide: HttpService, useValue: mockHttpService },
+      ],
     }).compile();
 
-    salesController = app.get<SalesController>(SalesController);
+    app = moduleFixture.createNestApplication();
+    await app.init();
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(salesController.getHello()).toBe('Hello World!');
-    });
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
   });
 });

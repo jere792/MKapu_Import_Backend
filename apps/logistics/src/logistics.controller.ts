@@ -4,6 +4,9 @@ import { LogisticsService } from './logistics.service';
 
 @Controller()
 export class LogisticsController {
+  getHello(): any {
+    throw new Error('Method not implemented.');
+  }
   private readonly logger = new Logger(LogisticsController.name);
 
   constructor(private readonly logisticsService: LogisticsService) {}

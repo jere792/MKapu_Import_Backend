@@ -27,7 +27,7 @@ import { SupplierOrmEntity } from './core/procurement/supplier/infrastructure/en
 import { WastageDetailOrmEntity } from './core/catalog/wastage/infrastructure/entity/wastage-detail.orm.entity';
 import { WastageOrmEntity } from './core/catalog/wastage/infrastructure/entity/wastage-orm.entity';
 import { StockOrmEntity } from './core/warehouse/inventory/infrastructure/entity/stock-orm-intity';
-
+import { WastageTypeOrmEntity } from './core/catalog/wastage/infrastructure/entity/wastage-type.orm.entity';
 
 
 @Module({
@@ -58,9 +58,10 @@ import { StockOrmEntity } from './core/warehouse/inventory/infrastructure/entity
           WastageOrmEntity,
           WastageDetailOrmEntity,
           StockOrmEntity,
+          WastageTypeOrmEntity
         ],
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: false,
         logging: true,
       }),
     }),

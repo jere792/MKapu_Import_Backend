@@ -6,12 +6,12 @@
 
 import {
   WebSocketGateway,
-  SubscribeMessage,
-  MessageBody,
-  ConnectedSocket,
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Inject } from '@nestjs/common';
@@ -36,7 +36,6 @@ export class UserWebSocketGateway implements OnGatewayConnection, OnGatewayDisco
   handleConnection(client: Socket) {
     console.log(`✅ Cliente conectado al canal Users: ${client.id}`);
     
-    // PRUEBA DE EMISIÓN INICIAL
     this.server.emit('userCreated', {
       id_usuario: 0,
       nombre: 'Sistema MKapu',
@@ -49,8 +48,6 @@ export class UserWebSocketGateway implements OnGatewayConnection, OnGatewayDisco
   handleDisconnect(client: any) {
     console.log(`❌ Cliente desconectado: ${client.id}`);
   }
-
-  // --- MÉTODOS DE NOTIFICACIÓN (Llamados desde Use Cases) ---
 
   notifyUserCreated(user: UserResponseDto): void {
     this.server.emit('userCreated', user);
@@ -68,10 +65,7 @@ export class UserWebSocketGateway implements OnGatewayConnection, OnGatewayDisco
     this.server.emit('userStatusChanged', user);
   }
 
-  // --- SUSCRIPCIONES (Lógica de entrada) ---
-  // Descomentar cuando necesites que el cliente solicite datos por Socket
 
-  /*
   @SubscribeMessage('listUsers')
   async handleListUsers(
     @MessageBody() filters: any,
@@ -96,5 +90,5 @@ export class UserWebSocketGateway implements OnGatewayConnection, OnGatewayDisco
       client.emit('error', { event: 'getUserById', message: error.message });
     }
   }
-  */
+
 }
