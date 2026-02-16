@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* sales/src/core/sales-receipt/application/mapper/sales-receipt.mapper.ts */
+/* apps/sales/src/core/sales-receipt/application/mapper/sales-receipt.mapper.ts */
 
 import {
   SalesReceipt,
@@ -16,11 +16,23 @@ import { ReceiptTypeOrmEntity } from '../../infrastructure/entity/receipt-type-o
 import { SunatCurrencyOrmEntity } from '../../infrastructure/entity/sunat-currency-orm.entity';
 import { CustomerOrmEntity } from '../../../customer/infrastructure/entity/customer-orm.entity';
 import { RegisterSalesReceiptDto } from '../dto/in';
-import { SalesReceiptResponseDto, SalesReceiptItemResponseDto } from '../dto/out';
+import {
+  SalesReceiptResponseDto,
+  SalesReceiptItemResponseDto,
+  SalesReceiptCustomerResponseDto,
+  SalesReceiptEmployeeResponseDto,
+  SalesReceiptTypeResponseDto,
+  SalesTypeResponseDto,
+  BranchResponseDto,
+  PaymentMethodResponseDto,
+  CurrencyResponseDto,
+  SalesReceiptSummaryDto,
+  SalesReceiptSummaryListResponse,
+  CustomerPurchaseHistoryDto,
+  SalesReceiptWithHistoryDto,
+} from '../dto/out';
 
 export class SalesReceiptMapper {
-
-  
   static fromRegisterDto(
     dto: RegisterSalesReceiptDto,
     nextNumber: number,
@@ -121,9 +133,12 @@ export class SalesReceiptMapper {
         detail.pre_uni = item.unitPrice;
         detail.valor_uni = item.unitPrice;
         detail.igv = item.igv || 0;
-        
-        detail.descripcion = (item.productName || item.description || '')
-          .substring(0, 45);
+
+        detail.descripcion = (
+          item.productName ||
+          item.description ||
+          ''
+        ).substring(0, 45);
 
         (detail as any).tipo_afectacion_igv = 1;
         (detail as any).id_descuento = 1;
@@ -135,38 +150,251 @@ export class SalesReceiptMapper {
     return orm;
   }
 
+  static ormToResponseDto(orm: SalesReceiptOrmEntity): SalesReceiptResponseDto {
+    const domain = this.toDomain(orm);
 
-  static toResponseDto(domain: SalesReceipt): SalesReceiptResponseDto {
+    const cliente: SalesReceiptCustomerResponseDto = {
+      id: orm.cliente?.id_cliente || domain.id_cliente,
+      documentTypeId: orm.cliente?.id_tipo_documento || 0,
+      documentTypeDescription: orm.cliente?.tipoDocumento?.descripcion || '',
+      documentTypeSunatCode: orm.cliente?.tipoDocumento?.cod_sunat || '',
+      documentValue: orm.cliente?.valor_doc || '',
+      name: orm.cliente?.nombres || '',
+      address: orm.cliente?.direccion,
+      email: orm.cliente?.email,
+      phone: orm.cliente?.telefono,
+      status: orm.cliente?.estado ?? true,
+    };
+
+    const responsable: SalesReceiptEmployeeResponseDto = {
+      id: Number(domain.id_responsable_ref),
+      nombre: '',
+      apellidoPaterno: '',
+      apellidoMaterno: '',
+      nombreCompleto: '',
+    };
+
+    const tipoComprobante: SalesReceiptTypeResponseDto = {
+      id:
+        orm.tipoComprobante?.id_tipo_comprobante || domain.id_tipo_comprobante,
+      codigoSunat: orm.tipoComprobante?.cod_sunat || '',
+      descripcion: orm.tipoComprobante?.descripcion || '',
+    };
+
+    const tipoVenta: SalesTypeResponseDto = {
+      id: orm.tipoVenta?.id_tipo_venta || domain.id_tipo_venta,
+      tipo: orm.tipoVenta?.tipo || '',
+      descripcion: orm.tipoVenta?.descripcion || '',
+    };
+
+    const sede: BranchResponseDto = {
+      id: domain.id_sede_ref,
+      nombre: '',
+    };
+
+    const metodoPago: PaymentMethodResponseDto | undefined = orm.payment
+      ?.paymentType
+      ? {
+          id: orm.payment.paymentType.id,
+          codigoSunat: orm.payment.paymentType.codSunat,
+          descripcion: orm.payment.paymentType.descripcion,
+        }
+      : undefined;
+
+    const moneda: CurrencyResponseDto = {
+      codigo: orm.moneda?.codigo || domain.cod_moneda,
+      descripcion: orm.moneda?.descripcion || '',
+    };
+
+    const items: SalesReceiptItemResponseDto[] = domain.items.map((item) => ({
+      productId: item.productId,
+      productName: item.productName || item.description || '',
+      codigoProducto: item.productId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      unitValue: item.unitPrice,
+      igv: item.igv || 0,
+      tipoAfectacionIgv: 1,
+      total: item.total || item.quantity * item.unitPrice,
+    }));
+
     return {
-      idComprobante: domain.id_comprobante,
-      idCliente: domain.id_cliente,
+      idComprobante: domain.id_comprobante!,
       numeroCompleto: domain.getFullNumber(),
       serie: domain.serie,
       numero: domain.numero,
       fecEmision: domain.fec_emision,
-      fecVenc: domain.fec_venc, // ✅
-      tipoOperacion: domain.tipo_operacion, // ✅
-      subtotal: domain.subtotal, // ✅
-      igv: domain.igv, // ✅
-      isc: domain.isc, // ✅
+      fecVenc: domain.fec_venc,
+      tipoOperacion: domain.tipo_operacion,
+      subtotal: domain.subtotal,
+      igv: domain.igv,
+      isc: domain.isc,
       total: domain.total,
       estado: domain.estado,
-      codMoneda: domain.cod_moneda, // ✅
-      idTipoComprobante: domain.id_tipo_comprobante, // ✅
-      idTipoVenta: domain.id_tipo_venta, // ✅
-      idSedeRef: domain.id_sede_ref, // ✅
-      idResponsableRef: domain.id_responsable_ref, // ✅
+      cliente,
+      responsable,
+      tipoComprobante,
+      tipoVenta,
+      sede,
+      metodoPago,
+      moneda,
+      items,
+    };
+  }
+
+  static toResponseDto(domain: SalesReceipt): SalesReceiptResponseDto {
+    return {
+      idComprobante: domain.id_comprobante!,
+      numeroCompleto: domain.getFullNumber(),
+      serie: domain.serie,
+      numero: domain.numero,
+      fecEmision: domain.fec_emision,
+      fecVenc: domain.fec_venc,
+      tipoOperacion: domain.tipo_operacion,
+      subtotal: domain.subtotal,
+      igv: domain.igv,
+      isc: domain.isc,
+      total: domain.total,
+      estado: domain.estado,
+      cliente: {
+        id: domain.id_cliente,
+        documentTypeId: 0,
+        documentTypeDescription: '',
+        documentTypeSunatCode: '',
+        documentValue: '',
+        name: '',
+        status: true,
+      },
+      responsable: {
+        id: Number(domain.id_responsable_ref),
+        nombre: '',
+        apellidoPaterno: '',
+        apellidoMaterno: '',
+        nombreCompleto: '',
+      },
+      tipoComprobante: {
+        id: domain.id_tipo_comprobante,
+        codigoSunat: '',
+        descripcion: '',
+      },
+      tipoVenta: {
+        id: domain.id_tipo_venta,
+        tipo: '',
+        descripcion: '',
+      },
+      sede: {
+        id: domain.id_sede_ref,
+        nombre: '',
+      },
+      moneda: {
+        codigo: domain.cod_moneda,
+        descripcion: '',
+      },
       items: domain.items.map((item) => ({
         productId: item.productId,
-        productName: item.productName || item.description || '', // ✅
-        codigoProducto: item.productId, // ✅ Si existe en el dominio
+        productName: item.productName || item.description || '',
+        codigoProducto: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        unitValue: item.unitPrice, // ✅ Asumiendo que valor_uni = pre_uni
-        igv: item.igv,
-        tipoAfectacionIgv: item.igv || 1, // ✅
-        total: item.total,
+        unitValue: item.unitPrice,
+        igv: item.igv || 0,
+        tipoAfectacionIgv: 1,
+        total: item.total || item.quantity * item.unitPrice,
       })),
+    };
+  }
+
+  static ormToSummaryDto(orm: SalesReceiptOrmEntity): SalesReceiptSummaryDto {
+    const domain = this.toDomain(orm);
+
+    return {
+      idComprobante: domain.id_comprobante!,
+      numeroCompleto: domain.getFullNumber(),
+      serie: domain.serie,
+      numero: domain.numero,
+      tipoComprobante: orm.tipoComprobante?.descripcion || '',
+      fecEmision: domain.fec_emision,
+      clienteNombre: orm.cliente?.nombres || '',
+      clienteDocumento: orm.cliente?.valor_doc || '',
+      idResponsable: domain.id_responsable_ref,
+      responsableNombre: '',
+      idSede: domain.id_sede_ref,
+      sedeNombre: '',
+      metodoPago: orm.payment?.paymentType?.descripcion || '',
+      total: domain.total,
+      estado: domain.estado,
+    };
+  }
+
+  static toSummaryListResponse(
+    orms: SalesReceiptOrmEntity[],
+    total: number,
+  ): SalesReceiptSummaryListResponse {
+    return {
+      receipts: orms.map((orm) => this.ormToSummaryDto(orm)),
+      total,
+    };
+  }
+
+  static toCustomerHistoryDto(data: {
+    customer: {
+      id_cliente: string;
+      nombres: string;
+      valor_doc: string;
+      tipoDocumento?: { descripcion: string };
+    };
+    statistics: {
+      totalCompras: number;
+      totalEmitidos: number;
+      totalAnulados: number;
+      montoTotal: number;
+      montoEmitido: number;
+      promedioCompra: number;
+    };
+    recentPurchases: SalesReceiptOrmEntity[];
+  }): CustomerPurchaseHistoryDto {
+    const recentPurchases = Array.isArray(data.recentPurchases) ? data.recentPurchases : [];
+
+    return {
+      customer: {
+        id: data.customer.id_cliente,
+        nombre: data.customer.nombres,
+        documento: data.customer.valor_doc,
+        tipoDocumento: data.customer.tipoDocumento?.descripcion || 'DNI',
+      },
+      statistics: {
+        totalCompras: data.statistics.totalCompras,
+        totalEmitidos: data.statistics.totalEmitidos,
+        totalAnulados: data.statistics.totalAnulados,
+        montoTotal: data.statistics.montoTotal,
+        montoEmitido: data.statistics.montoEmitido,
+        promedioCompra: data.statistics.promedioCompra,
+      },
+      recentPurchases: recentPurchases.map((orm) => {
+        
+        return {
+          idComprobante: orm.id_comprobante,
+          numeroCompleto: `${orm.serie}-${String(orm.numero).padStart(8, '0')}`,
+          tipoComprobante: orm.tipoComprobante?.descripcion || 'BOLETA',
+          fecha: orm.fec_emision instanceof Date ? orm.fec_emision : new Date(orm.fec_emision),
+          sedeNombre: '',
+          responsableNombre: '',
+          total: Number(orm.total),
+          estado: orm.estado as any,
+          id_sede_ref: orm.id_sede_ref,
+          id_responsable_ref: orm.id_responsable_ref,
+        } as any;
+      }),
+    };
+  }
+
+  static toWithHistoryDto(
+    receiptOrm: SalesReceiptOrmEntity,
+    customerHistory?: CustomerPurchaseHistoryDto,
+  ): SalesReceiptWithHistoryDto {
+    return {
+      receipt: this.ormToResponseDto(receiptOrm),
+      customerHistory,
     };
   }
 }

@@ -43,7 +43,7 @@ import { SedeTcpProxy } from './core/infrastructure/adapters/out/TCP/sede-tcp.pr
         password: configService.get<string>('AUTH_DB_PASSWORD') || '',
         database: configService.get<string>('AUTH_DB_DATABASE'),
         entities: [AccountUserOrmEntity, UserOrmEntity, RoleOrmEntity, PermissionOrmEntity],
-        synchronize: true,
+        synchronize: false,
         logging: true,
       }),
     }),

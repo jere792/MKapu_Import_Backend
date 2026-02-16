@@ -20,6 +20,7 @@ import { CashMovementOrmEntity } from './infrastructure/entity/cash-movement-orm
 import { SalesReceiptCommandService } from './application/service/sales-receipt-command.service';
 import { SalesReceiptQueryService } from './application/service/sales-receipt-query.service';
 import { LogisticsStockProxy } from './infrastructure/adapters/out/TCP/logistics-stock.proxy';
+import { AdminTcpProxy } from './infrastructure/adapters/out/TCP/admin-tcp.proxy';
 
 import { SalesReceiptRepository } from './infrastructure/adapters/out/repository/sales-receipt.respository';
 import { PaymentRepository } from './infrastructure/adapters/out/repository/payment.repository';
@@ -42,6 +43,18 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           options: {
             host: config.get('LOGISTICS_HOST', 'localhost'),
             port: 3004,
+          },
+        }),
+        inject: [ConfigService],
+      },
+      {
+        name: 'ADMIN_SERVICE',
+        imports: [ConfigModule],
+        useFactory: (config: ConfigService) => ({
+          transport: Transport.TCP,
+          options: {
+            host: config.get('ADMIN_HOST', 'localhost'),
+            port: 3011,
           },
         }),
         inject: [ConfigService],
@@ -72,8 +85,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     SalesReceiptRepository,
     PaymentRepository,
     LogisticsStockProxy,
+    AdminTcpProxy,
 
-    // Ports de Sales Receipt
     {
       provide: 'ISalesReceiptCommandPort',
       useClass: SalesReceiptCommandService,
@@ -105,6 +118,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     SalesReceiptQueryService,
     'ISalesReceiptRepositoryPort',
     'ISalesReceiptQueryPort',
+    AdminTcpProxy,
   ],
 })
 export class SalesReceiptModule {}

@@ -60,7 +60,7 @@ import { StockOrmEntity } from './core/warehouse/inventory/infrastructure/entity
           StockOrmEntity,
         ],
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: false,
         logging: true,
       }),
     }),

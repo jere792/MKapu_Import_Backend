@@ -1,6 +1,4 @@
-/* ============================================
-   sales/src/core/sales-receipt/infrastructure/adapters/in/controllers/sales-receipt-rest.controller.ts
-   ============================================ */
+/* sales/src/core/sales-receipt/infrastructure/adapters/in/controllers/sales-receipt-rest.controller.ts */
 
 import {
   Controller,
@@ -31,6 +29,9 @@ import {
   SalesReceiptResponseDto,
   SalesReceiptListResponse,
   SalesReceiptDeletedResponseDto,
+  SalesReceiptSummaryListResponse,
+  SalesReceiptWithHistoryDto,
+  CustomerPurchaseHistoryDto,
 } from '../../../../application/dto/out';
 
 @Controller('receipts')
@@ -41,10 +42,6 @@ export class SalesReceiptRestController {
     @Inject('ISalesReceiptCommandPort')
     private readonly receiptCommandService: ISalesReceiptCommandPort,
   ) {}
-
-  // ===============================
-  // COMMANDS
-  // ===============================
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -75,16 +72,12 @@ export class SalesReceiptRestController {
     return this.receiptCommandService.deleteReceipt(id);
   }
 
-  // ===============================
-  // QUERIES
-  // ===============================
-
   @Get()
   async listReceipts(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query() filters: ListSalesReceiptFilterDto,
-  ): Promise<SalesReceiptListResponse> {
+  ): Promise<SalesReceiptSummaryListResponse> {
     const allowedLimits = [10, 20, 50, 100];
 
     if (!allowedLimits.includes(limit)) {
@@ -93,7 +86,7 @@ export class SalesReceiptRestController {
       );
     }
 
-    return this.receiptQueryService.listReceipts({
+    return this.receiptQueryService.listReceiptsSummary({
       ...filters,
       page,
       limit,
@@ -107,10 +100,17 @@ export class SalesReceiptRestController {
     return this.receiptQueryService.getReceiptsBySerie(serie);
   }
 
+  @Get('customer/:customerId/history')
+  async getCustomerPurchaseHistory(
+    @Param('customerId') customerId: string,
+  ): Promise<CustomerPurchaseHistoryDto> {
+    return this.receiptQueryService.getCustomerPurchaseHistory(customerId);
+  }
+
   @Get(':id')
   async getReceipt(
     @Param('id', ParseIntPipe) id: number,
-  ): Promise<SalesReceiptResponseDto | null> {
-    return this.receiptQueryService.getReceiptById(id);
+  ): Promise<SalesReceiptWithHistoryDto> {
+    return this.receiptQueryService.getReceiptWithHistory(id);
   }
 }

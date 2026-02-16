@@ -1,3 +1,5 @@
+/* apps/sales/src/core/sales-receipt/domain/ports/out/payment-repository-ports-out.ts */
+
 import { QueryRunner } from 'typeorm';
 
 export interface IPaymentRepositoryPort {

@@ -1,3 +1,5 @@
+/* apps/sales/src/core/sales-receipt/infrastructure/entity/payment-type-orm.entity.ts */
+
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity('tipo_pago')

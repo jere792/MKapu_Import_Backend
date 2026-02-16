@@ -1,6 +1,4 @@
-/* ============================================
-   sales/src/core/sales-receipt/domain/ports/in/sales-receipt-ports-in.ts
-   ============================================ */
+/* sales/src/core/sales-receipt/domain/ports/in/sales-receipt-ports-in.ts */
 
 import {
   RegisterSalesReceiptDto,
@@ -12,6 +10,9 @@ import {
   SalesReceiptResponseDto,
   SalesReceiptListResponse,
   SalesReceiptDeletedResponseDto,
+  SalesReceiptSummaryListResponse,
+  SalesReceiptWithHistoryDto,
+  CustomerPurchaseHistoryDto,
 } from '../../../application/dto/out';
 
 export interface ISalesReceiptCommandPort {
@@ -26,6 +27,18 @@ export interface ISalesReceiptQueryPort {
   listReceipts(
     filters?: ListSalesReceiptFilterDto,
   ): Promise<SalesReceiptListResponse>;
+  
+  listReceiptsSummary(
+    filters?: ListSalesReceiptFilterDto,
+  ): Promise<SalesReceiptSummaryListResponse>;
+  
   getReceiptById(id: number): Promise<SalesReceiptResponseDto | null>;
+  
+  getReceiptWithHistory(id: number): Promise<SalesReceiptWithHistoryDto>;
+  
+  getCustomerPurchaseHistory(
+    customerId: string,
+  ): Promise<CustomerPurchaseHistoryDto>;
+  
   getReceiptsBySerie(serie: string): Promise<SalesReceiptListResponse>;
 }

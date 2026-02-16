@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 
 import { SalesTypeOrmEntity } from './sales-type-orm.entity';
@@ -12,6 +13,7 @@ import { ReceiptTypeOrmEntity } from './receipt-type-orm.entity';
 import { SunatCurrencyOrmEntity } from './sunat-currency-orm.entity';
 import { CustomerOrmEntity } from '../../../customer/infrastructure/entity/customer-orm.entity';
 import { SalesReceiptDetailOrmEntity } from './sales-receipt-detail-orm.entity';
+import { PaymentOrmEntity } from './payment-orm.entity';
 
 export enum ReceiptStatusOrm {
   EMITIDO = 'EMITIDO',
@@ -45,6 +47,13 @@ export class SalesReceiptOrmEntity {
     cascade: true,
   })
   details: SalesReceiptDetailOrmEntity[];
+
+  @OneToOne(() => PaymentOrmEntity, { nullable: true })
+  @JoinColumn({
+    name: 'id_comprobante',
+    referencedColumnName: 'id_comprobante',
+  })
+  payment: PaymentOrmEntity;
 
   @Column({ type: 'char', length: 4, name: 'serie' })
   serie: string;
