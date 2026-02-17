@@ -104,6 +104,17 @@ export class TransferRepository implements TransferPortsOut {
        return TransferMapper.mapToDomain(e, originHq, destHq);
     }));
   }
+  async findAll(): Promise<Transfer[]> {
+    const entities = await this.transferRepo.find({
+      relations: ['details'],
+      order: { date: 'DESC' },
+    });
+    return Promise.all(entities.map(async e => {
+      const originHq = await this.getHeadquartersByWarehouse(e.originWarehouseId);
+      const destHq = await this.getHeadquartersByWarehouse(e.destinationWarehouseId);
+      return TransferMapper.mapToDomain(e, originHq, destHq);
+    }));
+  }
   private async getHeadquartersByWarehouse(warehouseId: number): Promise<string> {
     const stock = await this.stockRepo.findOne({
       where: { id_almacen: warehouseId },

@@ -1,10 +1,10 @@
 /* .../wastage/domain/entity/wastage-domain-intity.ts */
 export class Wastage {
-  constructor(
+constructor(
     public readonly id_merma: number | null,
     public readonly id_usuario_ref: number,
-    public readonly id_sede_ref: string,
-    public readonly id_almacen_ref: number, // <-- Agregado aquí
+    public readonly id_sede_ref: number,   
+    public readonly id_almacen_ref: number,
     public readonly motivo: string,
     public readonly fec_merma: Date,
     public readonly estado: boolean,

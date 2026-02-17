@@ -13,14 +13,12 @@ export class SalesService {
 
   async createSale(dto: CreateSaleDto) {
     return this.dataSource.transaction(async (manager) => {
-      // 1️⃣ Crear cabecera
       const saleResult = await manager.query(
         `INSERT INTO venta(fecha, cliente_id) VALUES (NOW(), ?)`,
         [dto.customerId],
       );
       const saleId = saleResult.insertId;
 
-      // 2️⃣ Procesar items
       for (const item of dto.items) {
         // 2.1 Guardar detalle
         await manager.query(

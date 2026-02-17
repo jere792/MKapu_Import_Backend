@@ -17,7 +17,6 @@ export interface ISalesReceiptRepositoryPort {
   }): Promise<SalesReceipt[]>;
   getNextNumber(serie: string): Promise<number>;
 
-  // ✅ NUEVOS MÉTODOS PARA TRANSACCIONES Y BLOQUEO
   getQueryRunner(): QueryRunner;
   getNextNumberWithLock(serie: string, queryRunner: QueryRunner): Promise<number>;
 }

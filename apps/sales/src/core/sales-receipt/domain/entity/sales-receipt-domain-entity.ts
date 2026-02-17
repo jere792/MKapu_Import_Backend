@@ -6,7 +6,6 @@ export enum ReceiptStatus {
   RECHAZADO = 'RECHAZADO',
 }
 
-// ✅ Definición de la estructura de cada producto en el comprobante
 export interface SalesReceiptItem {
   productName: string;
   productId: string;
@@ -35,7 +34,7 @@ export interface SalesReceiptProps {
   id_responsable_ref: string;
   id_sede_ref: number;
   cod_moneda: string;
-  items: SalesReceiptItem[]; // ✅ Agregado formalmente
+  items: SalesReceiptItem[]; 
 }
 
 export class SalesReceipt {

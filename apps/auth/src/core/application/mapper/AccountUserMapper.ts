@@ -3,6 +3,7 @@
 import { AccountUser } from '../../domain/entity/account-user';
 import { AccountUserOrmEntity } from '../../infrastructure/entity/account-user-orm-entity';
 import { AccountUserResponseDto } from '../dto/out/AccountUserResponseDto';
+import { LoginResponseDto } from '../dto/out/LoginResponseDto';
 
 export class AccountUserMapper {
   static toDomain(ormEntity: AccountUserOrmEntity): AccountUser {
@@ -14,13 +15,11 @@ export class AccountUserMapper {
       contrasenia: ormEntity.contraseña,
       email: email,
       rolNombre: ormEntity.roles?.[0]?.nombre || 'SIN_ROL',
-      estado: ormEntity.activo, 
+      estado: ormEntity.activo,
     });
   }
 
-  static toAccountUserResponseDto(
-    entity: AccountUserOrmEntity,
-  ): AccountUserResponseDto {
+  static toAccountUserResponseDto(entity: AccountUserOrmEntity): AccountUserResponseDto {
     return {
       id: entity.id_cuenta,
       nombreUsuario: entity.nom_usu,
@@ -49,10 +48,11 @@ export class AccountUserMapper {
     ormEntity.id_cuenta = domainEntity.id;
     ormEntity.nom_usu = domainEntity.nombreUsuario;
     ormEntity.contraseña = domainEntity.contrasenia;
-    ormEntity.activo = domainEntity.estado; 
-    
+    ormEntity.activo = domainEntity.estado;
+
     return ormEntity;
   }
+
   static toDto(domain: AccountUser): AccountUserResponseDto {
     return {
       id: domain.id,
@@ -64,5 +64,53 @@ export class AccountUserMapper {
         return domain.estado;
       },
     };
+  }
+
+  static toLoginResponseDto(params: {
+    access_token: string;
+    account: AccountUserOrmEntity;
+    sedeNombre: string;
+  }): LoginResponseDto {
+    const { access_token, account, sedeNombre } = params;
+
+    // roles simples
+    const roles = (account.roles ?? []).map((r) => ({
+      id_rol: r.id_rol,
+      nombre: r.nombre,
+    }));
+
+    // permisos aplanados (únicos) desde roles.permisos
+    const permisosMap = new Map<number, { id_permiso: number; nombre: string }>();
+    for (const r of account.roles ?? []) {
+      for (const p of r.permisos ?? []) {
+        permisosMap.set(p.id_permiso, { id_permiso: p.id_permiso, nombre: p.nombre });
+      }
+    }
+
+    return {
+      access_token,
+      account: {
+        id_cuenta: account.id_cuenta,
+        username: account.nom_usu,
+        email_emp: account.email_emp ?? '', 
+        activo: account.activo,
+
+        id_sede: account.id_sede,
+        sede_nombre: sedeNombre,
+
+        usuario: {
+          id_usuario: account.usuario?.id_usuario ?? account.id_usuario_val,
+          nombres: account.usuario?.nombres ?? '',
+          ape_pat: account.usuario?.ape_pat ?? '',
+          ape_mat: account.usuario?.ape_mat ?? '',
+          dni: account.usuario?.dni ?? '',
+          email: account.usuario?.email ?? account.email_emp ?? null,
+        },
+
+        roles,
+        permisos: Array.from(permisosMap.values()),
+      },
+    };
+
   }
 }

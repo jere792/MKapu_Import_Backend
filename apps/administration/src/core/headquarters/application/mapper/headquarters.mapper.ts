@@ -80,16 +80,31 @@ export class HeadquartersMapper {
    }
 
    static toDomainEntity(ormEntity: HeadquartersOrmEntity): Headquarters {
-      return Headquarters.create({
-         id_sede: ormEntity.id_sede,
-         codigo: ormEntity.codigo,
-         nombre: ormEntity.nombre,
-         ciudad: ormEntity.ciudad,
-         departamento: ormEntity.departamento,
-         direccion: ormEntity.direccion,
-         telefono: ormEntity.telefono,
-         activo: ormEntity.activo,
-      });
+   const raw = (ormEntity as any).activo;
+
+   const activo =
+      typeof raw === 'boolean'
+         ? raw
+         : typeof raw === 'number'
+         ? raw === 1
+         : typeof raw === 'string'
+            ? raw === '1' || raw.toLowerCase() === 'true'
+            : Buffer.isBuffer(raw)
+               ? raw.length > 0 && raw[0] === 1
+               : raw instanceof Uint8Array
+               ? raw.length > 0 && raw[0] === 1
+               : Boolean(raw);
+
+   return Headquarters.create({
+      id_sede: ormEntity.id_sede,
+      codigo: ormEntity.codigo,
+      nombre: ormEntity.nombre,
+      ciudad: ormEntity.ciudad,
+      departamento: ormEntity.departamento,
+      direccion: ormEntity.direccion,
+      telefono: ormEntity.telefono,
+      activo,
+   });
    }
 
    static toOrmEntity(headquarter: Headquarters): HeadquartersOrmEntity {

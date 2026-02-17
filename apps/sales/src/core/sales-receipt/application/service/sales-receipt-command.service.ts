@@ -79,7 +79,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         monto: savedOrm.total,
       }, queryRunner);
 
-      // ✅ COMMIT de la transacción ANTES de stock
       await queryRunner.commitTransaction();
 
       // Convertir savedOrm de vuelta a dominio para la respuesta
@@ -127,7 +126,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       
-      // ✅ Actualizar SOLO el estado, sin tocar detalles
       await queryRunner.query(
         'UPDATE comprobante_venta SET estado = ? WHERE id_comprobante = ?',
         ['ANULADO', receiptId]

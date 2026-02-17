@@ -34,7 +34,7 @@ import { RoleGuard } from 'libs/common/src/infrastructure/guard/roles.guard';
 
 @Controller('headquarters')
 //@UseGuards(RoleGuard)
-//@Roles('Administrador')
+//@Roles('Administrador') 
 export class HeadquarterRestController {
   constructor(
     @Inject('IHeadquartersQueryPort')

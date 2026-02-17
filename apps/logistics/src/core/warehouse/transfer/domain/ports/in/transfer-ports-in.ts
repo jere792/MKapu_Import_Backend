@@ -31,4 +31,6 @@ export interface TransferPortsIn {
   getTransfersByHeadquarters(headquartersId: string): Promise<Transfer[]>;
 
   getTransferById(id: number): Promise<Transfer>;
+
+  getAllTransfers(): Promise<Transfer[]>;
 }

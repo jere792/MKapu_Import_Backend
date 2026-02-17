@@ -8,7 +8,7 @@ import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('rol')
 export class RoleOrmEntity {
-  @PrimaryGeneratedColumn({ name: 'id_rol', type: 'int' }) // Cambio aquí
+  @PrimaryGeneratedColumn({ name: 'id_rol', type: 'int' }) 
   id_rol: number;
 
   @Column({ name: 'nombre', type: 'varchar', length: 45 })
@@ -21,7 +21,7 @@ export class RoleOrmEntity {
     name: 'activo',
     type: 'bit',
     transformer: BitToBooleanTransformer,
-    default: () => "b'1'", // Default correcto para MySQL
+    default: () => "b'1'", 
   })
   activo: boolean;
 }

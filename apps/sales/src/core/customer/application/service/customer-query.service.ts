@@ -43,7 +43,6 @@ export class CustomerQueryService implements ICustomerQueryPort {
     // Find customer by ID
     const customer = await this.customerRepository.findById(id);
 
-    // ✅ Arrojamos 404 si no existe para evitar el 200 vacío
     if (!customer) {
       throw new NotFoundException(`No se encontró el cliente con ID: ${id}`);
     }
@@ -56,7 +55,6 @@ export class CustomerQueryService implements ICustomerQueryPort {
     // Find customer by document
     const customer = await this.customerRepository.findByDocument(documentValue);
 
-    // ✅ Arrojamos 404 si no existe. Esto permite al cajero saber que debe registrar al cliente.
     if (!customer) {
       throw new NotFoundException(`No se encontró ningún cliente con el documento: ${documentValue}`);
     }

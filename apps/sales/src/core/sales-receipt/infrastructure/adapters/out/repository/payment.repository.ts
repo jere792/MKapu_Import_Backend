@@ -27,7 +27,6 @@ export class PaymentRepository implements IPaymentRepositoryPort {
     await this.cashRepo.save(data);
   }
 
-  // ✅ NUEVOS MÉTODOS TRANSACCIONALES
   async savePaymentInTransaction(data: any, queryRunner: QueryRunner): Promise<void> {
     await queryRunner.manager.save(PaymentOrmEntity, data);
   }

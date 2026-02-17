@@ -40,9 +40,7 @@ export class ProductQueryService implements IProductQueryPort {
     return ProductMapper.toListResponse(products, total, page, limit);
   }
 
-  async listProductsStock(
-    filters: ListProductStockFilterDto,
-  ): Promise<ListProductStockResponseDto> {
+  async listProductsStock(filters: ListProductStockFilterDto): Promise<ListProductStockResponseDto> {
     const { page = 1, size = 10, id_sede } = filters;
 
     const [stocks, total] = await this.repository.findProductsStock(filters, page, size);
@@ -74,9 +72,7 @@ export class ProductQueryService implements IProductQueryPort {
     return { data, pagination };
   }
 
-  async autocompleteProducts(
-    dto: ProductAutocompleteQueryDto,
-  ): Promise<ProductAutocompleteResponseDto> {
+  async autocompleteProducts(dto: ProductAutocompleteQueryDto): Promise<ProductAutocompleteResponseDto> {
     const items = await this.repository.autocompleteProducts(dto);
 
     const data: ProductAutocompleteItemDto[] = items.map((p) => ({
@@ -89,23 +85,14 @@ export class ProductQueryService implements IProductQueryPort {
     return { data };
   }
 
-  // ✅ NUEVO: detalle producto + stock por sede
-  async getProductDetailWithStock(
-    id_producto: number,
-    id_sede: number,
-  ): Promise<ProductDetailWithStockResponseDto> {
-    const { product, stock } = await this.repository.getProductDetailWithStock(
-      id_producto,
-      id_sede,
-    );
+  async getProductDetailWithStock(id_producto: number, id_sede: number): Promise<ProductDetailWithStockResponseDto> {
+    const { product, stock } = await this.repository.getProductDetailWithStock(id_producto, id_sede);
 
     if (!product) {
       throw new NotFoundException(`Producto ${id_producto} no existe`);
     }
     if (!stock) {
-      throw new NotFoundException(
-        `No hay stock del producto ${id_producto} en la sede ${id_sede}`,
-      );
+      throw new NotFoundException(`No hay stock del producto ${id_producto} en la sede ${id_sede}`);
     }
 
     let sedeNombre = `Sede ${id_sede}`;
@@ -124,14 +111,26 @@ export class ProductQueryService implements IProductQueryPort {
     });
   }
 
-  async getProductById(id: number): Promise<ProductResponseDto | null> {
-    const product = await this.repository.findById(id);
-    return product ? ProductMapper.toResponseDto(product) : null;
+  async getProductDetailWithStockByCode(codigo: string, id_sede: number): Promise<ProductDetailWithStockResponseDto> {
+    const product = await this.repository.findByCode(codigo);
+
+    if (!product) {
+      throw new NotFoundException(`Producto no existe: ${codigo}`);
+    }
+
+    return this.getProductDetailWithStock(product.id_producto!, id_sede);
   }
 
-  async getProductByCode(codigo: string): Promise<ProductResponseDto | null> {
+  async getProductById(id: number): Promise<ProductResponseDto> {
+    const product = await this.repository.findById(id);
+    if (!product) throw new NotFoundException(`Producto no encontrado: ${id}`);
+    return ProductMapper.toResponseDto(product);
+  }
+
+  async getProductByCode(codigo: string): Promise<ProductResponseDto> {
     const product = await this.repository.findByCode(codigo);
-    return product ? ProductMapper.toResponseDto(product) : null;
+    if (!product) throw new NotFoundException(`Producto no encontrado: ${codigo}`);
+    return ProductMapper.toResponseDto(product);
   }
 
   async getProductsByCategory(id_categoria: number): Promise<ProductListResponse> {

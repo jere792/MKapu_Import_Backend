@@ -36,7 +36,6 @@ export class UserCommandService implements IUserCommandPort {
     const savedUser = await this.repository.save(usuario);
     const response = UserMapper.toResponseDto(savedUser);
 
-    // 🚀 WebSocket: Notificar creación
     this.userGateway.notifyUserCreated(response);
 
     return response;
@@ -55,7 +54,6 @@ export class UserCommandService implements IUserCommandPort {
     const savedUser = await this.repository.update(updatedUser);
     const response = UserMapper.toResponseDto(savedUser);
 
-    // 🚀 WebSocket: Notificar actualización
     this.userGateway.notifyUserUpdated(response);
 
     return response;
@@ -69,7 +67,6 @@ export class UserCommandService implements IUserCommandPort {
     const savedUser = await this.repository.update(updatedUser);
     const response = UserMapper.toResponseDto(savedUser);
 
-    // 🚀 WebSocket: Notificar cambio de estado (activo/inactivo)
     this.userGateway.notifyUserStatusChanged(response);
 
     return response;
@@ -82,7 +79,6 @@ export class UserCommandService implements IUserCommandPort {
     await this.repository.delete(id);
     const response = UserMapper.toDeletedResponse(id);
 
-    // 🚀 WebSocket: Notificar eliminación
     this.userGateway.notifyUserDeleted(id);
 
     return response;

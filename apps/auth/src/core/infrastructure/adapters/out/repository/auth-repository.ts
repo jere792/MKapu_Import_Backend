@@ -1,14 +1,20 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable prettier/prettier */
 /* auth/src/core/infrastructure/repository/auth-repository.ts */
 
-/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
-import { AccountUserPortsOut } from 'apps/auth/src/core/domain/ports/out/account-user-port-out';
-import { AccountUserOrmEntity, UserOrmEntity } from '../../../entity/account-user-orm-entity';
 import { DataSource, Repository } from 'typeorm';
+
+import { AccountUserPortsOut } from 'apps/auth/src/core/domain/ports/out/account-user-port-out';
+import {
+  AccountUserOrmEntity,
+  UserOrmEntity,
+} from '../../../entity/account-user-orm-entity';
+
 import { AccountUser } from 'apps/auth/src/core/domain/entity/account-user';
 import { AccountUserMapper } from 'apps/auth/src/core/application/mapper/AccountUserMapper';
+
 @Injectable()
 export class AuthRepository implements AccountUserPortsOut {
   private readonly userRepo: Repository<AccountUserOrmEntity>;
@@ -16,6 +22,16 @@ export class AuthRepository implements AccountUserPortsOut {
   constructor(private readonly dataSource: DataSource) {
     this.userRepo = this.dataSource.getRepository(AccountUserOrmEntity);
   }
+
+  async findAccountByUsernameWithRelations(
+    username: string,
+  ): Promise<AccountUserOrmEntity | null> {
+    return await this.userRepo.findOne({
+      where: { nom_usu: username, activo: true },
+      relations: ['usuario', 'roles', 'roles.permisos'],
+    });
+  }
+
   async findByEmail(email: string): Promise<AccountUser | null> {
     const userEntity = await this.userRepo.findOne({
       where: { email_emp: email, activo: true },
@@ -24,6 +40,7 @@ export class AuthRepository implements AccountUserPortsOut {
 
     return userEntity ? AccountUserMapper.toDomainEntity(userEntity) : null;
   }
+
   async assignRole(accountId: number, roleId: number): Promise<void> {
     await this.dataSource
       .createQueryBuilder()
@@ -31,6 +48,7 @@ export class AuthRepository implements AccountUserPortsOut {
       .of(accountId)
       .add(roleId);
   }
+
   async findByUsername(username: string): Promise<AccountUser | null> {
     const userEntity = await this.userRepo.findOne({
       where: { nom_usu: username, activo: true },
@@ -40,12 +58,16 @@ export class AuthRepository implements AccountUserPortsOut {
     return userEntity ? AccountUserMapper.toDomainEntity(userEntity) : null;
   }
 
-  async createAccount(data: { userId: number; username: string; password: string }): Promise<AccountUser> {
+  async createAccount(data: {
+    userId: number;
+    username: string;
+    password: string;
+  }): Promise<AccountUser> {
     const newAccount = this.userRepo.create({
       nom_usu: data.username,
       contraseña: data.password,
-      email_emp: `${data.username}@empresa.com`, 
-      id_sede: 1, 
+      email_emp: `${data.username}@empresa.com`,
+      id_sede: 1,
       activo: true,
       ultimo_acceso: new Date(),
     });
@@ -54,7 +76,7 @@ export class AuthRepository implements AccountUserPortsOut {
     userRef.id_usuario = data.userId;
 
     newAccount.usuario = userRef;
-    newAccount.id_usuario_val = data.userId; 
+    newAccount.id_usuario_val = data.userId;
 
     try {
       const savedAccount = await this.userRepo.save(newAccount);

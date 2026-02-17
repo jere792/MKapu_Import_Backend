@@ -30,7 +30,7 @@ export class DocumentTypeRepository implements IDocumentTypeRepositoryPort {
     return documentTypeOrm ? CustomerMapper.documentTypeToDomain(documentTypeOrm) : null;
   }
 
-  async findBySunatCode(cod_sunat: string): Promise<DocumentType | null> {  // ✅ Método renombrado a inglés
+  async findBySunatCode(cod_sunat: string): Promise<DocumentType | null> {  
     const documentTypeOrm = await this.repository.findOne({
       where: { cod_sunat },
     });

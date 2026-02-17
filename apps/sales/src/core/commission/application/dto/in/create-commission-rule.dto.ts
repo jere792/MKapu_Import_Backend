@@ -16,7 +16,6 @@ export class CreateCommissionRuleDto {
   @IsString()
   nombre: string;
 
-  // ✅ Agregamos este campo para solucionar "property descripcion should not exist"
   @IsOptional()
   @IsString()
   descripcion?: string;
@@ -33,7 +32,6 @@ export class CreateCommissionRuleDto {
   @Min(1)
   meta_unidades: number;
 
-  // ✅ Validamos contra el Enum en español (MONTO_FIJO, PORCENTAJE)
   @IsEnum(CommissionRewardType, {
     message: `tipo_recompensa debe ser uno de: ${Object.values(CommissionRewardType).join(', ')}`,
   })

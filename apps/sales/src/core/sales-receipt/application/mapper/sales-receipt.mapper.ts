@@ -144,27 +144,27 @@ export class SalesReceiptMapper {
       serie: domain.serie,
       numero: domain.numero,
       fecEmision: domain.fec_emision,
-      fecVenc: domain.fec_venc, // ✅
-      tipoOperacion: domain.tipo_operacion, // ✅
-      subtotal: domain.subtotal, // ✅
-      igv: domain.igv, // ✅
-      isc: domain.isc, // ✅
+      fecVenc: domain.fec_venc,
+      tipoOperacion: domain.tipo_operacion, 
+      subtotal: domain.subtotal, 
+      igv: domain.igv, 
+      isc: domain.isc, 
       total: domain.total,
       estado: domain.estado,
-      codMoneda: domain.cod_moneda, // ✅
-      idTipoComprobante: domain.id_tipo_comprobante, // ✅
-      idTipoVenta: domain.id_tipo_venta, // ✅
-      idSedeRef: domain.id_sede_ref, // ✅
-      idResponsableRef: domain.id_responsable_ref, // ✅
+      codMoneda: domain.cod_moneda, 
+      idTipoComprobante: domain.id_tipo_comprobante, 
+      idTipoVenta: domain.id_tipo_venta,
+      idSedeRef: domain.id_sede_ref, 
+      idResponsableRef: domain.id_responsable_ref, 
       items: domain.items.map((item) => ({
         productId: item.productId,
-        productName: item.productName || item.description || '', // ✅
-        codigoProducto: item.productId, // ✅ Si existe en el dominio
+        productName: item.productName || item.description || '', 
+        codigoProducto: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        unitValue: item.unitPrice, // ✅ Asumiendo que valor_uni = pre_uni
+        unitValue: item.unitPrice, 
         igv: item.igv,
-        tipoAfectacionIgv: item.igv || 1, // ✅
+        tipoAfectacionIgv: item.igv || 1, 
         total: item.total,
       })),
     };

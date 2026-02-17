@@ -6,6 +6,9 @@ import { CreateSaleDto } from './core/dto/create-sale.dto';
 
 @Controller('sales')
 export class SalesController {
+  getHello(): any {
+    throw new Error('Method not implemented.');
+  }
   constructor(private readonly salesService: SalesService) {}
 
   @Post()

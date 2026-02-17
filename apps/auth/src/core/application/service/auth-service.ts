@@ -1,14 +1,21 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { AccountUserPortsIn } from '../../domain/ports/in/account-user-port.in';
-import { LoginDto } from '../dto/in/loginDto';
+import {
+  Inject,
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { LoginResponseDto } from '../dto/out/LoginResponseDto';
+
+import { AccountUserPortsIn } from '../../domain/ports/in/account-user-port.in';
 import { PasswordHasherPort } from '../../domain/ports/out/password-hash-port-out';
-import { AccountUserResponseDto } from '../dto/out/AccountUserResponseDto';
-import { AccountUserMapper } from '../mapper/AccountUserMapper';
 import { AuthRepository } from '../../infrastructure/adapters/out/repository/auth-repository';
-import { ConflictException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
+
+import { LoginDto } from '../dto/in/loginDto';
+import { LoginResponseDto } from '../dto/out/LoginResponseDto';
+import { AccountUserResponseDto } from '../dto/out/AccountUserResponseDto';
+
+import { AccountUserMapper } from '../mapper/AccountUserMapper';
+import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 
 @Injectable()
 export class AuthService implements AccountUserPortsIn {
@@ -18,53 +25,62 @@ export class AuthService implements AccountUserPortsIn {
     private readonly jwtService: JwtService,
     @Inject('PasswordHasherPort')
     private readonly passwordHasher: PasswordHasherPort,
+    private readonly sedeTcpProxy: SedeTcpProxy,
   ) {}
 
   async login(loginDto: LoginDto): Promise<LoginResponseDto> {
     const { username, password } = loginDto;
-    const accountDomain = await this.repository.findByUsername(username);
 
-    if (!accountDomain) {
+    const accountOrm =
+      await this.repository.findAccountByUsernameWithRelations(username);
+
+    if (!accountOrm) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    if (!accountDomain.estado) {
+    if (!accountOrm.activo) {
       throw new UnauthorizedException('La cuenta está desactivada o bloqueada');
     }
-    const passwordHash = await this.repository.getPasswordById(
-      accountDomain.id,
-    );
-    if (!passwordHash) {
-      throw new UnauthorizedException('Credenciales inválidas');
-    }
 
-    const isPasswordValid = await bcrypt.compare(password, passwordHash);
+    const isPasswordValid = await this.passwordHasher.comparePassword(
+      password,
+      accountOrm.contraseña,
+    );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     this.repository
-      .updateLastAccess(accountDomain.id)
-      .catch((err) => console.error('Error actualizando ultimo acceso', err));
-    const roleName = accountDomain.rolNombre || '';
+      .updateLastAccess(accountOrm.id_cuenta)
+      .catch((err) =>
+        console.error('Error actualizando ultimo acceso', err),
+      );
+
+    let sedeNombre = '';
+    try {
+      const sede = await this.sedeTcpProxy.getSedeById(
+        String(accountOrm.id_sede),
+      );
+      sedeNombre = sede?.nombre ?? '';
+    } catch {
+      sedeNombre = '';
+    }
 
     const payload = {
-      sub: accountDomain.id,
-      username: accountDomain.nombreUsuario,
-      role: roleName,
+      sub: accountOrm.id_cuenta,
+      username: accountOrm.nom_usu,
+      id_usuario: accountOrm.id_usuario_val,
+      id_sede: accountOrm.id_sede,
+      roles: (accountOrm.roles ?? []).map((r) => r.nombre),
     };
 
-    const token = this.jwtService.sign(payload);
+    const access_token = this.jwtService.sign(payload);
 
-    return {
-      token,
-      user: {
-        id: accountDomain.id,
-        nombre_usuario: accountDomain.nombreUsuario,
-        email: accountDomain.email,
-        rol_nombre: roleName,
-      },
-    };
+    return AccountUserMapper.toLoginResponseDto({
+      access_token,
+      account: accountOrm,
+      sedeNombre,
+    });
   }
 
   async createAccountForUser(
@@ -73,21 +89,27 @@ export class AuthService implements AccountUserPortsIn {
     passwordRaw: string,
     roleId: number = 2,
   ): Promise<AccountUserResponseDto> {
-    const hashedPassword = await this.passwordHasher.hashPassword(passwordRaw);
+    const hashedPassword =
+      await this.passwordHasher.hashPassword(passwordRaw);
+
     const existingAccount = await this.repository.findByUsername(username);
     if (existingAccount) {
       throw new ConflictException('El nombre de usuario ya existe');
     }
+
     const account = await this.repository.createAccount({
       userId,
       username,
       password: hashedPassword,
     });
+
     await this.repository.assignRole(account.id, roleId);
+
     const fullAccountDomain = await this.repository.findById(account.id);
     if (!fullAccountDomain) {
       throw new Error('Error al recuperar la cuenta creada');
     }
+
     return AccountUserMapper.toDto(fullAccountDomain);
   }
 }

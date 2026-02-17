@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   Req,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 
@@ -69,6 +70,8 @@ export class ProductRestController {
     @Query('codigo') codigo?: string,
     @Query('nombre') nombre?: string,
     @Query('id_categoria') id_categoria?: string,
+    @Query('categoria') categoria?: string,
+    @Query('familia') familia?: string,
     @Query('activo') activo?: string,
     @Query('page') page?: string,
     @Query('size') size?: string,
@@ -78,16 +81,17 @@ export class ProductRestController {
 
     const sede = String(id_sede ?? '').trim();
     if (!sede) {
-      throw new BadRequestException(
-        'id_sede es obligatorio. Ej: ?id_sede=1&page=1&size=10',
-      );
+      throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1&page=1&size=10');
     }
+
+    const categoriaNombre = String((categoria ?? familia) ?? '').trim();
 
     const filters: ListProductStockFilterDto = {
       id_sede: sede,
       codigo: codigo?.trim(),
       nombre: nombre?.trim(),
       id_categoria: id_categoria ? parseInt(id_categoria, 10) : undefined,
+      categoria: categoriaNombre || undefined,
       activo: activo === 'true' ? true : activo === 'false' ? false : undefined,
       page: page ? parseInt(page, 10) : 1,
       size: size ? parseInt(size, 10) : 10,
@@ -96,7 +100,6 @@ export class ProductRestController {
     return this.queryService.listProductsStock(filters);
   }
 
-  // Autocomplete (máx 5, search min 3, limitado por sede)
   @Get('autocomplete')
   async autocomplete(
     @Query('search') search?: string,
@@ -119,7 +122,6 @@ export class ProductRestController {
     return this.queryService.autocompleteProducts(dto);
   }
 
-  // ✅ NUEVO: detalle producto + stock por sede (para botón "ojo")
   @Get(':id_producto/stock')
   async detailWithStock(
     @Param('id_producto', ParseIntPipe) id_producto: number,
@@ -130,26 +132,45 @@ export class ProductRestController {
       throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1');
     }
 
-    return this.queryService.getProductDetailWithStock(
-      id_producto,
-      Number(sede),
-    );
+    return this.queryService.getProductDetailWithStock(id_producto, Number(sede));
+  }
+
+  @Get('code/:codigo/stock')
+  async detailWithStockByCode(
+    @Param('codigo') codigo: string,
+    @Query('id_sede') id_sede?: string,
+  ) {
+    const sede = String(id_sede ?? '').trim();
+    if (!sede) {
+      throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1');
+    }
+
+    const result = await this.queryService.getProductDetailWithStockByCode(codigo, Number(sede));
+
+    // si por alguna razón el service retornara null, aquí lo convertimos en 404
+    if (!result) {
+      throw new NotFoundException(`Producto no encontrado: ${codigo}`);
+    }
+
+    return result;
   }
 
   @Get('code/:codigo')
   async getByCode(@Param('codigo') codigo: string) {
-    return this.queryService.getProductByCode(codigo);
+    const product = await this.queryService.getProductByCode(codigo);
+    if (!product) throw new NotFoundException(`Producto no encontrado: ${codigo}`);
+    return product;
   }
 
   @Get('category/:id_categoria')
-  async getByCategory(
-    @Param('id_categoria', ParseIntPipe) id_categoria: number,
-  ) {
+  async getByCategory(@Param('id_categoria', ParseIntPipe) id_categoria: number) {
     return this.queryService.getProductsByCategory(id_categoria);
   }
 
   @Get(':id')
   async getById(@Param('id', ParseIntPipe) id: number) {
-    return this.queryService.getProductById(id);
+    const product = await this.queryService.getProductById(id);
+    if (!product) throw new NotFoundException(`Producto no encontrado: ${id}`);
+    return product;
   }
 }

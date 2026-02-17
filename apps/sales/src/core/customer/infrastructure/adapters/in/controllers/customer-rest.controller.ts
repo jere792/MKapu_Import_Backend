@@ -112,7 +112,6 @@ export class CustomerRestController {
     return this.customerQueryService.listCustomers(filters);
   }
 
-  // ✅ SIEMPRE al final para no "comerse" document-types / document/:x
   @Get(':id')
   async getCustomer(
     @Param('id') id: string,

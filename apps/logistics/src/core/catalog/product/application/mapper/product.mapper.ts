@@ -176,7 +176,6 @@ export class ProductMapper {
     return productOrm;
   }
 
-  // ✅ NUEVO: detalle + stock por sede (para botón "ojo")
   static toDetailWithStockResponse(params: {
     product: ProductOrmEntity;
     stock: StockOrmEntity;

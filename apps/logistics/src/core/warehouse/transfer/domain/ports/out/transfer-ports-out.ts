@@ -9,4 +9,6 @@ export interface TransferPortsOut {
   updateStatus(id: number, status: TransferStatus): Promise<void>;
 
   findByHeadquarters(headquartersId: string): Promise<Transfer[]>;
+
+  findAll(): Promise<Transfer[]>;
 }

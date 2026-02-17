@@ -7,7 +7,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { IUserRepositoryPort } from '../../../../domain/ports/out/user-port-out';
 import { UserOrmEntity } from '../../../entity/user-orm.entity';
 import { Usuario } from '../../../../domain/entity/user-domain-entity';
@@ -33,6 +33,7 @@ export class UserRepository implements IUserRepositoryPort {
     }
     return UserMapper.toDomainEntity(saved);
   }
+
   async findSedeById(idSede: number): Promise<HeadquartersOrmEntity | null> {
     return await this.userOrmRepository.manager.findOne(HeadquartersOrmEntity, {
       where: { id_sede: idSede },
@@ -58,23 +59,30 @@ export class UserRepository implements IUserRepositoryPort {
       .leftJoin('cuenta_usuario', 'cu', 'cu.id_usuario = usuario.id_usuario')
       .leftJoin('cuenta_rol', 'cr', 'cr.id_cuenta = cu.id_cuenta')
       .leftJoin('rol', 'r', 'r.id_rol = cr.id_rol')
-      .addSelect('r.nombre', 'rolNombre')
+      .addSelect('r.nombre', 'roleName') 
       .where('usuario.id_usuario = :id', { id });
+
     const { entities, raw } = await queryBuilder.getRawAndEntities();
     if (!entities.length) return null;
 
     const userDomain = UserMapper.toDomainEntity(entities[0]);
 
-    // Nota: 'sede' ya viene mapeado por TypeORM en entities[0]
+    // 'sede' ya viene mapeado por TypeORM en entities[0]
     if (entities[0].sede) {
       userDomain.sedeNombre = entities[0].sede.nombre;
     }
-    // Buscamos el rol en la data cruda
-    if (raw[0] && raw[0].rolNombre) {
-      userDomain.rolNombre = raw[0].rolNombre;
-    } else {
-      userDomain.rolNombre = 'SIN_ROL';
-    }
+
+    // Buscar el nombre del rol en raw: intentamos varias claves por compatibilidad
+    const rawRow = raw[0] ?? {};
+    const roleName =
+      rawRow.roleName ??
+      rawRow.rolNombre ??
+      rawRow.r_roleName ??
+      rawRow.r_rolNombre ??
+      Object.values(rawRow).find((v) => typeof v === 'string' && v === v) ??
+      null;
+
+    userDomain.rolNombre = roleName ? String(roleName) : 'SIN_ROL';
 
     return userDomain;
   }
@@ -96,6 +104,7 @@ export class UserRepository implements IUserRepositoryPort {
 
     return userOrm ? UserMapper.toDomainEntity(userOrm) : null;
   }
+
   async findAll(filters?: {
     activo?: boolean;
     search?: string;
@@ -109,7 +118,7 @@ export class UserRepository implements IUserRepositoryPort {
       .leftJoin('cuenta_usuario', 'cu', 'cu.id_usuario = usuario.id_usuario')
       .leftJoin('cuenta_rol', 'cr', 'cr.id_cuenta = cu.id_cuenta')
       .leftJoin('rol', 'r', 'r.id_rol = cr.id_rol')
-      .addSelect('r.nombre', 'rolNombre');
+      .addSelect('r.nombre', 'roleName');
 
     if (filters?.activo !== undefined) {
       queryBuilder.andWhere('usuario.activo = :activo', {
@@ -131,7 +140,7 @@ export class UserRepository implements IUserRepositoryPort {
 
     if (filters?.search) {
       queryBuilder.andWhere(
-        '(usuario.usu_nom LIKE :search OR usuario.ape_pat LIKE :search OR usuario.ape_mat LIKE :search OR usuario.dni LIKE :search OR usuario.email LIKE :search)',
+        '(usuario.nombres LIKE :search OR usuario.ape_pat LIKE :search OR usuario.ape_mat LIKE :search OR usuario.dni LIKE :search OR usuario.email LIKE :search)',
         { search: `%${filters.search}%` },
       );
     }
@@ -144,15 +153,27 @@ export class UserRepository implements IUserRepositoryPort {
       if (userOrm.sede) {
         domain.sedeNombre = userOrm.sede.nombre;
       }
-      const rawRow = raw.find(
-        (r) => r.usuario_id_usuario === userOrm.id_usuario,
-      );
 
-      if (rawRow && rawRow.rolNombre) {
-        domain.rolNombre = rawRow.rolNombre;
-      } else {
-        domain.rolNombre = 'SIN_ROL';
-      }
+      // raw rows may have different column keys depending on driver/aliasing.
+      // Try several possibilities to extract roleName.
+      const rawRow = raw.find((r) => {
+        // attempt to match row to entity by id field variations
+        return (
+          r.usuario_id_usuario === userOrm.id_usuario ||
+          r.usuario_id === userOrm.id_usuario ||
+          r.id_usuario === userOrm.id_usuario ||
+          r['usuario_idUsuario'] === userOrm.id_usuario
+        );
+      }) || {};
+
+      const roleName =
+        rawRow.roleName ??
+        rawRow.rolNombre ??
+        rawRow.r_roleName ??
+        rawRow.r_rolNombre ??
+        null;
+
+      domain.rolNombre = roleName ? String(roleName) : 'SIN_ROL';
 
       return domain;
     });
@@ -167,6 +188,7 @@ export class UserRepository implements IUserRepositoryPort {
     const count = await this.userOrmRepository.count({ where: { email } });
     return count > 0;
   }
+
   async findUserWithAccountById(
     id: number,
   ): Promise<UserWithAccountResponseDto | null> {
@@ -189,7 +211,7 @@ export class UserRepository implements IUserRepositoryPort {
     if (!entities.length) return null;
 
     const userEntity = entities[0];
-    const rawData = raw[0];
+    const rawData = raw[0] || {};
 
     // 1. Mapear Usuario (Dominio y DTO)
     const userDomain = UserMapper.toDomainEntity(userEntity);
@@ -198,7 +220,9 @@ export class UserRepository implements IUserRepositoryPort {
     }
     // Usamos el alias 'roleName' que definimos arriba
     userDomain.rolNombre =
-      rawData && rawData.roleName ? rawData.roleName : 'SIN_ROL';
+      rawData && (rawData.roleName ?? rawData.rolNombre)
+        ? (rawData.roleName ?? rawData.rolNombre)
+        : 'SIN_ROL';
 
     const userDto = UserMapper.toResponseDto(userDomain);
 
@@ -226,7 +250,7 @@ export class UserRepository implements IUserRepositoryPort {
         email_emp: rawData.accountEmail,
         activo: isActive,
         ultimo_acceso: rawData.accountLastAccess,
-        rolNombre: rawData.roleName || 'SIN_ROL',
+        rolNombre: rawData.roleName ?? rawData.rolNombre ?? 'SIN_ROL',
       };
     }
 
@@ -234,5 +258,14 @@ export class UserRepository implements IUserRepositoryPort {
       usuario: userDto,
       cuenta_usuario: accountDto,
     };
+  }
+
+  // Nuevo: encontrar usuarios por ids (devuelve entidades ORM)
+  async findByIds(ids: number[]): Promise<UserOrmEntity[]> {
+    if (!ids || ids.length === 0) return [];
+    return this.userOrmRepository.find({
+      where: { id_usuario: In(ids) },
+      select: ['id_usuario', 'nombres', 'ape_pat', 'ape_mat'],
+    });
   }
 }

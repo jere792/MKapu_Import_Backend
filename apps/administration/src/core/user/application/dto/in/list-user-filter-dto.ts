@@ -3,8 +3,8 @@
    ============================================ */
 
 export interface ListUserFilterDto {
-  activo?: boolean; // Filtrar por estado
-  search?: string; // Búsqueda por nombre, DNI, email
-  id_sede?: number; // Filtrar por sede
-  genero?: 'M' | 'F'; // Filtrar por género
+  activo?: boolean;
+  search?: string; 
+  id_sede?: number; 
+  genero?: 'M' | 'F'; 
 }

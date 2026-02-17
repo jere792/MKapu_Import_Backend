@@ -5,29 +5,29 @@ export class SalesReceiptResponseDto {
   serie: string;
   numero: number;
   fecEmision: Date;
-  fecVenc?: Date; // ✅ Agregado
-  tipoOperacion: string; // ✅ Agregado
-  subtotal: number; // ✅ Agregado
-  igv: number; // ✅ Agregado
-  isc: number; // ✅ Agregado
+  fecVenc?: Date; 
+  tipoOperacion: string; 
+  subtotal: number; 
+  igv: number; 
+  isc: number; 
   total: number;
   estado: string;
-  codMoneda: string; // ✅ Agregado
-  idTipoComprobante: number; // ✅ Agregado
-  idTipoVenta: number; // ✅ Agregado
-  idSedeRef: number; // ✅ Agregado
-  idResponsableRef: string; // ✅ Agregado
+  codMoneda: string; 
+  idTipoComprobante: number; 
+  idTipoVenta: number; 
+  idSedeRef: number; 
+  idResponsableRef: string; 
   items: SalesReceiptItemResponseDto[];
 }
 
 export class SalesReceiptItemResponseDto {
   productId: string;
-  productName: string; // ✅ Debe llenarse desde descripcion
-  codigoProducto?: string; // ✅ Agregado (cod_prod)
+  productName: string; 
+  codigoProducto?: string; 
   quantity: number;
-  unitPrice: number; // pre_uni
-  unitValue: number; // ✅ Agregado (valor_uni)
+  unitPrice: number; 
+  unitValue: number; 
   igv: number;
-  tipoAfectacionIgv: number; // ✅ Agregado
+  tipoAfectacionIgv: number; 
   total: number;
 }

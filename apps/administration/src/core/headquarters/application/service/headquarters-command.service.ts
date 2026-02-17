@@ -54,15 +54,15 @@ export class HeadquartersCommandService implements IHeadquartersCommandPort {
 
    // PUT - Cambiar estado de sede
    async changeHeadquarterStatus(dto: ChangeHeadquartersDto): Promise<HeadquartersResponseDto> {
-      const existingHeadquarter = await this.repository.findById(dto.id_sede);
-      if (!existingHeadquarter) {
-         throw new ConflictException('No existe una sede con ese ID');
-      }
+   const existingHeadquarter = await this.repository.findById(dto.id_sede);
+   if (!existingHeadquarter) {
+      throw new ConflictException('No existe una sede con ese ID');
+   }
 
-      const updatedHeadquarter = HeadquartersMapper.fromUpdateDto(existingHeadquarter, dto);
-      const savedHeadquarter = await this.repository.save(updatedHeadquarter);
+   const updatedHeadquarter = HeadquartersMapper.withStatus(existingHeadquarter, dto.activo);
+   const savedHeadquarter = await this.repository.save(updatedHeadquarter);
 
-      return HeadquartersMapper.toResponseDto(savedHeadquarter);
+   return HeadquartersMapper.toResponseDto(savedHeadquarter);
    }
 
    // DELETE - Eliminar sede

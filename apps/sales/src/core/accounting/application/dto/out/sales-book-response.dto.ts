@@ -13,7 +13,6 @@ export class SalesBookRowDto {
   @Expose()
   number: number;
 
-  // ✅ CORRECCIÓN: Agregamos la propiedad explícitamente
   @Expose()
   fullSeriesNumber: string;
 

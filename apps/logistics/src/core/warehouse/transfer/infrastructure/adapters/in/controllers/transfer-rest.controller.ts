@@ -59,6 +59,10 @@ export class TransferRestController {
   ): Promise<Transfer[]> {
     return await this.transferService.getTransfersByHeadquarters(hqId);
   }
+  @Get()
+  async getAllTransfers(): Promise<Transfer[]> {
+    return await this.transferService.getAllTransfers();
+  }
   @Get(':id')
   async getTransferById(@Param('id') id: number): Promise<Transfer> {
     return await this.transferService.getTransferById(id);

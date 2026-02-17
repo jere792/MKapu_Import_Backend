@@ -16,10 +16,10 @@ import { CustomerOrmEntity } from './core/customer/infrastructure/entity/custome
 import { DocumentTypeOrmEntity } from './core/customer/infrastructure/entity/document-type-orm.entity';
 import { PromotionOrmEntity } from './core/promotion/infrastructure/entity/promotion-orm.entity';
 import { SalesReceiptOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-receipt-orm.entity';
-import { SalesReceiptDetailOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-receipt-detail-orm.entity'; // ✅ Faltaba
-import { SalesTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-type-orm.entity'; // ✅ Para FK de tipo_venta
-import { ReceiptTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/receipt-type-orm.entity'; // ✅ Para FK de tipo_comprobante
-import { SunatCurrencyOrmEntity } from './core/sales-receipt/infrastructure/entity/sunat-currency-orm.entity'; // ✅ Para 'PEN'
+import { SalesReceiptDetailOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-receipt-detail-orm.entity'; 
+import { SalesTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/sales-type-orm.entity'; 
+import { ReceiptTypeOrmEntity } from './core/sales-receipt/infrastructure/entity/receipt-type-orm.entity'; 
+import { SunatCurrencyOrmEntity } from './core/sales-receipt/infrastructure/entity/sunat-currency-orm.entity';
 import { CashboxOrmEntity } from './core/cashbox/infrastructure/entity/cashbox-orm.entity';
 import { QuoteOrmEntity } from './core/quote/infrastructure/entity/quote-orm.entity';
 import { WarrantyOrmEntity } from './core/warranty/infrastructure/entity/warranty-orm-entity';
@@ -94,7 +94,7 @@ import { CommissionRuleOrmEntity } from './core/commission/infrastructure/entity
           CommissionOrmEntity,
           CommissionRuleOrmEntity,
         ],
-        synchronize: true,
+        synchronize: false,
         logging: true,
         extra: {
           connectionLimit: 10,

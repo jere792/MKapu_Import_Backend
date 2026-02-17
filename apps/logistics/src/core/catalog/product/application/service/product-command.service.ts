@@ -51,7 +51,6 @@ export class ProductCommandService implements IProductCommandPort {
     const savedProduct = await this.repository.save(product);
     const response = ProductMapper.toResponseDto(savedProduct);
 
-    // 🚀 Socket: Notificar nuevo producto (ej. nueva Waflera: 7)
     this.productGateway.productCreated(response);
 
     return response;
@@ -76,7 +75,6 @@ export class ProductCommandService implements IProductCommandPort {
     const savedProduct = await this.repository.update(updatedProduct);
     const response = ProductMapper.toResponseDto(savedProduct);
 
-    // 🚀 Socket: Notificar actualización de descripción o datos
     this.productGateway.productUpdated(response);
 
     return response;
@@ -107,7 +105,6 @@ export class ProductCommandService implements IProductCommandPort {
     const savedProduct = await this.repository.update(updatedProduct);
     const response = ProductMapper.toResponseDto(savedProduct);
 
-    // 🚀 Socket: Notificar cambio de precios (vital para ventas)
     this.productGateway.productUpdated(response);
 
     return response;
@@ -129,7 +126,6 @@ export class ProductCommandService implements IProductCommandPort {
     const savedProduct = await this.repository.update(updatedProduct);
     const response = ProductMapper.toResponseDto(savedProduct);
 
-    // 🚀 Socket: Notificar si el producto está activo/inactivo
     this.productGateway.productUpdated(response);
 
     return response;
@@ -142,7 +138,6 @@ export class ProductCommandService implements IProductCommandPort {
 
     await this.repository.delete(id);
 
-    // 🚀 Socket: Notificar eliminación de producto del catálogo
     this.productGateway.productDeleted(id);
 
     return ProductMapper.toDeletedResponse(id);

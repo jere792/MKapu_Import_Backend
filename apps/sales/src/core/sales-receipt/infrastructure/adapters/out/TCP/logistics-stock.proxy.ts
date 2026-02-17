@@ -10,7 +10,6 @@ export class LogisticsStockProxy {
 
   async registerMovement(data: any): Promise<void> {
     try {
-      // ✅ Usamos .send() que devuelve un Observable y lo convertimos a Promise
       await firstValueFrom(
         this.client.send('register_movement', data)
       );

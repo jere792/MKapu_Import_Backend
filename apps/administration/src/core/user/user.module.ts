@@ -1,12 +1,12 @@
-/* ============================================
-   administration/src/core/user/user.module.ts
-   ============================================ */
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // Infrastructure
 import { UserOrmEntity } from './infrastructure/entity/user-orm.entity';
+
+// TCP handlers / guards
+import { UsersTcpController } from './infrastructure/adapters/in/TCP/users-tcp.controller';
+import { InternalSecretGuard } from './infrastructure/adapters/in/guards/internal-secret.guard';
 
 import { UserCommandService } from './application/service/user-command.service';
 import { UserQueryService } from './application/service/user-query.service';
@@ -16,9 +16,12 @@ import { UserWebSocketGateway } from './infrastructure/adapters/out/user-websock
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserOrmEntity])],
-  controllers: [UserRestController],
+  controllers: [UserRestController], 
   providers: [
     UserWebSocketGateway,
+
+    UsersTcpController,
+    InternalSecretGuard,
 
     {
       provide: 'IUserRepositoryPort',
@@ -37,4 +40,4 @@ import { UserWebSocketGateway } from './infrastructure/adapters/out/user-websock
   ],
   exports: ['IUserCommandPort', 'IUserQueryPort', UserWebSocketGateway],
 })
-export class UserModule {}
+export class UserModule {}  
