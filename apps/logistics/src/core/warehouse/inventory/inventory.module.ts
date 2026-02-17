@@ -13,22 +13,18 @@ import { InventoryMovementRestController } from './infrastructure/adapters/in/co
 
 @Module({
   imports: [
-    // ¡AQUÍ ESTÁ LA CLAVE DEL ERROR!
-    // Debes registrar las entidades para que Nest pueda inyectar los Repositorios
     TypeOrmModule.forFeature([
-      InventoryMovementOrmEntity,       // <--- Faltaba esto
-      InventoryMovementDetailOrmEntity, // <--- Probablemente necesaria por la relación
-      StockOrmEntity                    // <--- También la usas en el repositorio
+      InventoryMovementOrmEntity,      
+      InventoryMovementDetailOrmEntity, 
+      StockOrmEntity                    
     ]),
   ],
   controllers: [InventoryMovementRestController],
   providers: [
-    // El servicio (Caso de Uso)
     {
-      provide: 'IInventoryMovementCommandPort', // O el token que uses en el Controller
+      provide: 'IInventoryMovementCommandPort', 
       useClass: InventoryCommandService,
     },
-    // El servicio concreto (por si lo inyectas por clase)
     InventoryCommandService,
 
     // El repositorio (Adaptador de Salida)
