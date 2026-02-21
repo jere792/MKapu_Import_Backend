@@ -25,9 +25,14 @@ export class SedeTcpProxy {
           .pipe(timeout(5000)),
       );
 
-      const sede = (response as any)?.data ?? null;
+      // TYPE GUARD: revisa que ok sea false antes de acceder a message
+      if (response.ok === false) {
+        this.logger.error(`❌ El microservicio devolvió error: ${response.message ?? 'Sin mensaje'}`);
+        return null;
+      }
 
-      this.logger.log(`✅ Respuesta sede: ok=${(response as any)?.ok} nombre=${sede?.nombre ?? 'null'}`);
+      const sede = response.data ?? null;
+      this.logger.log(`✅ Respuesta sede: ok=${response.ok} nombre=${sede?.nombre ?? 'null'}`);
       return sede;
     } catch (error: any) {
       this.logger.error(`❌ Error al consultar sede ${id_sede}: ${error?.message ?? error}`);

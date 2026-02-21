@@ -32,7 +32,7 @@ async function bootstrap() {
     createProxyMiddleware({
       target: adminUrl,
       changeOrigin: true,
-      ws: true,
+      ws: true, 
       logger: console,
       pathRewrite: { '^/admin': '' },
     }),

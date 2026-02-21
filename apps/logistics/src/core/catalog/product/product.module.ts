@@ -49,7 +49,7 @@ import { StockOrmEntity } from '../../warehouse/inventory/infrastructure/entity/
         name: 'SEDE_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: process.env.SEDE_SERVICE_HOST || '127.0.0.1',
+          host: process.env.SEDE_SERVICE_HOST || 'localhost',
           port: Number(process.env.SEDE_SERVICE_PORT || 3011),
         },
       },
