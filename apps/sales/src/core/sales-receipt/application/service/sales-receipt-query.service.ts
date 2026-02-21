@@ -1,4 +1,6 @@
-/* apps/sales/src/core/sales-receipt/application/service/sales-receipt-query.service.ts */
+/* ============================================
+   apps/sales/src/core/sales-receipt/application/service/sales-receipt-query.service.ts
+   ============================================ */
 
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { ISalesReceiptQueryPort } from '../../domain/ports/in/sales_receipt-ports-in';
@@ -12,6 +14,7 @@ import {
   SalesReceiptSummaryListResponse,
   SalesReceiptWithHistoryDto,
   CustomerPurchaseHistoryDto,
+  SalesReceiptAutocompleteResponseDto, // ✅ NUEVO
 } from '../dto/out';
 import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 import { SalesReceiptOrmEntity } from '../../infrastructure/entity/sales-receipt-orm.entity';
@@ -43,63 +46,55 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   async listReceipts(
     filters: ListSalesReceiptFilterDto = {},
   ): Promise<SalesReceiptListResponse> {
-    const page = filters.page ?? 1;
+    const page  = filters.page  ?? 1;
     const limit = filters.limit ?? 10;
 
     const { receipts, total } = await this.receiptRepository.findAllWithRelations({
-      estado: filters.status,
-      id_cliente: filters.customerId,
-      id_tipo_comprobante: filters.receiptTypeId,
-      fec_desde: filters.dateFrom,
-      fec_hasta: filters.dateTo,
-      search: filters.search,
-      id_sede: filters.sedeId,
-      skip: (page - 1) * limit,
-      take: limit,
+      estado:               filters.status,
+      id_cliente:           filters.customerId,
+      id_tipo_comprobante:  filters.receiptTypeId,
+      fec_desde:            filters.dateFrom,
+      fec_hasta:            filters.dateTo,
+      search:               filters.search,
+      id_sede:              filters.sedeId,
+      skip:                 (page - 1) * limit,
+      take:                 limit,
     });
 
     const enrichedReceipts = await this.enrichReceiptsDetailWithTcp(receipts);
 
-    return {
-      receipts: enrichedReceipts,
-      total,
-    };
+    return { receipts: enrichedReceipts, total };
   }
 
   async listReceiptsSummary(
     filters: ListSalesReceiptFilterDto = {},
   ): Promise<SalesReceiptSummaryListResponse> {
-    const page = filters.page ?? 1;
+    const page  = filters.page  ?? 1;
     const limit = filters.limit ?? 10;
 
     const { receipts, total } = await this.receiptRepository.findAllWithRelations({
-      estado: filters.status,
-      id_cliente: filters.customerId,
-      id_tipo_comprobante: filters.receiptTypeId,
-      fec_desde: filters.dateFrom,
-      fec_hasta: filters.dateTo,
-      search: filters.search,
-      id_sede: filters.sedeId,
-      skip: (page - 1) * limit,
-      take: limit,
+      estado:               filters.status,
+      id_cliente:           filters.customerId,
+      id_tipo_comprobante:  filters.receiptTypeId,
+      fec_desde:            filters.dateFrom,
+      fec_hasta:            filters.dateTo,
+      search:               filters.search,
+      id_sede:              filters.sedeId,
+      skip:                 (page - 1) * limit,
+      take:                 limit,
     });
 
     const enrichedReceipts = await this.enrichReceiptsSummaryWithTcp(receipts);
 
-    return {
-      receipts: enrichedReceipts,
-      total,
-    };
+    return { receipts: enrichedReceipts, total };
   }
 
   async getReceiptById(id: number): Promise<SalesReceiptResponseDto | null> {
     const receiptOrm = await this.receiptRepository.findByIdWithRelations(id);
 
-    if (!receiptOrm) {
-      return null;
-    }
+    if (!receiptOrm) return null;
 
-    const dto = SalesReceiptMapper.ormToResponseDto(receiptOrm);
+    const dto      = SalesReceiptMapper.ormToResponseDto(receiptOrm);
     const enriched = await this.enrichReceiptDetailWithTcp(dto);
 
     return enriched;
@@ -112,7 +107,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
       throw new NotFoundException(`Comprobante con ID ${id} no encontrado`);
     }
 
-    const receiptDto = SalesReceiptMapper.ormToResponseDto(receiptOrm);
+    const receiptDto      = SalesReceiptMapper.ormToResponseDto(receiptOrm);
     const enrichedReceipt = await this.enrichReceiptDetailWithTcp(receiptDto);
 
     let customerHistory: CustomerPurchaseHistoryDto | undefined;
@@ -124,31 +119,29 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         );
 
         const historyWithPromedio = {
-          customer: historyData.customer,
+          customer:   historyData.customer,
           statistics: {
-            totalCompras: historyData.statistics.totalCompras,
+            totalCompras:  historyData.statistics.totalCompras,
             totalEmitidos: historyData.statistics.totalEmitidos,
             totalAnulados: historyData.statistics.totalAnulados,
-            montoTotal: historyData.statistics.montoTotal,
-            montoEmitido: historyData.statistics.montoEmitido,
-            promedioCompra: historyData.statistics.totalEmitidos > 0 
-              ? historyData.statistics.montoEmitido / historyData.statistics.totalEmitidos 
-              : 0,
+            montoTotal:    historyData.statistics.montoTotal,
+            montoEmitido:  historyData.statistics.montoEmitido,
+            promedioCompra:
+              historyData.statistics.totalEmitidos > 0
+                ? historyData.statistics.montoEmitido / historyData.statistics.totalEmitidos
+                : 0,
           },
           recentPurchases: historyData.recentPurchases || [],
         };
 
-        const mappedHistory = SalesReceiptMapper.toCustomerHistoryDto(historyWithPromedio);
-        customerHistory = await this.enrichCustomerHistoryWithTcp(mappedHistory);
+        const mappedHistory  = SalesReceiptMapper.toCustomerHistoryDto(historyWithPromedio);
+        customerHistory      = await this.enrichCustomerHistoryWithTcp(mappedHistory);
       } catch (error) {
         console.warn(`No se pudo obtener historial del cliente: ${error.message}`);
       }
     }
 
-    return {
-      receipt: enrichedReceipt,
-      customerHistory,
-    };
+    return { receipt: enrichedReceipt, customerHistory };
   }
 
   async getCustomerPurchaseHistory(
@@ -160,9 +153,10 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
       ...historyData,
       statistics: {
         ...historyData.statistics,
-        promedioCompra: historyData.statistics.totalEmitidos > 0 
-          ? historyData.statistics.montoEmitido / historyData.statistics.totalEmitidos 
-          : 0,
+        promedioCompra:
+          historyData.statistics.totalEmitidos > 0
+            ? historyData.statistics.montoEmitido / historyData.statistics.totalEmitidos
+            : 0,
       },
     };
 
@@ -174,32 +168,37 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     const receiptsOrm = await this.receiptRepository.findBySerieWithRelations(serie);
     return {
       receipts: receiptsOrm.map((orm) => SalesReceiptMapper.ormToResponseDto(orm)),
-      total: receiptsOrm.length,
+      total:    receiptsOrm.length,
     };
   }
+
+  // ✅ NUEVO: Autocomplete por DNI/RUC o nombre del cliente
+  async autocompleteCustomers(
+    search: string,
+    sedeId?: number,
+  ): Promise<SalesReceiptAutocompleteResponseDto[]> {
+    return this.receiptRepository.autocompleteCustomers(search, sedeId);
+  }
+
+  // ─── HELPERS PRIVADOS TCP ────────────────────────────────────────────────
 
   private async enrichReceiptsSummaryWithTcp(receipts: SalesReceiptOrmEntity[]) {
     const summaries = receipts.map((orm) => SalesReceiptMapper.ormToSummaryDto(orm));
 
     const responsableIds = [...new Set(summaries.map((r) => r.idResponsable))].filter(Boolean);
-    const sedeIds = [...new Set(summaries.map((r) => r.idSede))].filter(Boolean);
+    const sedeIds        = [...new Set(summaries.map((r) => r.idSede))].filter(Boolean);
 
     const [users, sedes] = await Promise.all([
       Promise.all(responsableIds.map((id) => this.adminTcpProxy.getUserById(id))),
-      Promise.all(sedeIds.map((id) => this.adminTcpProxy.getSedeById(id))),
+      Promise.all(sedeIds.map((id)        => this.adminTcpProxy.getSedeById(id))),
     ]);
 
-    const userMap = new Map(
-      users.filter((u) => u).map((u) => [u!.id_usuario, u]),
-    );
-    const sedeMap = new Map(
-      sedes.filter((s) => s).map((s) => [s!.id_sede, s]),
-    );
+    const userMap = new Map(users.filter((u) => u).map((u) => [u!.id_usuario, u]));
+    const sedeMap = new Map(sedes.filter((s) => s).map((s) => [s!.id_sede,   s]));
 
     return summaries.map((summary) => {
       const user = userMap.get(Number(summary.idResponsable));
       const sede = sedeMap.get(summary.idSede);
-
       return {
         ...summary,
         responsableNombre: user
@@ -214,32 +213,27 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     const dtos = receipts.map((orm) => SalesReceiptMapper.ormToResponseDto(orm));
 
     const responsableIds = [...new Set(dtos.map((r) => Number(r.responsable.id)))].filter(Boolean);
-    const sedeIds = [...new Set(dtos.map((r) => r.sede.id))].filter(Boolean);
+    const sedeIds        = [...new Set(dtos.map((r) => r.sede.id))].filter(Boolean);
 
     const [users, sedes] = await Promise.all([
       Promise.all(responsableIds.map((id) => this.adminTcpProxy.getUserById(id))),
-      Promise.all(sedeIds.map((id) => this.adminTcpProxy.getSedeById(id))),
+      Promise.all(sedeIds.map((id)        => this.adminTcpProxy.getSedeById(id))),
     ]);
 
-    const userMap = new Map(
-      users.filter((u) => u).map((u) => [u!.id_usuario, u]),
-    );
-    const sedeMap = new Map(
-      sedes.filter((s) => s).map((s) => [s!.id_sede, s]),
-    );
+    const userMap = new Map(users.filter((u) => u).map((u) => [u!.id_usuario, u]));
+    const sedeMap = new Map(sedes.filter((s) => s).map((s) => [s!.id_sede,   s]));
 
     return dtos.map((dto) => {
       const user = userMap.get(Number(dto.responsable.id));
       const sede = sedeMap.get(dto.sede.id);
-
       return {
         ...dto,
         responsable: {
           ...dto.responsable,
-          nombre: user?.usu_nom || dto.responsable.nombre,
+          nombre:          user?.usu_nom || dto.responsable.nombre,
           apellidoPaterno: user?.ape_pat || dto.responsable.apellidoPaterno,
           apellidoMaterno: user?.ape_mat || dto.responsable.apellidoMaterno,
-          nombreCompleto: user
+          nombreCompleto:  user
             ? `${user.usu_nom} ${user.ape_pat} ${user.ape_mat}`.trim()
             : dto.responsable.nombreCompleto,
         },
@@ -251,23 +245,22 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     });
   }
 
-  private async enrichReceiptDetailWithTcp(dto: SalesReceiptResponseDto): Promise<SalesReceiptResponseDto> {
-    const responsableId = Number(dto.responsable.id);
-    const sedeId = dto.sede.id;
-
+  private async enrichReceiptDetailWithTcp(
+    dto: SalesReceiptResponseDto,
+  ): Promise<SalesReceiptResponseDto> {
     const [user, sede] = await Promise.all([
-      this.adminTcpProxy.getUserById(responsableId),
-      this.adminTcpProxy.getSedeById(sedeId),
+      this.adminTcpProxy.getUserById(Number(dto.responsable.id)),
+      this.adminTcpProxy.getSedeById(dto.sede.id),
     ]);
 
     return {
       ...dto,
       responsable: {
         ...dto.responsable,
-        nombre: user?.usu_nom || dto.responsable.nombre,
+        nombre:          user?.usu_nom || dto.responsable.nombre,
         apellidoPaterno: user?.ape_pat || dto.responsable.apellidoPaterno,
         apellidoMaterno: user?.ape_mat || dto.responsable.apellidoMaterno,
-        nombreCompleto: user
+        nombreCompleto:  user
           ? `${user.usu_nom} ${user.ape_pat} ${user.ape_mat}`.trim()
           : dto.responsable.nombreCompleto,
       },
@@ -282,51 +275,34 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     history: CustomerPurchaseHistoryDto,
   ): Promise<CustomerPurchaseHistoryDto> {
     const sedeIds = [...new Set(
-      history.recentPurchases
-        .map((p: any) => p.id_sede_ref)
-        .filter(Boolean)
+      history.recentPurchases.map((p: any) => p.id_sede_ref).filter(Boolean),
     )];
-
     const responsableIds = [...new Set(
-      history.recentPurchases
-        .map((p: any) => p.id_responsable_ref)
-        .filter(Boolean)
+      history.recentPurchases.map((p: any) => p.id_responsable_ref).filter(Boolean),
     )];
 
     const [sedes, users] = await Promise.all([
-      Promise.all(sedeIds.map((id) => this.adminTcpProxy.getSedeById(id))),
+      Promise.all(sedeIds.map((id)        => this.adminTcpProxy.getSedeById(id))),
       Promise.all(responsableIds.map((id) => this.adminTcpProxy.getUserById(Number(id)))),
     ]);
 
-    const sedeMap = new Map(
-      sedes.filter((s) => s).map((s) => [s!.id_sede, s])
-    );
-
-    const userMap = new Map(
-      users.filter((u) => u).map((u) => [u!.id_usuario, u])
-    );
+    const sedeMap = new Map(sedes.filter((s) => s).map((s) => [s!.id_sede,   s]));
+    const userMap = new Map(users.filter((u) => u).map((u) => [u!.id_usuario, u]));
 
     const enrichedPurchases = history.recentPurchases.map((purchase: any) => {
-      const sedeId = purchase.id_sede_ref;
-      const sede = sedeMap.get(sedeId);
+      const sede = sedeMap.get(purchase.id_sede_ref);
+      const user = userMap.get(Number(purchase.id_responsable_ref));
+      const { id_sede_ref, id_responsable_ref, ...rest } = purchase;
 
-      const responsableId = Number(purchase.id_responsable_ref);
-      const user = userMap.get(responsableId);
-      
-      const { id_sede_ref, id_responsable_ref, ...purchaseWithoutRef } = purchase;
-      
       return {
-        ...purchaseWithoutRef,
+        ...rest,
         sedeNombre: sede?.nombre || 'Sede no encontrada',
-        responsableNombre: user 
+        responsableNombre: user
           ? `${user.usu_nom} ${user.ape_pat} ${user.ape_mat}`.trim()
           : 'Vendedor',
       };
     });
 
-    return {
-      ...history,
-      recentPurchases: enrichedPurchases,
-    };
+    return { ...history, recentPurchases: enrichedPurchases };
   }
 }

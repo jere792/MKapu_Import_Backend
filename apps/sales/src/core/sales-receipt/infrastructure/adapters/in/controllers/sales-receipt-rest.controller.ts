@@ -1,4 +1,6 @@
-/* sales/src/core/sales-receipt/infrastructure/adapters/in/controllers/sales-receipt-rest.controller.ts */
+/* ============================================
+   apps/sales/src/core/sales-receipt/infrastructure/adapters/in/controllers/sales-receipt-rest.controller.ts
+   ============================================ */
 
 import {
   Controller,
@@ -32,6 +34,7 @@ import {
   SalesReceiptSummaryListResponse,
   SalesReceiptWithHistoryDto,
   CustomerPurchaseHistoryDto,
+  SalesReceiptAutocompleteResponseDto, // ✅ NUEVO
 } from '../../../../application/dto/out';
 
 @Controller('receipts')
@@ -43,12 +46,14 @@ export class SalesReceiptRestController {
     private readonly receiptCommandService: ISalesReceiptCommandPort,
   ) {}
 
+  // ─── COMMANDS ────────────────────────────────────────────────────────────
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async registerReceipt(
-    @Body() registerDto: RegisterSalesReceiptDto,
+    @Body() dto: RegisterSalesReceiptDto,
   ): Promise<SalesReceiptResponseDto> {
-    return this.receiptCommandService.registerReceipt(registerDto);
+    return this.receiptCommandService.registerReceipt(dto);
   }
 
   @Put(':id/annul')
@@ -57,11 +62,7 @@ export class SalesReceiptRestController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { reason: string },
   ): Promise<SalesReceiptResponseDto> {
-    const annulDto: AnnulSalesReceiptDto = {
-      receiptId: id,
-      reason: body.reason,
-    };
-    return this.receiptCommandService.annulReceipt(annulDto);
+    return this.receiptCommandService.annulReceipt({ receiptId: id, reason: body.reason });
   }
 
   @Delete(':id')
@@ -72,9 +73,11 @@ export class SalesReceiptRestController {
     return this.receiptCommandService.deleteReceipt(id);
   }
 
+  // ─── QUERIES ─────────────────────────────────────────────────────────────
+
   @Get()
   async listReceipts(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('page',  new DefaultValuePipe(1),  ParseIntPipe) page:  number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query() filters: ListSalesReceiptFilterDto,
   ): Promise<SalesReceiptSummaryListResponse> {
@@ -86,11 +89,22 @@ export class SalesReceiptRestController {
       );
     }
 
-    return this.receiptQueryService.listReceiptsSummary({
-      ...filters,
-      page,
-      limit,
-    });
+    return this.receiptQueryService.listReceiptsSummary({ ...filters, page, limit });
+  }
+
+  // ✅ NUEVO — debe ir ANTES de :id para que NestJS no lo confunda
+  @Get('autocomplete/customers')
+  async autocompleteCustomers(
+    @Query('search') search: string,
+    @Query('sedeId') sedeId?: string,
+  ): Promise<SalesReceiptAutocompleteResponseDto[]> {
+    if (!search || search.trim().length < 2) {
+      return [];
+    }
+    return this.receiptQueryService.autocompleteCustomers(
+      search.trim(),
+      sedeId ? Number(sedeId) : undefined,
+    );
   }
 
   @Get('serie/:serie')
@@ -107,6 +121,7 @@ export class SalesReceiptRestController {
     return this.receiptQueryService.getCustomerPurchaseHistory(customerId);
   }
 
+  // ⚠️ SIEMPRE al final — captura cualquier :id numérico
   @Get(':id')
   async getReceipt(
     @Param('id', ParseIntPipe) id: number,

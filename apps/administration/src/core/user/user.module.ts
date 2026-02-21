@@ -16,11 +16,8 @@ import { UserTcpController } from './infrastructure/adapters/in/TCP/user-tcp.con
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserOrmEntity])],
-<<<<<<< HEAD
-  controllers: [UserRestController], 
-=======
+
   controllers: [UserRestController, UserTcpController],
->>>>>>> 23c85ddbcc752d866832348ebaebd9a07ca4c665
   providers: [
     UserWebSocketGateway,
 

@@ -1,10 +1,6 @@
-<<<<<<< HEAD
 /* ============================================
-   logistics/src/core/procurement/supplier/infrastructure/adapters/out/repository/supplier.repository.ts
+   apps/logistics/src/core/procurement/supplier/infrastructure/adapters/out/repository/supplier.repository.ts
    ============================================ */
-=======
-// logistics/src/core/procurement/supplier/infrastructure/adapters/out/repository/supplier.repository.ts
->>>>>>> 23c85ddbcc752d866832348ebaebd9a07ca4c665
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -24,16 +20,13 @@ export class SupplierRepository implements ISupplierRepositoryPort {
 
   async save(supplier: Supplier): Promise<Supplier> {
     const supplierOrm = SupplierMapper.toOrmEntity(supplier);
-    const saved = await this.supplierOrmRepository.save(supplierOrm);
+    const saved       = await this.supplierOrmRepository.save(supplierOrm);
     return SupplierMapper.toDomainEntity(saved);
   }
 
   async update(supplier: Supplier): Promise<Supplier> {
     const supplierOrm = SupplierMapper.toOrmEntity(supplier);
-    await this.supplierOrmRepository.update(
-      supplier.id_proveedor!,
-      supplierOrm,
-    );
+    await this.supplierOrmRepository.update(supplier.id_proveedor!, supplierOrm);
     const updated = await this.supplierOrmRepository.findOne({
       where: { id_proveedor: supplier.id_proveedor },
     });
@@ -45,30 +38,20 @@ export class SupplierRepository implements ISupplierRepositoryPort {
   }
 
   async findById(id: number): Promise<Supplier | null> {
-    const supplierOrm = await this.supplierOrmRepository.findOne({
+    const orm = await this.supplierOrmRepository.findOne({
       where: { id_proveedor: id },
     });
-    return supplierOrm ? SupplierMapper.toDomainEntity(supplierOrm) : null;
+    return orm ? SupplierMapper.toDomainEntity(orm) : null;
   }
 
   async findByRuc(ruc: string): Promise<Supplier | null> {
-    const supplierOrm = await this.supplierOrmRepository.findOne({
-      where: { ruc },
-    });
-    return supplierOrm ? SupplierMapper.toDomainEntity(supplierOrm) : null;
+    const orm = await this.supplierOrmRepository.findOne({ where: { ruc } });
+    return orm ? SupplierMapper.toDomainEntity(orm) : null;
   }
 
-<<<<<<< HEAD
-  async findAll(filters?: {
-    estado?: boolean;
-    search?: string;
-  }): Promise<Supplier[]> {
-    const queryBuilder =
-      this.supplierOrmRepository.createQueryBuilder('proveedor');
-=======
+  // ✅ RESUELTO: usa qb y ListSupplierFilterDto (versión 23c85ddb)
   async findAll(filters?: ListSupplierFilterDto): Promise<Supplier[]> {
     const qb = this.supplierOrmRepository.createQueryBuilder('proveedor');
->>>>>>> 23c85ddbcc752d866832348ebaebd9a07ca4c665
 
     if (filters?.estado !== undefined) {
       const estadoBit = filters.estado ? 1 : 0;
@@ -86,14 +69,14 @@ export class SupplierRepository implements ISupplierRepositoryPort {
     qb.orderBy('proveedor.id_proveedor', 'DESC');
 
     if (filters?.page && filters?.limit) {
-      const page = filters.page > 0 ? filters.page : 1;
+      const page  = filters.page  > 0 ? filters.page  : 1;
       const limit = filters.limit > 0 ? filters.limit : 10;
-      const skip = (page - 1) * limit;
+      const skip  = (page - 1) * limit;
       qb.skip(skip).take(limit);
     }
 
     const suppliersOrm = await qb.getMany();
-    return suppliersOrm.map(s => SupplierMapper.toDomainEntity(s));
+    return suppliersOrm.map((s) => SupplierMapper.toDomainEntity(s));
   }
 
   async existsByRuc(ruc: string): Promise<boolean> {
