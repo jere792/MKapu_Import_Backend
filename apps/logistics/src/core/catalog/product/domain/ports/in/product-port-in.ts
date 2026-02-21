@@ -10,6 +10,7 @@ import {
   ListProductFilterDto,
   ListProductStockFilterDto,
   ProductAutocompleteQueryDto,
+  ProductAutocompleteVentasQueryDto,
 } from '../../../application/dto/in';
 
 import {
@@ -19,6 +20,7 @@ import {
   ListProductStockResponseDto,
   ProductAutocompleteResponseDto,
   ProductDetailWithStockResponseDto,
+  ProductAutocompleteVentasResponseDto,
 } from '../../../application/dto/out';
 
 export interface IProductCommandPort {
@@ -48,4 +50,9 @@ export interface IProductQueryPort {
     id_producto: number,
     id_sede: number,
   ): Promise<ProductDetailWithStockResponseDto>;
+
+  autocompleteProductsVentas(
+  dto: ProductAutocompleteVentasQueryDto,
+): Promise<ProductAutocompleteVentasResponseDto>;  
+
 }

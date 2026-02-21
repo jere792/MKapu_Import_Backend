@@ -10,3 +10,4 @@ export * from './list-product-stock-filter.dto';
 export * from './product-autocomplete.dto';
 
 export * from './get-product-stock-detail-query.dto';
+export * from './product-autocomplete-ventas-query.dto'; // ← nuevo

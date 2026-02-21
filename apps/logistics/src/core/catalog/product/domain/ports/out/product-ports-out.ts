@@ -3,6 +3,7 @@ import {
   ListProductFilterDto,
   ListProductStockFilterDto,
   ProductAutocompleteQueryDto,
+  ProductAutocompleteVentasQueryDto,
 } from '../../../application/dto/in';
 import { ProductOrmEntity } from '../../../infrastructure/entity/product-orm.entity';
 import { StockOrmEntity } from 'apps/logistics/src/core/warehouse/inventory/infrastructure/entity/stock-orm-entity';
@@ -17,7 +18,6 @@ export interface IProductRepositoryPort {
   findByCategory(id_categoria: number): Promise<Product[]>;
   existsByCode(codigo: string): Promise<boolean>;
 
-  // Query para productos con stock por sede
   findProductsStock(
     filters: ListProductStockFilterDto,
     page: number,
@@ -33,6 +33,20 @@ export interface IProductRepositoryPort {
     }>
   >;
 
+  autocompleteProductsVentas(dto: ProductAutocompleteVentasQueryDto): Promise<
+    Array<{
+      id_producto: number;
+      codigo: string;
+      nombre: string;
+      stock: number;
+      precio_unitario: number;
+      precio_caja: number;
+      precio_mayor: number;
+      id_categoria: number;
+      familia: string;
+    }>
+  >;
+
   getProductDetailWithStock(
     id_producto: number,
     id_sede: number,
@@ -40,4 +54,8 @@ export interface IProductRepositoryPort {
     product: ProductOrmEntity | null;
     stock: StockOrmEntity | null;
   }>;
+
+  findCategoriasConStock(
+    id_sede: number,
+  ): Promise<Array<{ id_categoria: number; nombre: string }>>;
 }

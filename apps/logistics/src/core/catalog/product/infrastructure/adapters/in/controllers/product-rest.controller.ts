@@ -24,6 +24,7 @@ import {
   ListProductFilterDto,
   ListProductStockFilterDto,
   ProductAutocompleteQueryDto,
+  ProductAutocompleteVentasQueryDto,
 } from '../../../../application/dto/in';
 
 @Controller('products')
@@ -32,6 +33,10 @@ export class ProductRestController {
     private readonly commandService: ProductCommandService,
     private readonly queryService: ProductQueryService,
   ) {}
+
+  // ===============================
+  // Commands
+  // ===============================
 
   @Post()
   async register(@Body() dto: RegisterProductDto) {
@@ -58,6 +63,10 @@ export class ProductRestController {
     return this.commandService.deleteProduct(id);
   }
 
+  // ===============================
+  // Queries — rutas estáticas primero
+  // ===============================
+
   @Get()
   async list(@Query() filters: ListProductFilterDto) {
     return this.queryService.listProducts(filters);
@@ -76,28 +85,53 @@ export class ProductRestController {
     @Query('page') page?: string,
     @Query('size') size?: string,
   ) {
-    console.log('[productos_stock] req.url:', req.url);
-    console.log('[productos_stock] req.query:', req.query);
-
     const sede = String(id_sede ?? '').trim();
     if (!sede) {
-      throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1&page=1&size=10');
+      throw new BadRequestException(
+        'id_sede es obligatorio. Ej: ?id_sede=1&page=1&size=10',
+      );
     }
-
-    const categoriaNombre = String((categoria ?? familia) ?? '').trim();
 
     const filters: ListProductStockFilterDto = {
       id_sede: sede,
       codigo: codigo?.trim(),
       nombre: nombre?.trim(),
       id_categoria: id_categoria ? parseInt(id_categoria, 10) : undefined,
-      categoria: categoriaNombre || undefined,
+      categoria: String(categoria ?? familia ?? '').trim() || undefined,
       activo: activo === 'true' ? true : activo === 'false' ? false : undefined,
       page: page ? parseInt(page, 10) : 1,
       size: size ? parseInt(size, 10) : 10,
     };
 
     return this.queryService.listProductsStock(filters);
+  }
+
+  @Get('productos_stock_ventas')
+  async listProductsStockVentas(
+    @Query('id_sede') id_sede?: string,
+    @Query('nombre') nombre?: string,
+    @Query('id_categoria') id_categoria?: string,
+    @Query('activo') activo?: string,
+    @Query('page') page?: string,
+    @Query('size') size?: string,
+  ) {
+    const sede = String(id_sede ?? '').trim();
+    if (!sede) {
+      throw new BadRequestException(
+        'id_sede es obligatorio. Ej: ?id_sede=1&page=1&size=10',
+      );
+    }
+
+    const filters: ListProductStockFilterDto = {
+      id_sede: sede,
+      nombre: nombre?.trim(),
+      id_categoria: id_categoria ? parseInt(id_categoria, 10) : undefined,
+      activo: activo === 'true' ? true : activo === 'false' ? false : undefined,
+      page: page ? parseInt(page, 10) : 1,
+      size: size ? parseInt(size, 10) : 10,
+    };
+
+    return this.queryService.listProductsStockVentas(filters);
   }
 
   @Get('autocomplete')
@@ -122,18 +156,14 @@ export class ProductRestController {
     return this.queryService.autocompleteProducts(dto);
   }
 
-  @Get(':id_producto/stock')
-  async detailWithStock(
-    @Param('id_producto', ParseIntPipe) id_producto: number,
-    @Query('id_sede') id_sede?: string,
-  ) {
-    const sede = String(id_sede ?? '').trim();
-    if (!sede) {
-      throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1');
-    }
-
-    return this.queryService.getProductDetailWithStock(id_producto, Number(sede));
+  @Get('autocomplete-ventas')
+  async autocompleteVentas(@Query() dto: ProductAutocompleteVentasQueryDto) {
+    return this.queryService.autocompleteProductsVentas(dto);
   }
+
+  // ===============================
+  // Queries — rutas con prefijo 'code'
+  // ===============================
 
   @Get('code/:codigo/stock')
   async detailWithStockByCode(
@@ -145,9 +175,11 @@ export class ProductRestController {
       throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1');
     }
 
-    const result = await this.queryService.getProductDetailWithStockByCode(codigo, Number(sede));
+    const result = await this.queryService.getProductDetailWithStockByCode(
+      codigo,
+      Number(sede),
+    );
 
-    // si por alguna razón el service retornara null, aquí lo convertimos en 404
     if (!result) {
       throw new NotFoundException(`Producto no encontrado: ${codigo}`);
     }
@@ -158,13 +190,47 @@ export class ProductRestController {
   @Get('code/:codigo')
   async getByCode(@Param('codigo') codigo: string) {
     const product = await this.queryService.getProductByCode(codigo);
-    if (!product) throw new NotFoundException(`Producto no encontrado: ${codigo}`);
+    if (!product)
+      throw new NotFoundException(`Producto no encontrado: ${codigo}`);
     return product;
   }
 
   @Get('category/:id_categoria')
-  async getByCategory(@Param('id_categoria', ParseIntPipe) id_categoria: number) {
+  async getByCategory(
+    @Param('id_categoria', ParseIntPipe) id_categoria: number,
+  ) {
     return this.queryService.getProductsByCategory(id_categoria);
+  }
+
+  // ===============================
+  // Queries — rutas con parámetro :id al final
+  // ===============================
+
+  @Get(':id_producto/stock')
+  async detailWithStock(
+    @Param('id_producto', ParseIntPipe) id_producto: number,
+    @Query('id_sede') id_sede?: string,
+  ) {
+    const sede = String(id_sede ?? '').trim();
+    if (!sede) {
+      throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1');
+    }
+
+    return this.queryService.getProductDetailWithStock(
+      id_producto,
+      Number(sede),
+    );
+  }
+
+  @Get('categorias-con-stock')
+  async categoriasConStock(@Query('id_sede') id_sede?: string) {
+    const sede = String(id_sede ?? '').trim();
+    if (!sede || isNaN(Number(sede))) {
+      throw new BadRequestException(
+        'id_sede es obligatorio y debe ser numérico',
+      );
+    }
+    return this.queryService.getCategoriasConStock(Number(sede));
   }
 
   @Get(':id')
