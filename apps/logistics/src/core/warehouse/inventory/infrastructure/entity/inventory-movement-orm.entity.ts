@@ -1,6 +1,10 @@
-/* apps/logistics/src/core/warehouse/inventory/infrastructure/entity/inventory-movement-orm.entity.ts */
-
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { InventoryMovementDetailOrmEntity } from './inventory-movement-detail-orm.entity';
 
 @Entity({ name: 'movimiento_inventario', schema: 'mkp_logistica' })
@@ -9,20 +13,20 @@ export class InventoryMovementOrmEntity {
   id: number;
 
   @Column({
-    name: 'tipo_origen', // Coincide con tu DB
+    name: 'tipo_origen',
     type: 'enum',
     enum: ['TRANSFERENCIA', 'COMPRA', 'VENTA', 'AJUSTE'],
     default: 'TRANSFERENCIA',
   })
   originType: string;
 
-  @Column({ name: 'ref_id' }) // Coincide con tu DB
+  @Column({ name: 'ref_id' })
   refId: number;
 
-  @Column({ name: 'ref_tabla', length: 50 }) // Coincide con tu DB
+  @Column({ name: 'ref_tabla', length: 50 })
   refTable: string;
 
-  @CreateDateColumn({ name: 'fecha' }) // datetime(6) DEFAULT_GENERATED
+  @CreateDateColumn({ name: 'fecha' })
   date: Date;
 
   @Column({ name: 'observacion', length: 255, nullable: true })

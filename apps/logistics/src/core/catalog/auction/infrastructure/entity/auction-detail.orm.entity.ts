@@ -29,7 +29,7 @@ export class AuctionDetailOrmEntity {
 
   @ManyToOne(() => AuctionOrmEntity, (a) => a.detalles, {
     onDelete: 'CASCADE',
-    createForeignKeyConstraints: false, 
+    createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'id_remate' })
   remate?: AuctionOrmEntity;

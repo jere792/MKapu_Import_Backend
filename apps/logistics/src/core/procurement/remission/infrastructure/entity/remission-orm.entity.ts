@@ -76,6 +76,9 @@ export class RemissionOrmEntity {
   @Column({ type: 'text', name: 'observaciones', nullable: true })
   observaciones: string;
 
+  @Column({ type: 'int', name: 'id_almacen_origen', nullable: false })
+  id_almacen_origen: number;
+
   @Column({ name: 'id_comprobante_ref', type: 'int', nullable: false })
   id_comprobante_ref: number;
 

@@ -19,6 +19,9 @@ import {
 } from '../dto/out';
 import { ProductMapper } from '../mapper/product.mapper';
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { ProductOrmEntity } from '../../infrastructure/entity/product-orm.entity';
 
 @Injectable()
 export class ProductQueryService implements IProductQueryPort {
@@ -26,6 +29,8 @@ export class ProductQueryService implements IProductQueryPort {
     @Inject('IProductRepositoryPort')
     private readonly repository: IProductRepositoryPort,
     private readonly sedeTcpProxy: SedeTcpProxy,
+    @InjectRepository(ProductOrmEntity)
+    private readonly productRepo: Repository<ProductOrmEntity>,
   ) {}
 
   async listProducts(
@@ -168,5 +173,23 @@ export class ProductQueryService implements IProductQueryPort {
       page: 1,
     });
     return ProductMapper.toListResponse(products, total, 1, 50);
+  }
+  async getProductsWeightsByIds(ids: string[]) {
+    if (!ids || ids.length === 0) return [];
+
+    // Buscamos los productos que coincidan con los IDs recibidos
+    const products = await this.productRepo.find({
+      where: {
+        // Usamos In de TypeORM (import { In } from 'typeorm')
+        id_producto: In(ids),
+      },
+      select: ['id_producto', 'peso_unitario'], // Solo traemos lo necesario
+    });
+
+    // Mapeamos al formato que Logística espera
+    return products.map((p) => ({
+      id: p.id_producto,
+      peso: Number(p.peso_unitario) || 0,
+    }));
   }
 }

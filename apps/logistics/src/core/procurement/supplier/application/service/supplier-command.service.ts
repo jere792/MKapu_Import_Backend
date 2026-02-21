@@ -1,8 +1,3 @@
-
-/* ============================================
-   logistics/src/core/procurement/supplier/application/service/supplier-command.service.ts
-   ============================================ */
-
 import {
   BadRequestException,
   ConflictException,
@@ -17,10 +12,7 @@ import {
   UpdateSupplierDto,
   ChangeSupplierStatusDto,
 } from '../dto/in';
-import {
-  SupplierResponseDto,
-  SupplierDeletedResponseDto,
-} from '../dto/out';
+import { SupplierResponseDto, SupplierDeletedResponseDto } from '../dto/out';
 import { SupplierMapper } from '../mapper/supplier.mapper';
 
 @Injectable()
@@ -30,7 +22,9 @@ export class SupplierCommandService implements ISupplierCommandPort {
     private readonly repository: ISupplierRepositoryPort,
   ) {}
 
-  async registerSupplier(dto: RegisterSupplierDto): Promise<SupplierResponseDto> {
+  async registerSupplier(
+    dto: RegisterSupplierDto,
+  ): Promise<SupplierResponseDto> {
     // Validar formato de RUC
     if (dto.ruc.length !== 11 || !/^\d+$/.test(dto.ruc)) {
       throw new BadRequestException('El RUC debe tener 11 dígitos numéricos');
@@ -49,7 +43,9 @@ export class SupplierCommandService implements ISupplierCommandPort {
   async updateSupplier(dto: UpdateSupplierDto): Promise<SupplierResponseDto> {
     const existingSupplier = await this.repository.findById(dto.id_proveedor);
     if (!existingSupplier) {
-      throw new NotFoundException(`Proveedor con ID ${dto.id_proveedor} no encontrado`);
+      throw new NotFoundException(
+        `Proveedor con ID ${dto.id_proveedor} no encontrado`,
+      );
     }
 
     if (dto.ruc && dto.ruc !== existingSupplier.ruc) {
@@ -69,13 +65,20 @@ export class SupplierCommandService implements ISupplierCommandPort {
     return SupplierMapper.toResponseDto(savedSupplier);
   }
 
-  async changeSupplierStatus(dto: ChangeSupplierStatusDto): Promise<SupplierResponseDto> {
+  async changeSupplierStatus(
+    dto: ChangeSupplierStatusDto,
+  ): Promise<SupplierResponseDto> {
     const existingSupplier = await this.repository.findById(dto.id_proveedor);
     if (!existingSupplier) {
-      throw new NotFoundException(`Proveedor con ID ${dto.id_proveedor} no encontrado`);
+      throw new NotFoundException(
+        `Proveedor con ID ${dto.id_proveedor} no encontrado`,
+      );
     }
 
-    const updatedSupplier = SupplierMapper.withStatus(existingSupplier, dto.estado);
+    const updatedSupplier = SupplierMapper.withStatus(
+      existingSupplier,
+      dto.estado,
+    );
     const savedSupplier = await this.repository.update(updatedSupplier);
     return SupplierMapper.toResponseDto(savedSupplier);
   }

@@ -1,8 +1,8 @@
-import { RemissionOrmEntity } from '../../../infrastructure/entity/remission-orm.entity';
+import { Remission } from '../../entity/remission-domain-entity';
 
 export interface RemissionPortOut {
-  save(remission: RemissionOrmEntity): Promise<RemissionOrmEntity>;
-  findById(id: string): Promise<RemissionOrmEntity | null>;
-  findLastBySerie(serie: string): Promise<RemissionOrmEntity | null>;
-  findByComprobante(idComprobante: number): Promise<RemissionOrmEntity | null>;
+  getNextCorrelative(): Promise<number>;
+  save(remission: Remission): Promise<void>;
+  findById(id: string): Promise<Remission | null>;
+  findByRefId(idVenta: number): Promise<any>;
 }

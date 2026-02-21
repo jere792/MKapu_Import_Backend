@@ -22,6 +22,10 @@ import { InventoryQueryService } from './application/service/inventory-query.ser
   ],
   controllers: [InventoryMovementRestController],
   providers: [
+    {
+      provide: 'IInventoryMovementCommandPort',
+      useClass: InventoryCommandService,
+    },
     InventoryCommandService,
     InventoryQueryService,          
     InventoryTypeOrmRepository,

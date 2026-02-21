@@ -1,12 +1,7 @@
-/* ============================================
-   logistics/src/core/procurement/supplier/infrastructure/entity/supplier-orm.entity.ts
-   ============================================ */
-
 import { Entity, PrimaryColumn, Column } from 'typeorm';
 
 @Entity({ name: 'proveedor', schema: 'mkp_logistica' })
 export class SupplierOrmEntity {
-
   @PrimaryColumn({ name: 'id_proveedor', type: 'int' })
   id_proveedor: number;
 

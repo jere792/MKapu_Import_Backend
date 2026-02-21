@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   Inject,
@@ -16,7 +15,10 @@ import { IPaymentRepositoryPort } from '../../domain/ports/out/payment-repositor
 import { LogisticsStockProxy } from '../../infrastructure/adapters/out/TCP/logistics-stock.proxy';
 
 import { RegisterSalesReceiptDto, AnnulSalesReceiptDto } from '../dto/in';
-import { SalesReceiptDeletedResponseDto, SalesReceiptResponseDto } from '../dto/out';
+import {
+  SalesReceiptDeletedResponseDto,
+  SalesReceiptResponseDto,
+} from '../dto/out';
 import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 import { SalesReceiptOrmEntity } from '../../infrastructure/entity/sales-receipt-orm.entity';
 
@@ -32,7 +34,38 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     private readonly stockProxy: LogisticsStockProxy,
   ) {}
 
-  async registerReceipt(dto: RegisterSalesReceiptDto): Promise<SalesReceiptResponseDto> {
+  async updateDispatchStatus(
+    id_venta: number,
+    status: string,
+  ): Promise<boolean> {
+    try {
+      const sale = await this.receiptRepository.findById(id_venta);
+
+      if (!sale) {
+        console.error(
+          `[SalesCommandService] Venta ${id_venta} no encontrada para actualizar despacho.`,
+        );
+        return false;
+      }
+
+      await this.receiptRepository.updateStatus(id_venta, status);
+
+      console.log(
+        `[SalesCommandService] Estado de despacho de venta ${id_venta} actualizado a: ${status}`,
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `[SalesCommandService] Error al actualizar estado de despacho:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  async registerReceipt(
+    dto: RegisterSalesReceiptDto,
+  ): Promise<SalesReceiptResponseDto> {
     const customer = await this.customerRepository.findById(dto.customerId);
     if (!customer) throw new NotFoundException(`Cliente no existe.`);
 
@@ -44,47 +77,49 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     let savedReceiptDomain;
 
     try {
-      // 1. Número con bloqueo (Pessimistic Write)
       const nextNumber = await this.receiptRepository.getNextNumberWithLock(
         assignedSerie,
         queryRunner,
       );
 
-      // 2. Dominio y Validación
       const receipt = SalesReceiptMapper.fromRegisterDto(
         { ...dto, serie: assignedSerie },
         nextNumber,
       );
       receipt.validate();
 
-      // 3. Mapeo a ORM y PERSISTENCIA ATÓMICA
       const receiptOrm = SalesReceiptMapper.toOrm(receipt);
-      const savedOrm = await queryRunner.manager.save(SalesReceiptOrmEntity, receiptOrm);
+      const savedOrm = await queryRunner.manager.save(
+        SalesReceiptOrmEntity,
+        receiptOrm,
+      );
 
       const tipoMovimiento = dto.receiptTypeId === 3 ? 'EGRESO' : 'INGRESO';
 
-      // 4. Pagos dentro de la transacción (UNA SOLA VEZ)
-      await this.paymentRepository.savePaymentInTransaction({
-        id_comprobante: savedOrm.id_comprobante,
-        id_tipo_pago: dto.paymentMethodId,
-        monto: savedOrm.total,
-      }, queryRunner);
+      await this.paymentRepository.savePaymentInTransaction(
+        {
+          id_comprobante: savedOrm.id_comprobante,
+          id_tipo_pago: dto.paymentMethodId,
+          monto: savedOrm.total,
+        },
+        queryRunner,
+      );
 
-      // 5. Registro de movimiento de caja
-      await this.paymentRepository.registerCashMovementInTransaction({
-        idCaja: String(dto.branchId),
-        idTipoPago: dto.paymentMethodId,
-        tipoMov: tipoMovimiento,
-        concepto: `${tipoMovimiento === 'INGRESO' ? 'VENTA' : 'NC'}: ${receipt.getFullNumber()}`,
-        monto: savedOrm.total,
-      }, queryRunner);
+      await this.paymentRepository.registerCashMovementInTransaction(
+        {
+          idCaja: String(dto.branchId),
+          idTipoPago: dto.paymentMethodId,
+          tipoMov: tipoMovimiento,
+          concepto: `${tipoMovimiento === 'INGRESO' ? 'VENTA' : 'NC'}: ${receipt.getFullNumber()}`,
+          monto: savedOrm.total,
+        },
+        queryRunner,
+      );
 
       await queryRunner.commitTransaction();
 
-      // Convertir savedOrm de vuelta a dominio para la respuesta
       savedReceiptDomain = SalesReceiptMapper.toDomain(savedOrm);
 
-      // 6. STOCK (FUERA DE TRANSACCIÓN) - Evita el "2 en 2"
       if (dto.receiptTypeId !== 3) {
         for (const item of receipt.items) {
           try {
@@ -97,16 +132,16 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
               refId: savedOrm.id_comprobante,
             });
           } catch (error) {
-            // Si el bus de eventos falla, aplicamos compensación
             await this.annulReceiptDueToStockFailure(savedOrm.id_comprobante);
-            throw new BadRequestException(`Fallo de Inventario: ${error.message}`);
+            throw new BadRequestException(
+              `Fallo de Inventario: ${error.message}`,
+            );
           }
         }
       }
     } catch (error) {
-      if (queryRunner.isTransactionActive) {
+      if (queryRunner.isTransactionActive)
         await queryRunner.rollbackTransaction();
-      }
       throw error;
     } finally {
       await queryRunner.release();
@@ -121,35 +156,34 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
    */
   private async annulReceiptDueToStockFailure(receiptId: number): Promise<void> {
     const queryRunner = this.receiptRepository.getQueryRunner();
-    
     try {
       await queryRunner.connect();
       await queryRunner.startTransaction();
-      
       await queryRunner.query(
         'UPDATE comprobante_venta SET estado = ? WHERE id_comprobante = ?',
-        ['ANULADO', receiptId]
+        ['ANULADO', receiptId],
       );
-      
       await queryRunner.commitTransaction();
-      
-      console.warn(`⚠️ Comprobante ${receiptId} anulado por fallo de stock`);
     } catch (err) {
-      if (queryRunner.isTransactionActive) {
+      if (queryRunner.isTransactionActive)
         await queryRunner.rollbackTransaction();
-      }
       console.error(
-        `🚨 ERROR CRÍTICO: No se pudo anular el comprobante ${receiptId} tras fallo de stock`,
-        err
+        `🚨 ERROR CRÍTICO: Fallo al compensar venta ${receiptId}`,
+        err,
       );
     } finally {
       await queryRunner.release();
     }
   }
 
-  async annulReceipt(dto: AnnulSalesReceiptDto): Promise<SalesReceiptResponseDto> {
-    const existingReceipt = await this.receiptRepository.findById(dto.receiptId);
-    if (!existingReceipt) throw new NotFoundException(`ID ${dto.receiptId} no encontrado.`);
+  async annulReceipt(
+    dto: AnnulSalesReceiptDto,
+  ): Promise<SalesReceiptResponseDto> {
+    const existingReceipt = await this.receiptRepository.findById(
+      dto.receiptId,
+    );
+    if (!existingReceipt)
+      throw new NotFoundException(`ID ${dto.receiptId} no encontrado.`);
 
     const annulledReceipt = existingReceipt.anular();
     const savedReceipt = await this.receiptRepository.update(annulledReceipt);
@@ -170,13 +204,22 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
 
   async deleteReceipt(id: number): Promise<SalesReceiptDeletedResponseDto> {
     const existingReceipt = await this.receiptRepository.findById(id);
-    if (!existingReceipt) throw new NotFoundException(`ID ${id} no encontrado.`);
+    if (!existingReceipt)
+      throw new NotFoundException(`ID ${id} no encontrado.`);
     await this.receiptRepository.delete(id);
-    return { receiptId: id, message: 'Comprobante eliminado.', deletedAt: new Date() };
+    return {
+      receiptId: id,
+      message: 'Comprobante eliminado.',
+      deletedAt: new Date(),
+    };
   }
 
   private getAssignedSerie(receiptTypeId: number): string {
-    const seriesMap: Record<number, string> = { 1: 'F001', 2: 'B001', 3: 'NC01' };
+    const seriesMap: Record<number, string> = {
+      1: 'F001',
+      2: 'B001',
+      3: 'NC01',
+    };
     return seriesMap[receiptTypeId] || 'T001';
   }
 }

@@ -33,15 +33,17 @@ class TransferDataDto {
   @IsString() direccion_destino: string;
 }
 
-class RemissionItemDto {
+class RemissionDetailsDto {
   @IsNumber() id_producto: number;
   @IsString() cod_prod: string;
   @IsNumber() cantidad: number;
   @IsNumber() peso_total: number;
+  @IsNumber() peso_unitario: number;
 }
 export class CreateRemissionDto {
   @IsNumber() id_comprobante_ref: number;
-  @IsNumber() id_sede_origen: string;
+  @IsNumber() id_almacen_origen: number;
+  @IsString() id_sede_origen: string;
   @IsNumber() id_usuario: number;
 
   @IsEnum(RemissionType)
@@ -56,10 +58,12 @@ export class CreateRemissionDto {
   @IsString()
   motivo_traslado: string;
 
+  @IsString()
+  unidad_peso: string;
+
   @IsNumber()
   peso_bruto_total: number;
 
-  // Objetos anidados
   @ValidateNested()
   @Type(() => TransferDataDto)
   datos_traslado: TransferDataDto;
@@ -70,6 +74,6 @@ export class CreateRemissionDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => RemissionItemDto)
-  items: RemissionItemDto[];
+  @Type(() => RemissionDetailsDto)
+  items: RemissionDetailsDto[];
 }

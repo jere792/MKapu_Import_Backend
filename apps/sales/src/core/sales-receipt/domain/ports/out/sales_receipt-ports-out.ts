@@ -1,5 +1,6 @@
 import { QueryRunner } from 'typeorm'; // Importante para la transacción
 import { SalesReceipt } from '../../entity/sales-receipt-domain-entity';
+import { SalesReceiptOrmEntity } from '../../../infrastructure/entity/sales-receipt-orm.entity';
 
 export interface ISalesReceiptRepositoryPort {
   save(receipt: SalesReceipt): Promise<SalesReceipt>;
@@ -18,5 +19,13 @@ export interface ISalesReceiptRepositoryPort {
   getNextNumber(serie: string): Promise<number>;
 
   getQueryRunner(): QueryRunner;
-  getNextNumberWithLock(serie: string, queryRunner: QueryRunner): Promise<number>;
+  getNextNumberWithLock(
+    serie: string,
+    queryRunner: QueryRunner,
+  ): Promise<number>;
+  updateStatus(id: number, status: string): Promise<SalesReceiptOrmEntity>;
+  findByCorrelativo(
+    serie: string,
+    numero: number,
+  ): Promise<SalesReceiptOrmEntity | null>;
 }

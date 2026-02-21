@@ -1,11 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   ExecutionContext,
   Injectable,
   CanActivate,
-  UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -57,31 +57,20 @@ export class RoleGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const { user } = context.switchToHttp().getRequest();
 
-    const userRoleHeader = request.headers['x-role'];
-
-    const user = request.user;
-
-    if (!userRoleHeader) {
-      throw new UnauthorizedException('Faltan credenciales de rol (x-role)');
-    }
-
-    const hasRole = requiredRoles.includes(userRoleHeader);
-
-    if (
-      user &&
-      user.role !== userRoleHeader &&
-      userRoleHeader !== 'ADMINISTRADOR'
-    ) {
+    if (!user || !user.roles) {
       throw new ForbiddenException(
-        'El rol del header no coincide con el token',
+        'El usuario no tiene roles asignados o no está autenticado',
       );
     }
 
-    if (!hasRole) {
+    const hasRole = () =>
+      user.roles.some((role: string) => requiredRoles.includes(role));
+
+    if (!hasRole()) {
       throw new ForbiddenException(
-        `Se requiere uno de los siguientes roles: ${requiredRoles.join(', ')}`,
+        `Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
       );
     }
 

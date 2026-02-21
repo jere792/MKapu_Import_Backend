@@ -1,6 +1,10 @@
-/* sales/src/core/sales-receipt/infrastructure/entity/sales-receipt-detail-orm.entity.ts */
-
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { SalesReceiptOrmEntity } from './sales-receipt-orm.entity';
 
 @Entity('detalle_comprobante')
@@ -17,7 +21,7 @@ export class SalesReceiptDetailOrmEntity {
   @Column({ name: 'descripcion', length: 45, nullable: true })
   descripcion: string;
 
-  @Column({ name: 'cantidad', type: 'int' }) 
+  @Column({ name: 'cantidad', type: 'int' })
   cantidad: number;
 
   @Column({ name: 'pre_uni', type: 'decimal', precision: 10, scale: 2 })

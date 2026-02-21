@@ -1,5 +1,3 @@
-/* sales/src/core/salesreceipt/domain/entity/sales-receipt.ts */
-
 export enum ReceiptStatus {
   EMITIDO = 'EMITIDO',
   ANULADO = 'ANULADO',
@@ -34,14 +32,13 @@ export interface SalesReceiptProps {
   id_responsable_ref: string;
   id_sede_ref: number;
   cod_moneda: string;
-  items: SalesReceiptItem[]; 
+  items: SalesReceiptItem[];
 }
 
 export class SalesReceipt {
   private constructor(private readonly props: SalesReceiptProps) {}
 
   static create(props: SalesReceiptProps): SalesReceipt {
-    // Validaciones de formato
     if (props.serie.length !== 4) {
       throw new Error('La serie debe tener exactamente 4 caracteres');
     }
@@ -54,9 +51,6 @@ export class SalesReceipt {
       throw new Error(
         'El código de moneda debe tener exactamente 3 caracteres',
       );
-    }
-    if (props.numero <= 0) {
-      throw new Error('El número del comprobante debe ser mayor a 0');
     }
     if (props.total < 0 || props.subtotal < 0 || props.igv < 0) {
       throw new Error('Los montos no pueden ser negativos');

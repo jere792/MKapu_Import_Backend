@@ -1,173 +1,138 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   BadRequestException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { CarrierOrmEntity } from '../../infrastructure/entity/carrier-orm.entity';
-import { SalesReceiptOrmEntity } from 'apps/sales/src/core/sales-receipt/infrastructure/entity/sales-receipt-orm.entity';
-import {
-  RemissionStatus,
-  TransportMode,
-} from '../../domain/entity/remission-domain-entity';
-import { DriverOrmEntity } from '../../infrastructure/entity/driver-orm.entity';
-import { RemissionDetailOrmEntity } from '../../infrastructure/entity/remission-detail-orm.entity';
-import { RemissionOrmEntity } from '../../infrastructure/entity/remission-orm.entity';
-import { GuideTransferOrm } from '../../infrastructure/entity/transport_guide-orm.entity';
-import { VehiculoOrmEntity } from '../../infrastructure/entity/vehicle-orm.entity';
+
 import { CreateRemissionDto } from '../dto/in/create-remission.dto';
-import { StockOrmEntity } from 'apps/logistics/src/core/warehouse/inventory/infrastructure/entity/stock-orm-entity';
+import {
+  Remission,
+  RemissionDetail,
+} from '../../domain/entity/remission-domain-entity';
+import { RemissionPortIn } from '../../domain/ports/in/remission-port-in';
+import { SalesGateway } from '../../infrastructure/adapters/out/sales-gateway';
+import { RemissionPortOut } from '../../domain/ports/out/remission-port-out';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ProductsGateway } from '../../infrastructure/adapters/out/products-gateway';
 
 @Injectable()
-export class RemissionCommandService {
-  constructor(private readonly dataSource: DataSource) {}
+export class RemissionCommandService implements RemissionPortIn {
+  constructor(
+    @Inject('RemissionRepositoryPort')
+    private readonly remissionRepository: RemissionPortOut,
+
+    @Inject('SalesGatewayPort')
+    private readonly salesGateway: SalesGateway,
+
+    @Inject('ProductsGatewayPort')
+    private readonly productsGateway: ProductsGateway,
+
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
+  async buscarVentaParaRemitir(correlativo: string) {
+    const venta = await this.salesGateway.findSaleByCorrelativo(correlativo);
+    if (!venta)
+      throw new NotFoundException('Comprobante de venta no encontrado');
+
+    /*const guiaExistente = await this.remissionRepository.findByRefId(venta.id);
+    if (guiaExistente)
+      throw new BadRequestException(
+        'Esta venta ya tiene una guía de remisión asociada',
+      );
+*/
+    const productRefs = venta.detalles.map((d) => d.id_producto);
+
+    const infoProductos =
+      await this.productsGateway.getProductsInfo(productRefs);
+
+    const detallesEnriquecidos = venta.detalles.map((detalle) => {
+      const infoMaestra = infoProductos.find(
+        (p) => p.id === detalle.id_producto,
+      );
+      return {
+        ...detalle,
+        peso_unitario: infoMaestra?.peso || 0,
+      };
+    });
+
+    return {
+      ...venta,
+      detalles: detallesEnriquecidos,
+    };
+  }
+
   async createRemission(dto: CreateRemissionDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
     try {
-      const sale = await queryRunner.manager.findOne(SalesReceiptOrmEntity, {
-        where: { id_comprobante: dto.id_comprobante_ref },
-        relations: ['details'],
-      });
+      // Validación de seguridad: Verificar que la venta sea apta para despacho
+      const saleInfo = await this.salesGateway.getValidSaleForDispatch(
+        dto.id_comprobante_ref,
+      );
 
-      if (!sale) throw new NotFoundException('Venta no encontrada (2-A)');
+      const nextNumero = await this.remissionRepository.getNextCorrelative();
 
-      // if (sale.estado_despacho === 'EN_CAMINO') throw new ConflictException('La venta ya fue despachada');
+      const detalles = dto.items.map(
+        (i) =>
+          new RemissionDetail(
+            i.id_producto,
+            i.cod_prod,
+            i.cantidad,
+            i.peso_total,
+            i.peso_unitario,
+          ),
+      );
 
-      for (const itemDto of dto.items) {
-        const itemVenta = sale.details.find(
-          (d) => d.cod_prod === itemDto.cod_prod,
-        );
-        if (!itemVenta || itemDto.cantidad > itemVenta.cantidad) {
-          throw new BadRequestException(
-            `Cantidad excedente para producto ${itemDto.cod_prod}`,
-          );
-        }
+      const remission = Remission.createNew(
+        {
+          serie: 'T001',
+          numero: nextNumero,
+          fecha_inicio: new Date(dto.fecha_inicio_traslado),
+          motivo_traslado: dto.motivo_traslado,
+          modalidad: dto.modalidad,
+          tipo_guia: dto.tipo_guia,
+          unidad_peso: dto.unidad_peso,
+          observaciones: dto.motivo_traslado,
+          id_comprobante_ref: dto.id_comprobante_ref,
+          id_usuario_ref: dto.id_usuario,
+          id_sede_ref: Number(dto.id_sede_origen),
+          id_almacen_origen: dto.id_almacen_origen,
+          datos_traslado: dto.datos_traslado,
+          datos_transporte: dto.datos_transporte,
+        },
+        detalles,
+      );
 
-        const stock = await queryRunner.manager.findOne(StockOrmEntity, {
-          where: {
-            id_producto: itemDto.id_producto,
-            id_sede: dto.id_sede_origen,
-          },
-          lock: { mode: 'pessimistic_write' },
-        });
+      // El dominio valida que las cantidades no excedan lo vendido
+      remission.validateAgainstSale(saleInfo);
 
-        if (!stock || stock.cantidad < itemDto.cantidad) {
-          throw new BadRequestException(
-            `Stock insuficiente para ${itemDto.cod_prod} (2-B)`,
-          );
-        }
+      await this.remissionRepository.save(remission);
 
-        stock.cantidad -= itemDto.cantidad;
-        await queryRunner.manager.save(stock);
-      }
-      const guia = new RemissionOrmEntity();
-      guia.serie = 'T001';
-      guia.numero = await this.generateCorrelative(queryRunner);
-      guia.fecha_emision = new Date();
-      guia.fecha_inicio = new Date(dto.fecha_inicio_traslado);
-      guia.motivo_traslado = dto.motivo_traslado;
-      guia.modalidad = dto.modalidad;
-      guia.tipo_guia = dto.tipo_guia;
-      guia.peso_total = dto.peso_bruto_total;
-      guia.cantidad = dto.items.reduce((acc, i) => acc + i.cantidad, 0);
-      guia.estado = RemissionStatus.EMITIDO;
-
-      // Relaciones FK
-      guia.id_comprobante_ref = sale.id_comprobante;
-      guia.id_usuario_ref = dto.id_usuario;
-      guia.id_sede_ref = dto.id_sede_origen;
-
-      const savedGuia = await queryRunner.manager.save(guia);
-
-      const transfer = new GuideTransferOrm();
-      transfer.guia = savedGuia;
-      transfer.id_guia = savedGuia.id_guia;
-      transfer.direccion_origen = dto.datos_traslado.direccion_origen;
-      transfer.ubigeo_origen = dto.datos_traslado.ubigeo_origen;
-      transfer.direccion_destino = dto.datos_traslado.direccion_destino;
-      transfer.ubigeo_destino = dto.datos_traslado.ubigeo_destino;
-      await queryRunner.manager.save(transfer);
-
-      if (dto.modalidad === TransportMode.PRIVADO) {
-        const driver = new DriverOrmEntity();
-        driver.guia = savedGuia;
-        driver.id_guia = savedGuia.id_guia;
-        driver.nombre_completo = dto.datos_transporte.nombre_completo;
-        driver.tipo_documento = dto.datos_transporte.tipo_documento;
-        driver.numero_documento = dto.datos_transporte.numero_documento;
-        driver.licencia = dto.datos_transporte.licencia;
-        await queryRunner.manager.save(driver);
-
-        // Registrar Vehículo
-        const vehicle = new VehiculoOrmEntity();
-        vehicle.guia = savedGuia;
-        vehicle.id_guia = savedGuia.id_guia;
-        vehicle.placa = dto.datos_transporte.placa;
-        await queryRunner.manager.save(vehicle);
-      } else {
-        // Registrar Transportista (Carrier)
-        const carrier = new CarrierOrmEntity();
-        carrier.guia = savedGuia;
-        carrier.id_guia = savedGuia.id_guia;
-        carrier.ruc = dto.datos_transporte.ruc;
-        carrier.razon_social = dto.datos_transporte.razon_social;
-        await queryRunner.manager.save(carrier);
+      for (const event of remission.domainEvents) {
+        this.eventEmitter.emit(event.constructor.name, event);
       }
 
-      const detalles = dto.items.map((i) => {
-        const det = new RemissionDetailOrmEntity();
-        det.guia = savedGuia;
-        det.id_guia = savedGuia.id_guia;
-        det.id_producto = i.id_producto;
-        det.cod_prod = i.cod_prod;
-        det.cantidad = i.cantidad;
-        det.peso_total = i.peso_total;
-        // Calcular peso unitario simple
-        det.peso_unitario = i.peso_total / i.cantidad;
-        return det;
-      });
-      await queryRunner.manager.save(detalles);
-
-      // sale.estado_despacho = 'EN_CAMINO';
-      // await queryRunner.manager.save(sale);
-
-      await queryRunner.commitTransaction();
+      remission.clearEvents();
 
       return {
         success: true,
         message: 'Guía generada correctamente',
-        id_guia: savedGuia.id_guia,
-        serie_numero: `${savedGuia.serie}-${savedGuia.numero}`,
+        id_guia: remission.id_guia,
+        serie_numero: remission.getFullNumber(),
       };
     } catch (error) {
-      await queryRunner.rollbackTransaction();
-      console.error(error);
-      if (
-        error instanceof BadRequestException ||
-        error instanceof NotFoundException
-      ) {
-        throw error;
+      console.error('Error al generar la guía:', error);
+      if (error instanceof BadRequestException || error.name === 'Error') {
+        throw new BadRequestException(error.message);
       }
       throw new InternalServerErrorException(
-        'Error en el proceso de emisión de guía (4-B)',
+        'Error en el proceso de emisión de guía',
       );
-    } finally {
-      await queryRunner.release();
     }
-  }
-  private async generateCorrelative(queryRunner: any): Promise<number> {
-    const last = await queryRunner.manager.find(RemissionOrmEntity, {
-      order: { numero: 'DESC' },
-      take: 1,
-    });
-    return last.length > 0 ? last[0].numero + 1 : 1;
   }
 }

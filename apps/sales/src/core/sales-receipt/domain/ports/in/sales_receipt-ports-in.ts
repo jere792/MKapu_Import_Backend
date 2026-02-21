@@ -1,7 +1,3 @@
-/* ============================================
-   sales/src/core/sales-receipt/domain/ports/in/sales-receipt-ports-in.ts
-   ============================================ */
-
 import {
   RegisterSalesReceiptDto,
   AnnulSalesReceiptDto,
@@ -20,6 +16,7 @@ export interface ISalesReceiptCommandPort {
   ): Promise<SalesReceiptResponseDto>;
   annulReceipt(dto: AnnulSalesReceiptDto): Promise<SalesReceiptResponseDto>;
   deleteReceipt(id: number): Promise<SalesReceiptDeletedResponseDto>;
+  updateDispatchStatus(id_venta: number, status: string): Promise<boolean>;
 }
 
 export interface ISalesReceiptQueryPort {
@@ -28,4 +25,6 @@ export interface ISalesReceiptQueryPort {
   ): Promise<SalesReceiptListResponse>;
   getReceiptById(id: number): Promise<SalesReceiptResponseDto | null>;
   getReceiptsBySerie(serie: string): Promise<SalesReceiptListResponse>;
+  findSaleByCorrelativo(correlativo: string): Promise<any>;
+  verifySaleForRemission(id: number): Promise<any>;
 }

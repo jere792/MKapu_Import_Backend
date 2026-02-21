@@ -1,15 +1,16 @@
-/* sales/src/core/sales-receipt/application/service/sales-receipt-query.service.ts */
-
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ISalesReceiptQueryPort } from '../../domain/ports/in/sales_receipt-ports-in';
 import { ISalesReceiptRepositoryPort } from '../../domain/ports/out/sales_receipt-ports-out';
-// Puerto para la búsqueda del cajero
 import { ICustomerRepositoryPort } from '../../../customer/domain/ports/out/customer-port-out';
 import { ListSalesReceiptFilterDto } from '../dto/in';
-import {
-  SalesReceiptResponseDto,
-  SalesReceiptListResponse,
-} from '../dto/out';
+import { SalesReceiptResponseDto, SalesReceiptListResponse } from '../dto/out';
 import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 
 @Injectable()
@@ -21,24 +22,62 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     @Inject('ICustomerRepositoryPort')
     private readonly customerRepository: ICustomerRepositoryPort,
   ) {}
-
-  /**
-   * Implementación del buscador por DNI/RUC para el módulo de Ventas.
-   * Resuelve el rombo de "¿Existe el cliente?" en tu diagrama.
-   */
-  async findCustomerByDocument(documentNumber: string): Promise<any> {
-    const customer = await this.customerRepository.findByDocument(documentNumber);
-    
-    if (!customer) {
-      // Lanzamos error para que el frontend capture el 404 y sugiera registrar al cliente
-      throw new NotFoundException(`No se encontró ningún cliente con el documento: ${documentNumber}`);
+  async findSaleByCorrelativo(correlativo: string): Promise<any> {
+    const parts = correlativo.split('-');
+    if (parts.length !== 2) {
+      throw new BadRequestException(
+        'El formato del correlativo debe ser SERIE-NUMERO (Ej: F001-123)',
+      );
     }
-    
-    // Retornamos el dominio del cliente (incluye el UUID necesario para la venta)
+
+    const [serie, numeroStr] = parts;
+    const numero = parseInt(numeroStr, 10);
+
+    const sale = await this.receiptRepository.findByCorrelativo(serie, numero);
+
+    if (!sale) {
+      throw new NotFoundException(
+        `No se encontró el comprobante ${correlativo}`,
+      );
+    }
+    return {
+      id: sale.id_comprobante,
+      id_sede: sale.id_sede_ref,
+      id_almacen: (sale as any).id_almacen || 1,
+      cliente_direccion:
+        (sale as any).direccion_entrega || 'Dirección no especificada',
+      cliente_ubigeo: (sale as any).ubigeo_destino || '150101',
+      detalles: sale.details.map((d) => ({
+        id_producto: d.id_prod_ref,
+        cod_prod: d.cod_prod,
+        cantidad: d.cantidad,
+        peso_unitario: d.id_prod_ref,
+      })),
+    };
+  }
+
+  async verifySaleForRemission(id: number): Promise<any> {
+    const sale = await this.receiptRepository.findById(id);
+
+    if (!sale) return null;
+
+    return sale;
+  }
+
+  async findCustomerByDocument(documentNumber: string): Promise<any> {
+    const customer =
+      await this.customerRepository.findByDocument(documentNumber);
+    if (!customer) {
+      throw new NotFoundException(
+        `No se encontró ningún cliente con el documento: ${documentNumber}`,
+      );
+    }
     return customer;
   }
 
-  async listReceipts(filters?: ListSalesReceiptFilterDto): Promise<SalesReceiptListResponse> {
+  async listReceipts(
+    filters?: ListSalesReceiptFilterDto,
+  ): Promise<SalesReceiptListResponse> {
     const repoFilters = filters
       ? {
           estado: filters.status,
