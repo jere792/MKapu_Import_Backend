@@ -93,7 +93,6 @@ export class SalesReceiptRestController {
   async verifySaleForRemission(@Payload() id_comprobante: number) {
     const sale =
       await this.receiptQueryService.verifySaleForRemission(id_comprobante);
-
     return sale
       ? { success: true, data: sale }
       : { success: false, message: 'Venta no encontrada' };

@@ -2,6 +2,8 @@ export enum ReceiptStatus {
   EMITIDO = 'EMITIDO',
   ANULADO = 'ANULADO',
   RECHAZADO = 'RECHAZADO',
+  EN_CAMINO = 'EN_CAMINO',
+  ENTREGADO = 'ENTREGADO',
 }
 
 export interface SalesReceiptItem {

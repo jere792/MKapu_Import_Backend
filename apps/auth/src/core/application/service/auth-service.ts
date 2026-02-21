@@ -52,9 +52,7 @@ export class AuthService implements AccountUserPortsIn {
 
     this.repository
       .updateLastAccess(accountOrm.id_cuenta)
-      .catch((err) =>
-        console.error('Error actualizando ultimo acceso', err),
-      );
+      .catch((err) => console.error('Error actualizando ultimo acceso', err));
 
     let sedeNombre = '';
     try {
@@ -89,8 +87,7 @@ export class AuthService implements AccountUserPortsIn {
     passwordRaw: string,
     roleId: number = 2,
   ): Promise<AccountUserResponseDto> {
-    const hashedPassword =
-      await this.passwordHasher.hashPassword(passwordRaw);
+    const hashedPassword = await this.passwordHasher.hashPassword(passwordRaw);
 
     const existingAccount = await this.repository.findByUsername(username);
     if (existingAccount) {

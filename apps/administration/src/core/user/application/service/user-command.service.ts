@@ -27,10 +27,12 @@ export class UserCommandService implements IUserCommandPort {
 
   async registerUser(dto: RegisterUserDto): Promise<UserResponseDto> {
     const existsByDni = await this.repository.existsByDni(dto.dni);
-    if (existsByDni) throw new ConflictException('Ya existe un usuario con ese DNI');
+    if (existsByDni)
+      throw new ConflictException('Ya existe un usuario con ese DNI');
 
     const existsByEmail = await this.repository.existsByEmail(dto.email);
-    if (existsByEmail) throw new ConflictException('Ya existe un usuario con ese email');
+    if (existsByEmail)
+      throw new ConflictException('Ya existe un usuario con ese email');
 
     const usuario = UserMapper.fromRegisterDto(dto);
     const savedUser = await this.repository.save(usuario);
@@ -43,11 +45,15 @@ export class UserCommandService implements IUserCommandPort {
 
   async updateUser(dto: UpdateUserDto): Promise<UserResponseDto> {
     const existingUser = await this.repository.findById(dto.id_usuario);
-    if (!existingUser) throw new NotFoundException(`Usuario con ID ${dto.id_usuario} no encontrado`);
+    if (!existingUser)
+      throw new NotFoundException(
+        `Usuario con ID ${dto.id_usuario} no encontrado`,
+      );
 
     if (dto.email && dto.email !== existingUser.email) {
       const emailExists = await this.repository.existsByEmail(dto.email);
-      if (emailExists) throw new ConflictException('El email ya está en uso por otro usuario');
+      if (emailExists)
+        throw new ConflictException('El email ya está en uso por otro usuario');
     }
 
     const updatedUser = UserMapper.fromUpdateDto(existingUser, dto);
@@ -61,7 +67,10 @@ export class UserCommandService implements IUserCommandPort {
 
   async changeUserStatus(dto: ChangeUserStatusDto): Promise<UserResponseDto> {
     const existingUser = await this.repository.findById(dto.id_usuario);
-    if (!existingUser) throw new NotFoundException(`Usuario con ID ${dto.id_usuario} no encontrado`);
+    if (!existingUser)
+      throw new NotFoundException(
+        `Usuario con ID ${dto.id_usuario} no encontrado`,
+      );
 
     const updatedUser = UserMapper.withStatus(existingUser, dto.activo);
     const savedUser = await this.repository.update(updatedUser);
@@ -74,7 +83,8 @@ export class UserCommandService implements IUserCommandPort {
 
   async deleteUser(id: number): Promise<UserDeletedResponseDto> {
     const existingUser = await this.repository.findById(id);
-    if (!existingUser) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    if (!existingUser)
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
 
     await this.repository.delete(id);
     const response = UserMapper.toDeletedResponse(id);

@@ -1,8 +1,3 @@
-/* eslint-disable prettier/prettier */
-/* ============================================
-   administration/src/core/user/infrastructure/controllers/user-rest.controller.ts
-   ============================================ */
-
 import {
   Controller,
   Post,
@@ -18,10 +13,22 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IUserCommandPort, IUserQueryPort } from '../../../../domain/ports/in/user-port-in';
+import {
+  IUserCommandPort,
+  IUserQueryPort,
+} from '../../../../domain/ports/in/user-port-in';
 import { UserWebSocketGateway } from '../../out/user-websocket.gateway';
-import { ChangeUserStatusDto, ListUserFilterDto, RegisterUserDto, UpdateUserDto } from '../../../../application/dto/in';
-import { UserDeletedResponseDto, UserListResponse, UserResponseDto } from '../../../../application/dto/out';
+import {
+  ChangeUserStatusDto,
+  ListUserFilterDto,
+  RegisterUserDto,
+  UpdateUserDto,
+} from '../../../../application/dto/in';
+import {
+  UserDeletedResponseDto,
+  UserListResponse,
+  UserResponseDto,
+} from '../../../../application/dto/out';
 import { Roles } from 'libs/common/src/infrastructure/decorators/roles.decorators';
 import { RoleGuard } from 'libs/common/src/infrastructure/guard/roles.guard';
 
@@ -30,7 +37,7 @@ import { RoleGuard } from 'libs/common/src/infrastructure/guard/roles.guard';
 //@Roles('Administrador')
 export class UserRestController {
   constructor(
-    @Inject('IUserQueryPort') 
+    @Inject('IUserQueryPort')
     private readonly userQueryService: IUserQueryPort,
     @Inject('IUserCommandPort')
     private readonly userCommandService: IUserCommandPort,
@@ -61,20 +68,19 @@ export class UserRestController {
     return updatedUser;
   }
 
-
   @Put(':id/status')
   @HttpCode(HttpStatus.OK)
   async changeUserStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() statusDto: { activo: boolean },
   ): Promise<UserResponseDto> {
-    
     const changeStatusDto: ChangeUserStatusDto = {
       id_usuario: id,
       activo: statusDto.activo,
     };
 
-    const updatedUser = await this.userCommandService.changeUserStatus(changeStatusDto);
+    const updatedUser =
+      await this.userCommandService.changeUserStatus(changeStatusDto);
     this.userGateway.notifyUserStatusChanged(updatedUser);
 
     return updatedUser;

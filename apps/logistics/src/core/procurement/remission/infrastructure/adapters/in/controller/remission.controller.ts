@@ -13,7 +13,7 @@ export class RemissionController {
   constructor(private readonly service: RemissionCommandService) {}
 
   @Post()
-  @Roles('ADMIN', 'LOGISTICS_MANAGER')
+  //@Roles('ADMIN', 'LOGISTICS_MANAGER')
   async create(@Body() dto: CreateRemissionDto) {
     return await this.service.createRemission(dto);
   }

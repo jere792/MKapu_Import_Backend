@@ -177,16 +177,13 @@ export class ProductQueryService implements IProductQueryPort {
   async getProductsWeightsByIds(ids: string[]) {
     if (!ids || ids.length === 0) return [];
 
-    // Buscamos los productos que coincidan con los IDs recibidos
     const products = await this.productRepo.find({
       where: {
-        // Usamos In de TypeORM (import { In } from 'typeorm')
         id_producto: In(ids),
       },
-      select: ['id_producto', 'peso_unitario'], // Solo traemos lo necesario
+      select: ['id_producto', 'peso_unitario'],
     });
 
-    // Mapeamos al formato que Logística espera
     return products.map((p) => ({
       id: p.id_producto,
       peso: Number(p.peso_unitario) || 0,

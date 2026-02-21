@@ -132,9 +132,12 @@ export class Remission {
   }) {
     for (const detail of this._detalles) {
       const saleItem = saleInfo.items.find(
-        (i) => i.codProd === detail.cod_prod,
+        (i) =>
+          String(i.codProd) === String(detail.cod_prod) ||
+          String(i.codProd) === String(detail.id_producto),
       );
       if (!saleItem) {
+        console.log('Items de la venta recibidos:', saleInfo.items);
         throw new Error(
           `El producto ${detail.cod_prod} no pertenece a la venta seleccionada.`,
         );

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -37,28 +38,33 @@ export class RemissionCommandService implements RemissionPortIn {
     private readonly eventEmitter: EventEmitter2,
   ) {}
   async buscarVentaParaRemitir(correlativo: string) {
+    // 1. Traer venta de Sales
     const venta = await this.salesGateway.findSaleByCorrelativo(correlativo);
-    if (!venta)
-      throw new NotFoundException('Comprobante de venta no encontrado');
+    if (!venta) throw new NotFoundException('Venta no encontrada');
 
-    /*const guiaExistente = await this.remissionRepository.findByRefId(venta.id);
-    if (guiaExistente)
-      throw new BadRequestException(
-        'Esta venta ya tiene una guía de remisión asociada',
-      );
-*/
     const productRefs = venta.detalles.map((d) => d.id_producto);
 
-    const infoProductos =
-      await this.productsGateway.getProductsInfo(productRefs);
-
+    let infoProductos = [];
+    try {
+      infoProductos = await this.productsGateway.getProductsInfo(productRefs);
+    } catch (e) {
+      console.error(
+        'Fallo crítico en ProductsGateway, usando pesos por defecto',
+      );
+    }
     const detallesEnriquecidos = venta.detalles.map((detalle) => {
-      const infoMaestra = infoProductos.find(
+      const infoMaestra = infoProductos?.find(
         (p) => p.id === detalle.id_producto,
       );
+
+      const pesoUnitario = infoMaestra ? Number(infoMaestra.peso) : 1;
+      const cantidad = Number(detalle.cantidad);
+
       return {
         ...detalle,
-        peso_unitario: infoMaestra?.peso || 0,
+        cantidad: Number(detalle.cantidad),
+        peso_unitario: pesoUnitario,
+        peso_total: Number(detalle.cantidad) * pesoUnitario,
       };
     });
 
@@ -70,11 +76,15 @@ export class RemissionCommandService implements RemissionPortIn {
 
   async createRemission(dto: CreateRemissionDto) {
     try {
-      // Validación de seguridad: Verificar que la venta sea apta para despacho
-      const saleInfo = await this.salesGateway.getValidSaleForDispatch(
+      const rawsaleInfo = await this.salesGateway.getValidSaleForDispatch(
         dto.id_comprobante_ref,
       );
-
+      const saleInfo = {
+        items: rawsaleInfo.items.map((item) => ({
+          codProd: item.codProd,
+          quantity: Number(item.quantity),
+        })),
+      };
       const nextNumero = await this.remissionRepository.getNextCorrelative();
 
       const detalles = dto.items.map(
@@ -108,7 +118,6 @@ export class RemissionCommandService implements RemissionPortIn {
         detalles,
       );
 
-      // El dominio valida que las cantidades no excedan lo vendido
       remission.validateAgainstSale(saleInfo);
 
       await this.remissionRepository.save(remission);

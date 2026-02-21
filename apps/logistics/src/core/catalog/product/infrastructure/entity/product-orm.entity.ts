@@ -58,4 +58,13 @@ export class ProductOrmEntity {
 
   @Column({ name: 'fec_actual', type: 'date' })
   fec_actual: Date;
+
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 3,
+    name: 'peso_unitario',
+    default: 1.0,
+  })
+  peso_unitario: number;
 }

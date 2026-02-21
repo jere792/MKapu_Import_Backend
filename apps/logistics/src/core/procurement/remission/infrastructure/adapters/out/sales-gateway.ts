@@ -26,9 +26,13 @@ export class SalesGateway implements SalesGatewayPortOut {
     if (!saleResponse || !saleResponse.success) {
       throw new NotFoundException('Venta no encontrada o inválida');
     }
+    console.log('Respuesta cruda de Sales:', JSON.stringify(saleResponse.data));
 
     const rawDetails =
-      saleResponse.data.details || saleResponse.data.detalles || [];
+      saleResponse.data.details ||
+      saleResponse.data.detalles ||
+      saleResponse.data.items ||
+      [];
 
     return {
       id: saleId,

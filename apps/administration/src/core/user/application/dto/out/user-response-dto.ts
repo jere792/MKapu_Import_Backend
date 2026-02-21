@@ -1,7 +1,3 @@
-/* ============================================
-   administration/src/core/user/application/dto/out/user-response-dto.ts
-   ============================================ */
-
 export interface UserResponseDto {
   id_usuario: number;
   usu_nom: string;

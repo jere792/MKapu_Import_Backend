@@ -58,10 +58,14 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
   async verifySaleForRemission(id: number): Promise<any> {
     const sale = await this.receiptRepository.findById(id);
-
     if (!sale) return null;
-
-    return sale;
+    return {
+      id: sale.id_comprobante || id,
+      detalles: (sale.items || []).map((item) => ({
+        cod_prod: item.productId,
+        cantidad: item.quantity,
+      })),
+    };
   }
 
   async findCustomerByDocument(documentNumber: string): Promise<any> {

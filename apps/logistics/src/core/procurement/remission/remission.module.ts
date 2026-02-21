@@ -32,7 +32,7 @@ import { ProductsGateway } from './infrastructure/adapters/out/products-gateway'
         transport: Transport.TCP,
         options: {
           host: process.env.ADMIN_HOST || 'localhost',
-          port: Number(process.env.ADMIN_TCP_PORT) || 3011,
+          port: Number(process.env.ADMIN_TCP_PORT) || 3004,
         },
       },
     ]),
