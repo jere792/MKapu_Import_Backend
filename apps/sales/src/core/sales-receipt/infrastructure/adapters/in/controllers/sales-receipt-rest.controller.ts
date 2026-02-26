@@ -41,8 +41,6 @@ export class SalesReceiptRestController {
     private readonly receiptCommandService: ISalesReceiptCommandPort,
   ) {}
 
-  // ── COMMANDS ──────────────────────────────────────────────────────────────
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async registerReceipt(

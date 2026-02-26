@@ -23,6 +23,8 @@ import { SalesReceiptQueryService } from './application/service/sales-receipt-qu
 import { LogisticsStockProxy } from './infrastructure/adapters/out/TCP/logistics-stock.proxy';
 import { UsersTcpProxy } from './infrastructure/adapters/out/TCP/users-tcp.proxy';
 import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
+import { LogisticsTcpProxy } from './infrastructure/adapters/out/TCP/logistics-tcp.proxy';
+
 
 import { SalesReceiptRepository } from './infrastructure/adapters/out/repository/sales-receipt.respository';
 import { PaymentRepository } from './infrastructure/adapters/out/repository/payment.repository';
@@ -87,6 +89,7 @@ import { SalesReceiptRestController } from './infrastructure/adapters/in/control
       PaymentOrmEntity,
       VoucherOrmEntity,
       CashMovementOrmEntity,
+      
     ]),
     CustomerModule,
   ],
@@ -101,6 +104,7 @@ import { SalesReceiptRestController } from './infrastructure/adapters/in/control
     LogisticsStockProxy,
     UsersTcpProxy,
     SedeTcpProxy,
+    LogisticsTcpProxy,
 
     {
       provide: 'ISalesReceiptCommandPort',
@@ -135,6 +139,7 @@ import { SalesReceiptRestController } from './infrastructure/adapters/in/control
     'ISalesReceiptQueryPort',
     UsersTcpProxy,
     SedeTcpProxy,
+    LogisticsTcpProxy,
   ],
 })
 export class SalesReceiptModule {}

@@ -1,4 +1,3 @@
-/* apps/sales/src/core/sales-receipt/infrastructure/adapters/out/repository/payment.repository.ts */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, QueryRunner } from 'typeorm';
@@ -18,7 +17,6 @@ export class PaymentRepository implements IPaymentRepositoryPort {
     private readonly cashRepo: Repository<CashMovementOrmEntity>,
   ) {}
 
-  // Ajustado a Promise<void> para cumplir con la interfaz
   async savePayment(data: Partial<PaymentOrmEntity>): Promise<void> {
     await this.paymentRepo.save(data);
   }

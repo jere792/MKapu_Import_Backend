@@ -148,14 +148,13 @@ export class ProductRestController {
     return this.queryService.autocompleteProductsVentas(dto);
   }
 
-
   @Get('ventas/stock')
   async stockVentas(
     @Query('id_sede') id_sede?: string,
     @Query('search') search?: string,
     @Query('id_categoria') id_categoria?: string,
-    @Query('page') page?: string,      // ← NUEVO
-    @Query('size') size?: string,      // ← NUEVO
+    @Query('page') page?: string, // ← NUEVO
+    @Query('size') size?: string, // ← NUEVO
   ) {
     if (!id_sede || Number.isNaN(Number(id_sede))) {
       throw new BadRequestException('id_sede es obligatorio. Ej: ?id_sede=1');
@@ -241,6 +240,7 @@ export class ProductRestController {
     if (!product) throw new NotFoundException(`Producto no encontrado: ${id}`);
     return product;
   }
+
   @MessagePattern({ cmd: 'get_products_info_for_remission' })
   async getInfoForRemission(@Payload() ids: string[]) {
     try {
@@ -253,6 +253,18 @@ export class ProductRestController {
     } catch (error) {
       console.error('[TCP ADMIN] Error al procesar pesos:', error.message);
       return []; // Devolvemos array vacío en caso de error para no romper Logística
+    }
+  }
+
+  // apps/logistics/src/core/catalog/product/infrastructure/adapters/in/controllers/product-rest.controller.ts
+
+  @MessagePattern({ cmd: 'get_products_codigo_by_ids' })
+  async getProductsCodigoByIds(@Payload() ids: number[]) {
+    try {
+      return await this.queryService.getProductsCodigoByIds(ids);
+    } catch (error) {
+      console.error('[TCP] Error get_products_codigo_by_ids:', error.message);
+      return [];
     }
   }
 }

@@ -115,6 +115,7 @@ export class SalesReceiptMapper {
       orm.details = domain.items.map((item) => {
         const detail = new SalesReceiptDetailOrmEntity();
         detail.id_prod_ref = item.productId;
+        detail.cod_prod = item.productId;
         detail.cantidad = Math.round(item.quantity);
         detail.pre_uni = item.unitPrice;
         detail.valor_uni = item.unitPrice;
