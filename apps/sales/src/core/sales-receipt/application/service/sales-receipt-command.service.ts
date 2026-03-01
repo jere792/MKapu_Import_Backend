@@ -165,8 +165,11 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     return { receiptId: id, message: 'Comprobante eliminado.', deletedAt: new Date() };
   }
 
+  //prueba
   private getAssignedSerie(receiptTypeId: number): string {
     const seriesMap: Record<number, string> = { 1: 'F001', 2: 'B001', 3: 'NC01' };
     return seriesMap[receiptTypeId] || 'T001';
   }
+
+
 }
