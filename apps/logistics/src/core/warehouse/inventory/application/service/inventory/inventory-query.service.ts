@@ -10,7 +10,6 @@ import { ListInventoryCountFilterDto } from '../../dto/in/list-inventory-count-f
 import { IInventoryRepositoryPort } from '../../../domain/ports/out/inventory-movement-ports-out';
 import { StockResponseDto } from '../../dto/out/stock-response.dto';
 import { InventoryMapper } from '../../mapper/inventory.mapper';
-import { InventoryTypeOrmRepository } from '../../../infrastructure/adapters/out/repository/inventory-typeorm.repository';
 import { InventoryMovementResponseDto } from '../../dto/out/inventory-movement-response.dto';
 import { firstValueFrom } from 'rxjs';
 import { ClientProxy } from '@nestjs/microservices';
@@ -22,7 +21,6 @@ export class InventoryQueryService {
     private readonly repository: IInventoryRepositoryPort,
     @InjectRepository(ConteoInventarioOrmEntity)
     private readonly conteoRepo: Repository<ConteoInventarioOrmEntity>,
-    private readonly inventoryRepository: InventoryTypeOrmRepository,
     @Inject('ADMIN_SERVICE')
     private readonly adminClient: ClientProxy,
   ) {}
@@ -84,8 +82,7 @@ export class InventoryQueryService {
   async getMovementsHistory(
     filters: any,
   ): Promise<{ data: InventoryMovementResponseDto[]; total: number }> {
-    const [movements, total] =
-      await this.inventoryRepository.findAllMovements(filters);
+    const [movements, total] = await this.repository.findAllMovements(filters);
 
     const sedeIds = new Set<number>();
     movements.forEach((mov) => {

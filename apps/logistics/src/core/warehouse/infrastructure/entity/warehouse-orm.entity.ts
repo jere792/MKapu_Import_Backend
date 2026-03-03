@@ -36,6 +36,6 @@ export class WarehouseOrmEntity {
   })
   activo!: boolean;
 
-  @Column({ name: 'id_sede', type: 'int', nullable: true })
+  @Column({ name: 'id_sede', type: 'int', nullable: false })
   sedeId?: number;
 }

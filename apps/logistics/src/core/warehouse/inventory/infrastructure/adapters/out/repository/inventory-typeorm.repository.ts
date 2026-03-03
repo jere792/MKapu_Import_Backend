@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IInventoryRepositoryPort } from '../../../../domain/ports/out/inventory-movement-ports-out';
@@ -8,7 +8,6 @@ import { InventoryMovement } from '../../../../domain/entity/inventory-movement.
 import { Stock } from '../../../../domain/entity/stock-domain-entity';
 import { InventoryMovementOrmEntity } from '../../../entity/inventory-movement-orm.entity';
 import { StockOrmEntity } from '../../../entity/stock-orm-entity';
-import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class InventoryTypeOrmRepository implements IInventoryRepositoryPort {
@@ -17,7 +16,6 @@ export class InventoryTypeOrmRepository implements IInventoryRepositoryPort {
     private readonly movementRepo: Repository<InventoryMovementOrmEntity>,
     @InjectRepository(StockOrmEntity)
     private readonly stockRepo: Repository<StockOrmEntity>,
-    @Inject('ADMIN_SERVICE') private readonly adminClient: ClientProxy,
   ) {}
 
   async saveMovement(movement: InventoryMovement): Promise<void> {
