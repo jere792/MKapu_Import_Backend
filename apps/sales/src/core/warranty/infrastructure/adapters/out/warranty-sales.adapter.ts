@@ -25,7 +25,7 @@ export class WarrantySalesAdapter implements IWarrantySalesPort {
       const receiptDto: RegisterSalesReceiptDto = {
         customerId: String(data.customerId),
         branchId: data.branchId,
-
+         warehouseId: data.branchId, 
         receiptTypeId: 3,
         saleTypeId: 1,
         serie: '',
