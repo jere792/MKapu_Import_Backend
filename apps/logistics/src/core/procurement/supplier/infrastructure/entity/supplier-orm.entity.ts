@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm';
 
-@Entity({ name: 'proveedor', schema: 'mkp_logistica' })
+@Entity({ name: 'proveedor' })
 export class SupplierOrmEntity {
   @PrimaryColumn({ name: 'id_proveedor', type: 'int' })
   id_proveedor: number;

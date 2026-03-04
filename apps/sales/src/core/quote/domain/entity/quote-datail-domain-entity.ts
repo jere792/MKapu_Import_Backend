@@ -1,6 +1,6 @@
 export class QuoteDetail {
   constructor(
-    public readonly id_detalle: number | null, // null si es nuevo
+    public readonly id_detalle: number | null, 
     public readonly id_cotizacion: number,
     public readonly id_prod_ref: number,
     public cod_prod: string,

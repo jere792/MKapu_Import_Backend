@@ -20,7 +20,6 @@ export class ReceiptType {
     return new ReceiptType(props);
   }
 
-  // Para crear nuevos (sin ID)
   static createNew(
     cod_sunat: string,
     descripcion: string,

@@ -22,4 +22,19 @@ export class SedeTcpProxy {
       return null;
     }
   }
+
+  async getAlmacenBySede(id_sede: number): Promise<number | null> {
+  try {
+    const response = await firstValueFrom(
+      this.client.send<{ id_almacen: number | null }>(
+        'get_almacen_by_sede',
+        id_sede,
+      ),
+    );
+    return response?.id_almacen ?? null;
+  } catch (error) {
+    this.logger.warn(`⚠️ No se pudo obtener almacén para sede ${id_sede}: ${error?.message}`);
+    return null;
+  }
+}
 }

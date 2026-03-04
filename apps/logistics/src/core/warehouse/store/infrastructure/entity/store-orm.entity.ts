@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'almacen', schema: 'mkp_logistica' })
+@Entity({ name: 'almacen' })
 export class StoreOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_almacen', type: 'int' })
   id_almacen: number;

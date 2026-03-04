@@ -9,7 +9,7 @@ import {
 import { StoreOrmEntity } from '../../../store/infrastructure/entity/store-orm.entity';
 import { TransferDetailOrmEntity } from './transfer-detail-orm.entity';
 
-@Entity({ name: 'transferencia', schema: 'mkp_logistica' })
+@Entity({ name: 'transferencia' })
 export class TransferOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_transferencia', type: 'int' })
   id: number;

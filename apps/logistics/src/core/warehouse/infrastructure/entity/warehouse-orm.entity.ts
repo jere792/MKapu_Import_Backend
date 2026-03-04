@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 import { BitToBooleanTransformer } from 'libs/common/src';
 
-@Entity({ name: 'almacen', schema: 'mkp_logistica' })
+@Entity({ name: 'almacen' })
 export class WarehouseOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_almacen', type: 'int' })
   id_almacen!: number;

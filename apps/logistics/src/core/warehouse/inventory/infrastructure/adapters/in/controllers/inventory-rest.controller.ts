@@ -23,7 +23,7 @@ import { ProductQueryService } from 'apps/logistics/src/core/catalog/product/app
 import { BulkManualAdjustmentDto } from 'apps/logistics/src/core/warehouse/application/dto/in/bulk-manual-adjustment.dto';
 
 @Controller('inventory-movements')
-@UseGuards(RoleGuard)
+//@UseGuards(RoleGuard)
 export class InventoryMovementRestController {
   constructor(
     private readonly commandService: InventoryCommandService,

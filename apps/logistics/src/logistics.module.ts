@@ -11,6 +11,7 @@ import { StoreModule } from './core/warehouse/store/store.module';
 import { UnitModule } from './core/catalog/unit/unit.module';
 import { TransferModule } from './core/warehouse/transfer/transfer.module';
 import { SupplierModule } from './core/procurement/supplier/supplier.module';
+import { DispatchModule } from './core/procurement/dispatch/dispatch.module';
 import { WastageModule } from './core/catalog/wastage/wastage.module';
 import { InventoryModule } from './core/warehouse/inventory/inventory.module';
 import { AuctionModule } from './core/catalog/auction/auction.module';
@@ -35,6 +36,9 @@ import { CommonModule } from '@app/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { WarehouseModule } from './core/warehouse/warehouse.module';
 import { WarehouseOrmEntity } from './core/warehouse/infrastructure/entity/warehouse-orm.entity';
+import { Dispatch } from './core/procurement/dispatch/domain/entity/dispatch-domain-entity';
+import { DispatchDetailOrmEntity } from './core/procurement/dispatch/infrastructure/entity/dispatch-detail-orm.entity';
+import { DispatchOrmEntity } from './core/procurement/dispatch/infrastructure/entity/dispatch-orm.entity';
 
 @Module({
   imports: [
@@ -71,6 +75,8 @@ import { WarehouseOrmEntity } from './core/warehouse/infrastructure/entity/wareh
           AuctionDetailOrmEntity,
           WarehouseOrmEntity,
           StoreOrmEntity,
+          DispatchOrmEntity,
+          DispatchDetailOrmEntity,
         ],
         autoLoadEntities: true,
         synchronize: false,
@@ -85,11 +91,13 @@ import { WarehouseOrmEntity } from './core/warehouse/infrastructure/entity/wareh
     ProductModule,
     TransferModule,
     SupplierModule,
+    DispatchModule,
     WastageModule,
     InventoryModule,
     AuctionModule,
     RemissionModule,
     WarehouseModule,
+    DispatchModule,
   ],
   controllers: [LogisticsController],
   providers: [LogisticsService],

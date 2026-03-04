@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HeadquartersOrmEntity } from './infrastructure/entity/headquarters-orm.entity';
+import { SedeAlmacenOrmEntity } from '../sede-almacen/infrastructure/entity/sede-almacen-orm.entity'; // ← agregar import
 import { HeadquarterRestController } from './infrastructure/adapters/in/controllers/headquarters-rest.controller';
 import { HeadquarterWebSocketGateway } from './infrastructure/adapters/out/headquarters-websocket.gateway';
 import { HeadquarterRepository } from './infrastructure/adapters/out/repository/headquarters.repository';
@@ -9,7 +10,12 @@ import { HeadquartersQueryService } from './application/service/headquarters-que
 import { SedeTcpController } from './infrastructure/adapters/in/TCP/sede.tcp.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([HeadquartersOrmEntity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      HeadquartersOrmEntity,
+      SedeAlmacenOrmEntity,  
+    ]),
+  ],
   controllers: [HeadquarterRestController, SedeTcpController],
   providers: [
     HeadquarterWebSocketGateway,

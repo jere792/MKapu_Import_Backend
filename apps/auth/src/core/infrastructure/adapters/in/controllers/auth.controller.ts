@@ -34,21 +34,18 @@ export class AuthController {
     return await this.authService.login(loginDto);
   }
 
-  //@UseGuards(RoleGuard)
-  //@Roles('Administrador')
   @Post('create-account')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear credenciales para un usuario existente' })
   @ApiResponse({ status: 201, description: 'Cuenta creada exitosamente' })
   @ApiResponse({ status: 409, description: 'El username ya existe' })
-  async createAccount(
-    @Body() dto: CreateAccountDto,
-  ): Promise<AccountUserResponseDto> {
+  async createAccount(@Body() dto: CreateAccountDto,): Promise<AccountUserResponseDto> {
     return this.authService.createAccountForUser(
       dto.userId,
       dto.username,
       dto.password,
       dto.roleId,
+      dto.id_sede, 
     );
   }
 }

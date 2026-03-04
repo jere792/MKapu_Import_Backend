@@ -39,7 +39,6 @@ export class Unit {
     this.status = UnitStatus.TRANSFERRING;
   }
 
-  // Liberar unidad en el nuevo almacén (Recepción)
   completeTransfer(newWarehouseId: number): void {
     if (this.status !== UnitStatus.TRANSFERRING) {
       throw new Error(

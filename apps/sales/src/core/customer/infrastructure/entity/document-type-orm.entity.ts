@@ -5,7 +5,7 @@
 
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'tipo_documento_identidad', schema: 'mkp_ventas' })
+@Entity({ name: 'tipo_documento_identidad' })
 export class DocumentTypeOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_tipo_documento', type: 'int' })
   id_tipo_documento: number;

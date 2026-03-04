@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { DocumentTypeOrmEntity } from './document-type-orm.entity';
 
-@Entity({ name: 'cliente', schema: 'mkp_ventas' })
+@Entity({ name: 'cliente' })
 export class CustomerOrmEntity {
   @PrimaryColumn({ name: 'id_cliente', type: 'varchar', length: 255 })
   id_cliente: string;

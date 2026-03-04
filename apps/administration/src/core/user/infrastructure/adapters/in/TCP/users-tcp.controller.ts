@@ -1,7 +1,6 @@
 import { Controller, Inject, Logger, UseGuards } from '@nestjs/common';
 import { MessagePattern, Payload, RpcException } from '@nestjs/microservices';
 import { IUserQueryPort } from '../../../../domain/ports/in/user-port-in';
-import { InternalSecretGuard } from '../guards/internal-secret.guard';
 
 type FindUsersByIdsPayload = {
   ids: number[] | string[];
@@ -29,7 +28,6 @@ export class UsersTcpController {
     private readonly userQueryPort: IUserQueryPort,
   ) {}
 
-  @UseGuards(InternalSecretGuard) 
   @MessagePattern('users.findByIds')
   async findByIds(@Payload() payload: FindUsersByIdsPayload): Promise<FindUsersByIdsResponse> {
     try {

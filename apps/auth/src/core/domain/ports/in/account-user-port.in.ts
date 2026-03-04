@@ -8,5 +8,7 @@ export interface AccountUserPortsIn {
     userId: number,
     username: string,
     passwordRaw: string,
+    roleId: number,
+    idSede: number,
   ): Promise<any>;
 }

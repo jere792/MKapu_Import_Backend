@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, Repository } from 'typeorm';
+import { DeepPartial, In, Repository } from 'typeorm';
 import { IWarehouseRepository } from '../../../../domain/ports/out/warehouse-ports-out';
 import { Warehouse } from '../../../../domain/entity/warehouse-domain-entity';
 import { WarehouseOrmEntity } from '../../../entity/warehouse-orm.entity';
@@ -16,31 +16,43 @@ export class WarehouseTypeormRepository implements IWarehouseRepository {
   ) {}
 
   async findPaginated(filters: ListWarehousesFilterDto): Promise<WarehouseListResponse> {
-    const { search, activo, page = 1, pageSize = 10 } = filters;
+    const page     = Math.max(1, Number(filters.page)     || 1);
+    const pageSize = Math.min(1000, Math.max(1, Number(filters.pageSize) || 10));
 
     const qb = this.repo.createQueryBuilder('w');
 
-    if (search) {
-      qb.andWhere('(w.nombre LIKE :search OR w.codigo LIKE :search)', {
-        search: `%${search}%`,
-      });
+    if (filters.search) {
+      qb.andWhere(
+        '(w.nombre LIKE :search OR w.codigo LIKE :search OR w.ciudad LIKE :search OR w.departamento LIKE :search)',
+        { search: `%${filters.search}%` },
+      );
     }
 
-    if (activo !== undefined) {
-      qb.andWhere('w.activo = :activo', { activo });
+    if (filters.activo !== undefined) {
+      qb.andWhere('w.activo = :activo', { activo: filters.activo });
     }
 
     const [items, total] = await qb
-      .skip((Number(page) - 1) * Number(pageSize))
-      .take(Number(pageSize))
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
       .getManyAndCount();
 
-    return WarehouseMapper.toPaginatedResponse(items, total, Number(page), Number(pageSize)); // ✅
+    return WarehouseMapper.toPaginatedResponse(items, total, page, pageSize);
   }
-  
+
   async findById(id: number): Promise<Warehouse | null> {
     const e = await this.repo.findOne({ where: { id_almacen: id } });
     return e ? WarehouseMapper.fromOrm(e) : null;
+  }
+
+  async findByIds(ids: number[]): Promise<Warehouse[]> {
+    if (!ids || ids.length === 0) return [];
+    const uniqueIds = Array.from(new Set(ids.map((id) => Number(id)).filter((id) => id > 0)));
+    if (uniqueIds.length === 0) return [];
+    const entities = await this.repo.find({
+      where: { id_almacen: In(uniqueIds) },
+    });
+    return entities.map((e) => WarehouseMapper.fromOrm(e));
   }
 
   async findByCode(code: string): Promise<Warehouse | null> {

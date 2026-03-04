@@ -6,7 +6,6 @@ import { UserOrmEntity } from './infrastructure/entity/user-orm.entity';
 
 // TCP handlers / guards
 import { UsersTcpController } from './infrastructure/adapters/in/TCP/users-tcp.controller';
-import { InternalSecretGuard } from './infrastructure/adapters/in/guards/internal-secret.guard';
 
 import { UserCommandService } from './application/service/user-command.service';
 import { UserQueryService } from './application/service/user-query.service';
@@ -32,7 +31,6 @@ import { CuentaUsuarioOrmEntity } from './infrastructure/entity/cuenta-usuario-o
     UserWebSocketGateway,
 
     UsersTcpController,
-    InternalSecretGuard,
 
     {
       provide: 'IUserRepositoryPort',

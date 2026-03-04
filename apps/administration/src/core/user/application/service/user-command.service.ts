@@ -66,9 +66,7 @@ export class UserCommandService implements IUserCommandPort {
     const updatedUser = UserMapper.fromUpdateDto(existingUser, dto);
     const savedUser = await this.repository.update(updatedUser);
 
-    // Bloque para cambio de rol
     if (dto.rolNombre && dto.rolNombre !== existingUser.rolNombre) {
-      // 1. Busca el nuevo rol
       const role = await this.roleRepo.findOne({ where: { nombre: dto.rolNombre } });
       if (role) {
         // 2. Busca cuenta del usuario

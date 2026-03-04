@@ -32,8 +32,8 @@ import {
 import { RoleGuard, Roles } from 'libs/common/src';
 
 @Controller('permissions')
-@UseGuards(RoleGuard)
-@Roles('Administrador')
+//@UseGuards(RoleGuard)
+//@Roles('Administrador')
 export class PermissionRestController {
   constructor(
     @Inject('IPermissionQueryPort')

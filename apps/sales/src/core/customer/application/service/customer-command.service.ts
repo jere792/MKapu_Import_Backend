@@ -58,7 +58,6 @@ export class CustomerCommandService implements ICustomerCommandPort {
       throw new NotFoundException(`No se encontró el cliente con ID ${dto.customerId}`);
     }
 
-    // Si cambió el tipo de documento, obtener el nuevo código sunat
     let tipoDocumentoCodSunat = existingCustomer.tipoDocumentoCodSunat;
     if (dto.documentTypeId && dto.documentTypeId !== existingCustomer.id_tipo_documento) {
       const newDocType = await this.documentTypeRepository.findById(dto.documentTypeId);

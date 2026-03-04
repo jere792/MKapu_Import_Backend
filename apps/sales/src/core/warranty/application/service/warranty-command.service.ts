@@ -150,7 +150,6 @@ export class WarrantyCommandService implements IWarrantyCommandPort {
     if (idEstado === 2 && resolutionAction) {
       // Supongamos 2 = APROBADO/RESUELTO
       if (resolutionAction === 'REPLACE') {
-        // Salida de stock para el nuevo producto de reemplazo
         await this.logisticsPort.registerProductEntry({
           productId: warranty.cod_prod,
           productName: warranty.prod_nombre,

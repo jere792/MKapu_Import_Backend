@@ -139,7 +139,7 @@ export class ReportsTypeOrmRepository implements IReportsRepositoryPort {
         .innerJoin(
           SalesReceiptOrmEntity,
           'sr',
-          'sr.id_cliente_ref = c.id_cliente',
+          'sr.id_cliente = c.id_cliente',
         )
         .andWhere('sr.id_sede_ref = :idSedeParam', { idSedeParam: idSede })
         .andWhere('sr.fec_emision BETWEEN :startDate AND :endDate', {

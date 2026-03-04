@@ -15,4 +15,8 @@ export class WarehouseQueryService {
   async getById(id: number): Promise<Warehouse | null> {
     return this.repo.findById(id);
   }
+
+  async getByIds(ids: number[]): Promise<Warehouse[]> {
+    return this.repo.findByIds(ids);
+  }
 }

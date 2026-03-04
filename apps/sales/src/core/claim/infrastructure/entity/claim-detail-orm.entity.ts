@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { ClaimOrmEntity } from './claim-orm.entity';
 
-@Entity('reclamo_detalle', { schema: 'mkp_ventas' })
+@Entity({ name: 'reclamo_detalle' })
 export class ClaimDetailOrmEntity {
   @PrimaryGeneratedColumn('increment', { name: 'id_reclamo_detalle' })
   id: number;

@@ -5,8 +5,8 @@ import {
   Unique,
 } from 'typeorm';
 
-@Entity({ name: 'cuenta_usuario', schema: 'mkp_administracion' })
-@Unique(['id_usuario']) // Asegura que id_usuario es único
+@Entity({ name: 'cuenta_usuario' })
+@Unique(['id_usuario']) 
 export class CuentaUsuarioOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_cuenta', type: 'int' })
   id_cuenta: number;

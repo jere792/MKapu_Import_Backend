@@ -22,7 +22,6 @@ export class SalesType {
     return new SalesType(props);
   }
 
-  // Para crear nuevos (sin ID)
   static createNew(tipo: SalesTypeEnum, descripcion: string): SalesType {
     return new SalesType({
       tipo,

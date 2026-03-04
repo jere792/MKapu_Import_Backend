@@ -21,6 +21,7 @@ import {
 } from '../dto/out';
 import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 import { SalesReceiptOrmEntity } from '../../infrastructure/entity/sales-receipt-orm.entity';
+import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy'; // ajusta path
 
 @Injectable()
 export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
@@ -32,6 +33,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     @Inject('IPaymentRepositoryPort')
     private readonly paymentRepository: IPaymentRepositoryPort,
     private readonly stockProxy: LogisticsStockProxy,
+    private readonly sedeTcpProxy: SedeTcpProxy,   
   ) {}
 
   async updateDispatchStatus(id_venta: number, status: string): Promise<boolean> {
@@ -50,11 +52,17 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
   }
 
   async registerReceipt(dto: RegisterSalesReceiptDto): Promise<SalesReceiptResponseDto> {
+    console.log('📥 DTO completo:', JSON.stringify(dto, null, 2));
+    console.log('🏢 branchId:', dto.branchId, '| tipo:', typeof dto.branchId);
+    console.log('📋 serie recibida:', dto.serie);
+
     const customer = await this.customerRepository.findById(dto.customerId);
     if (!customer) throw new NotFoundException(`Cliente no existe.`);
 
     const assignedSerie = this.getAssignedSerie(dto.receiptTypeId);
-    const queryRunner   = this.receiptRepository.getQueryRunner();
+    console.log('📋 assignedSerie (getAssignedSerie):', assignedSerie);
+
+    const queryRunner = this.receiptRepository.getQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
@@ -65,12 +73,18 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         assignedSerie,
         queryRunner,
       );
+      console.log('🔢 nextNumber para serie', assignedSerie, ':', nextNumber);
 
-      const receipt    = SalesReceiptMapper.fromRegisterDto({ ...dto, serie: assignedSerie }, nextNumber);
+      const receipt = SalesReceiptMapper.fromRegisterDto({ ...dto, serie: assignedSerie }, nextNumber);
+      console.log('🧾 receipt.id_sede_ref:', receipt.id_sede_ref);
+
       receipt.validate();
 
       const receiptOrm = SalesReceiptMapper.toOrm(receipt);
-      const savedOrm   = await queryRunner.manager.save(SalesReceiptOrmEntity, receiptOrm);
+      console.log('🗃️ receiptOrm.id_sede_ref:', receiptOrm.id_sede_ref);
+
+      const savedOrm = await queryRunner.manager.save(SalesReceiptOrmEntity, receiptOrm);
+      console.log('💾 savedOrm.id_sede_ref:', savedOrm.id_sede_ref, '| id:', savedOrm.id_comprobante);
 
       const tipoMovimiento = dto.receiptTypeId === 3 ? 'EGRESO' : 'INGRESO';
 
@@ -94,11 +108,23 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       savedReceiptDomain = SalesReceiptMapper.toDomain(savedOrm);
 
       if (dto.receiptTypeId !== 3) {
+
+        // ── Resolver id_almacen real vía TCP a admin ───────────────────────
+        const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(dto.branchId);
+        if (!warehouseId) {
+          await this.annulReceiptDueToStockFailure(savedOrm.id_comprobante);
+          throw new BadRequestException(
+            `No hay almacén configurado para la sede ${dto.branchId}`,
+          );
+        }
+        console.log(`🏭 Sede ${dto.branchId} → Almacén ${warehouseId}`);
+        // ───────────────────────────────────────────────────────────────────
+
         for (const item of receipt.items) {
           try {
             await this.stockProxy.registerMovement({
               productId:      Number(item.productId),
-              warehouseId:    Number(dto.branchId),
+              warehouseId:    warehouseId,           // ← id_almacen real, no branchId
               headquartersId: Number(dto.branchId),
               quantityDelta:  -item.quantity,
               reason:         'VENTA',
@@ -117,8 +143,13 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       await queryRunner.release();
     }
 
+    console.log(`sedeId: ${dto.branchId}, receiptId: ${savedReceiptDomain.id_comprobante} - Venta registrada exitosamente.`);
     return SalesReceiptMapper.toResponseDto(savedReceiptDomain);
   }
+
+
+
+
   private async annulReceiptDueToStockFailure(receiptId: number): Promise<void> {
     const queryRunner = this.receiptRepository.getQueryRunner();
     try {
@@ -165,8 +196,11 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     return { receiptId: id, message: 'Comprobante eliminado.', deletedAt: new Date() };
   }
 
+  //prueba
   private getAssignedSerie(receiptTypeId: number): string {
     const seriesMap: Record<number, string> = { 1: 'F001', 2: 'B001', 3: 'NC01' };
     return seriesMap[receiptTypeId] || 'T001';
   }
+
+
 }

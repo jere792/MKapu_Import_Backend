@@ -1,26 +1,34 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { DispatchQueryPortIn } from '../../domain/ports/in/dispatch-ports-in';
-import { DispatchDtoOut } from '../dto/out/dispatch-dto-out';
-import { DispatchPortOut } from '../../domain/ports/out/dispatch-ports-out';
-import { DispatchMapper } from '../mapper/dispatch-mapper';
+import { Injectable, Inject } from '@nestjs/common';
+import { DispatchMapper } from '../mapper/dispatch.mapper';
+import { DispatchOutputDto } from '../dto/out/dispatch-output.dto';
+import { IDispatchOutputPort } from '../../domain/ports/out/dispatch-output.port';
+
+export interface IDispatchQueryPort {
+  findById(id_despacho: number): Promise<DispatchOutputDto>;
+  findAll(): Promise<DispatchOutputDto[]>;
+  findByVenta(id_venta_ref: number): Promise<DispatchOutputDto[]>;
+}
 
 @Injectable()
-export class DispatchQueryService implements DispatchQueryPortIn {
+export class DispatchQueryService implements IDispatchQueryPort {
   constructor(
-    @Inject('IDispatchRepositoryPortOut')
-    private readonly repository: DispatchPortOut,
+    @Inject('IDispatchOutputPort')
+    private readonly repository: IDispatchOutputPort,
   ) {}
 
-  async getDispatches(): Promise<DispatchDtoOut[]> {
-    const dispatches = await this.repository.getAll();
-    return dispatches.map((dispatch) => DispatchMapper.toResponseDto(dispatch));
+  async findById(id_despacho: number): Promise<DispatchOutputDto> {
+    const dispatch = await this.repository.findById(id_despacho);
+    if (!dispatch) throw new Error(`Despacho ${id_despacho} no encontrado`);
+    return DispatchMapper.toOutputDto(dispatch);
   }
 
-  async getDispatchById(id: number): Promise<DispatchDtoOut> {
-    const dispatch = await this.repository.getById(id);
-    if (!dispatch) {
-      throw new NotFoundException(`Despacho con ID ${id} no encontrado`);
-    }
-    return dispatch;
+  async findAll(): Promise<DispatchOutputDto[]> {
+    const dispatches = await this.repository.findAll();
+    return dispatches.map(DispatchMapper.toOutputDto);
+  }
+
+  async findByVenta(id_venta_ref: number): Promise<DispatchOutputDto[]> {
+    const dispatches = await this.repository.findByVenta(id_venta_ref);
+    return dispatches.map(DispatchMapper.toOutputDto);
   }
 }

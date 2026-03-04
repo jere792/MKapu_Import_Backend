@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe, Query, BadRequestException } from '@nestjs/common';
 import { CreateWarehouseDto } from '../../../../application/dto/in/create-warehouse.dto';
 import { UpdateWarehouseDto } from '../../../../application/dto/in/update-warehouse.dto';
-import { UpdateWarehouseStatusDto } from '../../../../application/dto/in/update-warehouse-status.dto'; // ← nuevo
+import { UpdateWarehouseStatusDto } from '../../../../application/dto/in/update-warehouse-status.dto';
 import { ListWarehousesFilterDto } from '../../../../application/dto/in/list-warehouses-filter.dto';
 import { WarehouseCommandService } from '../../../../application/service/warehouse-command.service';
 import { WarehouseQueryService } from '../../../../application/service/warehouse-query.service';

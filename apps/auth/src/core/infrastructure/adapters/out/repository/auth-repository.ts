@@ -62,12 +62,13 @@ export class AuthRepository implements AccountUserPortsOut {
     userId: number;
     username: string;
     password: string;
+    id_sede?: number; 
   }): Promise<AccountUser> {
     const newAccount = this.userRepo.create({
       nom_usu: data.username,
       contraseña: data.password,
-      email_emp: `${data.username}@empresa.com`,
-      id_sede: 1,
+      email_emp: `${data.username}@mkpu.com`,
+      id_sede: data.id_sede ?? 1,  
       activo: true,
       ultimo_acceso: new Date(),
     });

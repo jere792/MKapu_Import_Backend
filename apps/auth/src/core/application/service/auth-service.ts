@@ -81,12 +81,13 @@ export class AuthService implements AccountUserPortsIn {
     });
   }
 
-  async createAccountForUser(
-    userId: number,
-    username: string,
-    passwordRaw: string,
-    roleId: number = 2,
-  ): Promise<AccountUserResponseDto> {
+    async createAccountForUser(
+      userId: number,
+      username: string,
+      passwordRaw: string,
+      roleId: number,
+      idSede: number,
+    ): Promise<any> {
     const hashedPassword = await this.passwordHasher.hashPassword(passwordRaw);
 
     const existingAccount = await this.repository.findByUsername(username);
@@ -98,6 +99,7 @@ export class AuthService implements AccountUserPortsIn {
       userId,
       username,
       password: hashedPassword,
+      id_sede: idSede,  
     });
 
     await this.repository.assignRole(account.id, roleId);
