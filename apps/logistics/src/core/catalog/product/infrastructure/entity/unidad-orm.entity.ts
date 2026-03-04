@@ -8,7 +8,7 @@ import {
 import { ProductOrmEntity } from './product-orm.entity';
 import { WarehouseOrmEntity } from 'apps/logistics/src/core/warehouse/infrastructure/entity/warehouse-orm.entity';
 
-@Entity({ name: 'unidad', schema: 'mkp_logistica' })
+@Entity({ name: 'unidad'})
 export class UnidadOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_unidad', type: 'int' })
   id_unidad: number;

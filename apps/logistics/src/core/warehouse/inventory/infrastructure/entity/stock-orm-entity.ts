@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
-@Entity({ name: 'stock', schema: 'mkp_logistica' })
+@Entity({ name: 'stock' })
 export class StockOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_stock' })
   id_stock: number;

@@ -9,7 +9,7 @@ import { InventoryMovementOrmEntity } from './inventory-movement-orm.entity';
 import { ProductOrmEntity } from 'apps/logistics/src/core/catalog/product/infrastructure/entity/product-orm.entity';
 import { WarehouseOrmEntity } from '../../../infrastructure/entity/warehouse-orm.entity';
 
-@Entity({ name: 'detalle_movimiento_inventario', schema: 'mkp_logistica' })
+@Entity({ name: 'detalle_movimiento_inventario' })
 export class InventoryMovementDetailOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_detalle_inv' })
   id: number;

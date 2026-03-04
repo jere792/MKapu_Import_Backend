@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { SalesReceiptOrmEntity } from '../../../sales-receipt/infrastructure/entity/sales-receipt-orm.entity';
 
-@Entity('cpe_documento', { schema: 'mkp_ventas' })
+@Entity({ name: 'cpe_documento'})
 export class CpeDocumentOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_cpe' })
   id: number;

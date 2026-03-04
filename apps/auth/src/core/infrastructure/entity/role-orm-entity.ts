@@ -9,7 +9,7 @@ import {
 import { AccountUserOrmEntity } from './account-user-orm-entity';
 import { PermissionOrmEntity } from './permission-orm-entity';
 
-@Entity({ name: 'rol', schema: 'mkp_administracion', synchronize: false })
+@Entity({ name: 'rol' })
 export class RoleOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_rol' })
   id_rol: number;

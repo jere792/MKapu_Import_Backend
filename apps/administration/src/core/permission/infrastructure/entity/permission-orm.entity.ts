@@ -3,7 +3,7 @@
    ============================================ */
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'permiso', schema: 'mkp_administracion' })
+@Entity({ name: 'permiso' })
 export class PermissionOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_permiso', type: 'int' })
   id_permiso: number;

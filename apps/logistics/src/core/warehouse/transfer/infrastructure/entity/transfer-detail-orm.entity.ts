@@ -2,7 +2,7 @@ import { ProductOrmEntity } from 'apps/logistics/src/core/catalog/product/infras
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { TransferOrmEntity } from './transfer-orm.entity';
 
-@Entity({ name: 'detalle_transferencia', schema: 'mkp_logistica' })
+@Entity({ name: 'detalle_transferencia' })
 export class TransferDetailOrmEntity {
   @PrimaryColumn({ name: 'id_detalle', type: 'varchar', length: 255 })
   serialNumber: string;

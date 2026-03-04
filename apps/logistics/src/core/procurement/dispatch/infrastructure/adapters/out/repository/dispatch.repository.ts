@@ -1,55 +1,90 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
-import { DispatchPortOut } from '../../../../domain/ports/out/dispatch-ports-out';
-import { Dispatch } from '../../../../domain/entity/dispatch-domain-entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DispatchOrmEntity } from '../../../entity/dispatch-orm.entity';
 import { Repository } from 'typeorm';
-import { DispatchMapper } from '../../../../application/mapper/dispatch-mapper';
+import { IDispatchOutputPort } from '../../../../domain/ports/out/dispatch-output.port';
+import { Dispatch } from '../../../../domain/entity/dispatch-domain-entity';
+import { DispatchDetail } from '../../../../domain/entity/dispatch-detail-domain-entity';
+import { DispatchMapper } from '../../../../application/mapper/dispatch.mapper';
+import { DispatchOrmEntity } from '../../../entity/dispatch-orm.entity';
+import { DispatchDetailOrmEntity } from '../../../entity/dispatch-detail-orm.entity';
 
 @Injectable()
-export class DispatchRepository implements DispatchPortOut {
+export class DispatchRepository implements IDispatchOutputPort {
   constructor(
     @InjectRepository(DispatchOrmEntity)
-    private readonly ormRepository: Repository<DispatchOrmEntity>,
+    private readonly dispatchRepo: Repository<DispatchOrmEntity>,
+    @InjectRepository(DispatchDetailOrmEntity)
+    private readonly detailRepo: Repository<DispatchDetailOrmEntity>,
   ) {}
-  async save(dto: Dispatch): Promise<Dispatch> {
-    const ormEntity = DispatchMapper.toOrmEntity(dto);
-    const saved = await this.ormRepository.save(ormEntity);
-    return DispatchMapper.toDomainEntity(saved);
-  }
-  async update(id: number, dispatch: Dispatch): Promise<Dispatch> {
-    const ormEntity = DispatchMapper.toOrmEntity(dispatch);
-    await this.ormRepository.update(id, ormEntity);
-    const updated = await this.ormRepository.findOne({
-      where: { id_despacho: id },
+
+  async findById(id_despacho: number): Promise<Dispatch | null> {
+    const orm = await this.dispatchRepo.findOne({
+      where: { id_despacho },
+      relations: ['detalles'],
     });
-    return updated ? DispatchMapper.toDomainEntity(updated) : dispatch;
+    if (!orm) return null;
+    const detalles = (orm.detalles ?? []).map(DispatchMapper.detailToDomain);
+    return DispatchMapper.toDomain(orm, detalles);
   }
-  async getById(id: number): Promise<Dispatch | null> {
-    const ormEntity = await this.ormRepository.findOne({
-      where: { id_despacho: id },
+
+  async findDetailById(id_detalle_despacho: number): Promise<DispatchDetail | null> {
+    const orm = await this.detailRepo.findOne({ where: { id_detalle_despacho } });
+    if (!orm) return null;
+    return DispatchMapper.detailToDomain(orm);
+  }
+
+  async findAll(): Promise<Dispatch[]> {
+    const orms = await this.dispatchRepo.find({ relations: ['detalles'] });
+    return orms.map(orm => {
+      const detalles = (orm.detalles ?? []).map(DispatchMapper.detailToDomain);
+      return DispatchMapper.toDomain(orm, detalles);
     });
-    return ormEntity ? DispatchMapper.toDomainEntity(ormEntity) : null;
   }
-  async getAll(filters?: { estado?: string }): Promise<Dispatch[]> {
-    const queryBuilder = this.ormRepository.createQueryBuilder('despacho');
 
-    if (filters?.estado) {
-      queryBuilder.andWhere('despacho.estado = :estado', {
-        estado: filters.estado,
-      });
-    }
-
-    queryBuilder.orderBy('despacho.fecha_envio', 'DESC');
-
-    const results = await queryBuilder.getMany();
-    return results.map((orm) => DispatchMapper.toDomainEntity(orm));
+  async findByVenta(id_venta_ref: number): Promise<Dispatch[]> {
+    const orms = await this.dispatchRepo.find({
+      where: { id_venta_ref },
+      relations: ['detalles'],
+    });
+    return orms.map(orm => {
+      const detalles = (orm.detalles ?? []).map(DispatchMapper.detailToDomain);
+      return DispatchMapper.toDomain(orm, detalles);
+    });
   }
-  async delete(id: number): Promise<void> {
-    await this.ormRepository.delete(id);
+
+  async save(dispatch: Dispatch): Promise<Dispatch> {
+    const orm = DispatchMapper.toOrm(dispatch);
+    const saved = await this.dispatchRepo.save(orm);
+    const detalles = await Promise.all(
+      dispatch.detalles.map(d => {
+        const detailOrm = DispatchMapper.detailToOrm(d, saved.id_despacho);
+        return this.detailRepo.save(detailOrm);
+      }),
+    );
+    const domainDetalles = detalles.map(DispatchMapper.detailToDomain);
+    return DispatchMapper.toDomain(saved, domainDetalles);
+  }
+
+  async saveDetail(detail: DispatchDetail, id_despacho: number): Promise<DispatchDetail> {
+    const orm = DispatchMapper.detailToOrm(detail, id_despacho);
+    const saved = await this.detailRepo.save(orm);
+    return DispatchMapper.detailToDomain(saved);
+  }
+
+  async update(dispatch: Dispatch): Promise<Dispatch> {
+    const orm = DispatchMapper.toOrm(dispatch);
+    await this.dispatchRepo.save(orm);
+    return this.findById(dispatch.id_despacho!) as Promise<Dispatch>;
+  }
+
+  async updateDetail(detail: DispatchDetail): Promise<DispatchDetail> {
+    const orm = await this.detailRepo.findOne({
+      where: { id_detalle_despacho: detail.id_detalle_despacho! },
+    });
+    if (!orm) throw new Error(`Detalle ${detail.id_detalle_despacho} no encontrado`);
+    orm.cantidad_despachada = detail.cantidad_despachada;
+    orm.estado = detail.estado;
+    const saved = await this.detailRepo.save(orm);
+    return DispatchMapper.detailToDomain(saved);
   }
 }

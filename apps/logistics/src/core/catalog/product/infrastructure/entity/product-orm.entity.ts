@@ -8,7 +8,7 @@ import {
 import { CategoryOrmEntity } from './category-orm.entity';
 import { BitToBooleanTransformer } from 'libs/common/src';
 
-@Entity({ name: 'producto', schema: 'mkp_logistica' })
+@Entity({ name: 'producto'})
 export class ProductOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_producto', type: 'int' })
   id_producto: number;
