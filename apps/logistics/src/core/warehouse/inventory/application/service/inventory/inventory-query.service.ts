@@ -11,8 +11,8 @@ import { IInventoryRepositoryPort } from '../../../domain/ports/out/inventory-mo
 import { StockResponseDto } from '../../dto/out/stock-response.dto';
 import { InventoryMapper } from '../../mapper/inventory.mapper';
 import { InventoryMovementResponseDto } from '../../dto/out/inventory-movement-response.dto';
-import { firstValueFrom } from 'rxjs';
-import { ClientProxy } from '@nestjs/microservices';
+// 👇 Importar tu proxy TCP
+import { AdminTcpProxy } from '../../../infrastructure/adapters/out/TCP/admin-tcp.proxy';
 
 @Injectable()
 export class InventoryQueryService {
@@ -21,8 +21,7 @@ export class InventoryQueryService {
     private readonly repository: IInventoryRepositoryPort,
     @InjectRepository(ConteoInventarioOrmEntity)
     private readonly conteoRepo: Repository<ConteoInventarioOrmEntity>,
-    @Inject('ADMIN_SERVICE')
-    private readonly adminClient: ClientProxy,
+    private readonly adminTcpProxy: AdminTcpProxy,
   ) {}
 
   async getStock(
@@ -79,6 +78,7 @@ export class InventoryQueryService {
 
     return { status: 200, data };
   }
+
   async getMovementsHistory(
     filters: any,
   ): Promise<{ data: InventoryMovementResponseDto[]; total: number }> {
@@ -98,12 +98,12 @@ export class InventoryQueryService {
 
     let sedeMap: Record<number, string> = {};
     if (sedeIds.size > 0) {
-      try {
-        sedeMap = await firstValueFrom(
-          this.adminClient.send('get_sedes_nombres', Array.from(sedeIds)),
-        );
-      } catch (error) {
-        console.error('TCP Error al obtener sedes:', error.message);
+      // 👇 Usar el proxy para obtener las sedes
+      const result = await this.adminTcpProxy.getHeadquartersNames(
+        Array.from(sedeIds),
+      );
+      if (result) {
+        sedeMap = result;
       }
     }
 

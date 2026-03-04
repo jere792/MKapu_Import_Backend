@@ -36,7 +36,6 @@ import { CommonModule } from '@app/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { WarehouseModule } from './core/warehouse/warehouse.module';
 import { WarehouseOrmEntity } from './core/warehouse/infrastructure/entity/warehouse-orm.entity';
-import { Dispatch } from './core/procurement/dispatch/domain/entity/dispatch-domain-entity';
 import { DispatchDetailOrmEntity } from './core/procurement/dispatch/infrastructure/entity/dispatch-detail-orm.entity';
 import { DispatchOrmEntity } from './core/procurement/dispatch/infrastructure/entity/dispatch-orm.entity';
 

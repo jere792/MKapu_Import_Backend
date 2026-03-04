@@ -10,7 +10,6 @@ async function bootstrap() {
   const app = await NestFactory.create(LogisticsModule);
   const configService = app.get(ConfigService);
 
-  // Puertos y host parametrizados desde .env
   const tcpHost = configService.get<string>(
     'PRODUCT_STOCK_TCP_HOST',
     '0.0.0.0',
@@ -18,7 +17,6 @@ async function bootstrap() {
   const tcpPort = configService.get<number>('PRODUCT_STOCK_TCP_PORT', 5005);
   const httpPort = configService.get<number>('LOGISTICS_HTTP_PORT', 3005);
 
-  // Microservicio TCP para otros servicios (ventas, admin, etc.)
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.TCP,
     options: {

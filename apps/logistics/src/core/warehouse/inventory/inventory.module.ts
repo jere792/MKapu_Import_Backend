@@ -21,6 +21,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ProductOrmEntity } from '../../catalog/product/infrastructure/entity/product-orm.entity';
 import { CategoryOrmEntity } from '../../catalog/product/infrastructure/entity/category-orm.entity';
 import { ProductModule } from '../../catalog/product/product.module';
+import { AdminTcpProxy } from './infrastructure/adapters/out/TCP/admin-tcp.proxy';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { ProductModule } from '../../catalog/product/product.module';
     },
     InventoryCountCommandService,
     InventoryCountQueryService,
+    AdminTcpProxy,
   ],
   exports: [
     InventoryCommandService,
