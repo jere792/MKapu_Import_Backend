@@ -19,6 +19,7 @@ import {
   ReceiptStatusOrm,       
 } from '../../infrastructure/entity/sales-receipt-orm.entity';
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
+import { ReceiptStatus } from '../../domain/entity/sales-receipt-domain-entity';
 
 @Injectable()
 export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
@@ -31,7 +32,57 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     private readonly paymentRepository: IPaymentRepositoryPort,
     private readonly stockProxy: LogisticsStockProxy,
     private readonly sedeTcpProxy: SedeTcpProxy,
+    
   ) {}
+
+
+  async emitReceipt(id: number): Promise<SalesReceiptResponseDto> {
+    const receipt = await this.receiptRepository.findById(id);
+    if (!receipt) throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    if (receipt.estado !== ReceiptStatus.PENDIENTE) {
+      throw new BadRequestException(`El comprobante no está en estado PENDIENTE`);
+    }
+
+    // 1️⃣ Cambiar estado primero
+    await this.receiptRepository.updateStatus(id, 'EMITIDO');
+
+    // 2️⃣ Obtener almacén
+    console.log(`🏢 Buscando almacén para sede: ${receipt.id_sede_ref}`);
+    const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(receipt.id_sede_ref);
+    console.log(`🏭 warehouseId obtenido: ${warehouseId}`);
+
+    if (!warehouseId) {
+      await this.annulReceiptDueToStockFailure(id);
+      throw new BadRequestException(
+        `No hay almacén configurado para la sede ${receipt.id_sede_ref}`,
+      );
+    }
+
+    // 3️⃣ Descontar stock por cada item
+    console.log(`📦 Items a descontar: ${JSON.stringify(receipt.items)}`);
+    for (const item of receipt.items) {
+      try {
+        await this.stockProxy.registerMovement({
+          productId:      Number(item.productId),
+          warehouseId:    warehouseId,
+          headquartersId: Number(receipt.id_sede_ref),
+          quantityDelta:  -item.quantity,
+          reason:         'VENTA',
+          refId:          id,
+        });
+      } catch (error) {
+        await this.annulReceiptDueToStockFailure(id);
+        throw new BadRequestException(`Fallo de Inventario: ${error.message}`);
+      }
+    }
+
+    const updated = await this.receiptRepository.findById(id);
+    return SalesReceiptMapper.toResponseDto(updated!);
+  }
+
+
+
+
 
   async updateDispatchStatus(id_venta: number, status: string): Promise<boolean> {
     try {
