@@ -13,10 +13,7 @@ import { HeadquartersOrmEntity } from '../headquarters/infrastructure/entity/hea
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      SedeAlmacenOrmEntity,
-      HeadquartersOrmEntity,
-    ]),
+    TypeOrmModule.forFeature([SedeAlmacenOrmEntity, HeadquartersOrmEntity]),
     ConfigModule,
     HeadquartersModule,
   ],

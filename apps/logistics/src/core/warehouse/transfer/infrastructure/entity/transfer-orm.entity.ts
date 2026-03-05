@@ -40,6 +40,20 @@ export class TransferOrmEntity {
   @Column({ name: 'doc_ref', type: 'varchar', length: 50, nullable: true })
   docRef: string;
 
+  @Column({
+    name: 'id_user_ref_origin',
+    type: 'int',
+    nullable: false,
+  })
+  userIdRefOrigin: number;
+
+  @Column({
+    name: 'id_user_ref_dest',
+    type: 'int',
+    nullable: true,
+  })
+  userIdRefDest: number | null;
+
   @ManyToOne(() => StoreOrmEntity)
   @JoinColumn({ name: 'id_almacen_origen' })
   originWarehouse: StoreOrmEntity;

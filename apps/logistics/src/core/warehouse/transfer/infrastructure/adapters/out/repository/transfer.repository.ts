@@ -1,125 +1,265 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
-import { TransferPortsOut } from '../../../../domain/ports/out/transfer-ports-out';
+import { InjectRepository } from '@nestjs/typeorm';
+import { randomUUID } from 'crypto';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import {
   Transfer,
+  TransferMode,
   TransferStatus,
 } from '../../../../domain/entity/transfer-domain-entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
-import { TransferDetailOrmEntity } from '../../../entity/transfer-detail-orm.entity';
-import { TransferOrmEntity } from '../../../entity/transfer-orm.entity';
+import { TransferPortsOut } from '../../../../domain/ports/out/transfer-ports-out';
 import { TransferMapper } from '../../../../application/mapper/transfer-mapper';
 import { StockOrmEntity } from '../../../../../inventory/infrastructure/entity/stock-orm-entity';
+import { TransferDetailOrmEntity } from '../../../entity/transfer-detail-orm.entity';
+import { TransferOrmEntity } from '../../../entity/transfer-orm.entity';
 
 @Injectable()
 export class TransferRepository implements TransferPortsOut {
   constructor(
     @InjectRepository(TransferOrmEntity)
     private readonly transferRepo: Repository<TransferOrmEntity>,
-    @InjectRepository(TransferDetailOrmEntity)
-    private readonly detailRepo: Repository<TransferDetailOrmEntity>,
-    private readonly dataSource: DataSource,
     @InjectRepository(StockOrmEntity)
-    private readonly stockRepo: Repository<StockOrmEntity>
+    private readonly stockRepo: Repository<StockOrmEntity>,
+    private readonly dataSource: DataSource,
   ) {}
-  async save(transfer: Transfer): Promise<Transfer> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      const entity = this.transferRepo.create({
-        id: transfer.id,
-        originWarehouseId: transfer.originWarehouseId,
-        destinationWarehouseId: transfer.destinationWarehouseId,
-        date: transfer.requestDate,
-        status: transfer.status,
-        motive: transfer.observation,
-        operationType: 'TRANSFERENCIA',
-      });
-      const savedEntity = await queryRunner.manager.save(entity);
-      if (!transfer.id) {
-        const detailEntities: TransferDetailOrmEntity[] = [];
 
-        for (const item of transfer.items) {
-          for (const serie of item.series) {
-            const detail = this.detailRepo.create({
-              transferId: savedEntity.id,
-              productId: item.productId,
-              serialNumber: serie,
-              quantity: 1,
-            });
-            detailEntities.push(detail);
-          }
-        }
-        await queryRunner.manager.save(detailEntities);
-      }
-      await queryRunner.commitTransaction();
-      transfer.id = savedEntity.id;
+  async save(transfer: Transfer, manager?: EntityManager): Promise<Transfer> {
+    const entityManager = manager ?? this.dataSource.manager;
+    const transferRepository = entityManager.getRepository(TransferOrmEntity);
+    const detailRepository = entityManager.getRepository(TransferDetailOrmEntity);
+
+    if (transfer.id) {
+      await transferRepository.update(transfer.id, {
+        status: transfer.status,
+        motive: transfer.observation ?? null,
+        userIdRefDest: transfer.approveUserId ?? null,
+      });
       return transfer;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
     }
+
+    const entity = transferRepository.create({
+      originWarehouseId: transfer.originWarehouseId,
+      destinationWarehouseId: transfer.destinationWarehouseId,
+      date: transfer.requestDate,
+      status: transfer.status,
+      motive: transfer.observation,
+      operationType:
+        transfer.mode === TransferMode.AGGREGATED
+          ? 'TRANSFERENCIA_AGGREGATED'
+          : 'TRANSFERENCIA',
+      userIdRefOrigin: transfer.creatorUserId ?? 0,
+      userIdRefDest: null,
+    });
+
+    const savedEntity = await transferRepository.save(entity);
+
+    const detailEntities: TransferDetailOrmEntity[] = [];
+    for (const item of transfer.items) {
+      if (transfer.mode === TransferMode.AGGREGATED) {
+        detailEntities.push(
+          detailRepository.create({
+            transferId: savedEntity.id,
+            productId: item.productId,
+            serialNumber: `QTY-${randomUUID()}`,
+            quantity: item.quantity,
+          }),
+        );
+        continue;
+      }
+
+      for (const serie of item.series) {
+        detailEntities.push(
+          detailRepository.create({
+            transferId: savedEntity.id,
+            productId: item.productId,
+            serialNumber: serie,
+            quantity: 1,
+          }),
+        );
+      }
+    }
+
+    if (detailEntities.length > 0) {
+      await detailRepository.save(detailEntities);
+    }
+
+    transfer.id = savedEntity.id;
+    return transfer;
   }
+
   async findById(id: number): Promise<Transfer | null> {
-    const entity = await this.transferRepo.findOne({where: {id}, relations:['details']});
-    if (!entity) return null;
-    //Origen
-    const originHq = await this.getHeadquartersByWarehouse(entity.originWarehouseId);
-    //Destino
-    const destHq = await this.getHeadquartersByWarehouse(entity.destinationWarehouseId);
-    return TransferMapper.mapToDomain(entity, originHq, destHq);
+    const entity = await this.transferRepo.findOne({
+      where: { id },
+      relations: ['details'],
+    });
+    if (!entity) {
+      return null;
+    }
+
+    const headquartersMap = await this.resolveHeadquartersMap([
+      entity.originWarehouseId,
+      entity.destinationWarehouseId,
+    ]);
+
+    return TransferMapper.mapToDomain(
+      entity,
+      headquartersMap.get(entity.originWarehouseId) ?? 'SIN-SEDE',
+      headquartersMap.get(entity.destinationWarehouseId) ?? 'SIN-SEDE',
+    );
   }
-  async updateStatus(
-    id: number,
-    status: TransferStatus,
-  ): Promise<void> {
+
+  async updateStatus(id: number, status: TransferStatus): Promise<void> {
     await this.transferRepo.update(id, { status });
   }
+
   async findByHeadquarters(headquartersId: string): Promise<Transfer[]> {
-    const warehouses = await this.stockRepo
-      .createQueryBuilder('stock')
-      .select('DISTINCT stock.id_almacen', 'id')
-      .where('stock.id_sede = :hqId', { hqId: headquartersId })
-      .getRawMany();
-      const warehouseIds = warehouses.map((w) => w.id);
-      if (warehouseIds.length === 0) return [];
-      const entities = await this.transferRepo.find({
-        where: [
-          { originWarehouseId: In(warehouseIds) },
-          { destinationWarehouseId: In(warehouseIds) },
-        ],
-        relations: ['details'],
-        order: { date: 'DESC' },
-      });
-    return Promise.all(entities.map(async e => {
-       // Para ser precisos, resolvemos ambos lados
-       const originHq = await this.getHeadquartersByWarehouse(e.originWarehouseId);
-       const destHq = await this.getHeadquartersByWarehouse(e.destinationWarehouseId);
-       return TransferMapper.mapToDomain(e, originHq, destHq);
-    }));
+    const warehouseIds = await this.findWarehouseIdsByHeadquarters(headquartersId);
+    if (warehouseIds.length === 0) {
+      return [];
+    }
+
+    const entities = await this.transferRepo.find({
+      where: [
+        { originWarehouseId: In(warehouseIds) },
+        { destinationWarehouseId: In(warehouseIds) },
+      ],
+      relations: ['details'],
+      order: { date: 'DESC' },
+    });
+
+    return this.mapEntitiesWithHeadquarters(entities);
   }
+
   async findAll(): Promise<Transfer[]> {
     const entities = await this.transferRepo.find({
       relations: ['details'],
       order: { date: 'DESC' },
     });
-    return Promise.all(entities.map(async e => {
-      const originHq = await this.getHeadquartersByWarehouse(e.originWarehouseId);
-      const destHq = await this.getHeadquartersByWarehouse(e.destinationWarehouseId);
-      return TransferMapper.mapToDomain(e, originHq, destHq);
-    }));
+    return this.mapEntitiesWithHeadquarters(entities);
   }
-  private async getHeadquartersByWarehouse(warehouseId: number): Promise<string> {
-    const stock = await this.stockRepo.findOne({
-      where: { id_almacen: warehouseId },
-      select: ['id_sede'],
+
+  async findAllPaginated(
+    page: number,
+    pageSize: number,
+    headquartersId: string,
+  ): Promise<{ transfers: Transfer[]; total: number }> {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
+
+    const query = this.transferRepo
+      .createQueryBuilder('transfer')
+      .leftJoinAndSelect('transfer.details', 'detail')
+      .orderBy('transfer.date', 'DESC');
+
+    if (String(headquartersId ?? '').trim()) {
+      const warehouseIds = await this.findWarehouseIdsByHeadquarters(headquartersId);
+      if (warehouseIds.length === 0) {
+        return { transfers: [], total: 0 };
+      }
+      this.applyHeadquartersFilter(query, warehouseIds);
+    }
+
+    query.skip((safePage - 1) * safePageSize).take(safePageSize);
+
+    const [entities, total] = await query.getManyAndCount();
+    const transfers = await this.mapEntitiesWithHeadquarters(entities);
+    return { transfers, total };
+  }
+
+  private applyHeadquartersFilter(
+    query: SelectQueryBuilder<TransferOrmEntity>,
+    warehouseIds: number[],
+  ): void {
+    query.andWhere(
+      '(transfer.originWarehouseId IN (:...warehouseIds) OR transfer.destinationWarehouseId IN (:...warehouseIds))',
+      { warehouseIds },
+    );
+  }
+
+  private async mapEntitiesWithHeadquarters(
+    entities: TransferOrmEntity[],
+  ): Promise<Transfer[]> {
+    if (entities.length === 0) {
+      return [];
+    }
+
+    const warehouseIds = Array.from(
+      new Set(
+        entities.flatMap((entity) => [
+          entity.originWarehouseId,
+          entity.destinationWarehouseId,
+        ]),
+      ),
+    );
+    const headquartersMap = await this.resolveHeadquartersMap(warehouseIds);
+
+    return entities.map((entity) =>
+      TransferMapper.mapToDomain(
+        entity,
+        headquartersMap.get(entity.originWarehouseId) ?? 'SIN-SEDE',
+        headquartersMap.get(entity.destinationWarehouseId) ?? 'SIN-SEDE',
+      ),
+    );
+  }
+
+  private async findWarehouseIdsByHeadquarters(
+    headquartersId: string,
+  ): Promise<number[]> {
+    const rows = await this.stockRepo
+      .createQueryBuilder('stock')
+      .select('DISTINCT stock.id_almacen', 'warehouseId')
+      .where('stock.id_sede = :headquartersId', {
+        headquartersId: String(headquartersId).trim(),
+      })
+      .getRawMany<{ warehouseId: number | string }>();
+
+    return rows
+      .map((row) => Number(row.warehouseId))
+      .filter((warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0);
+  }
+
+  private async resolveHeadquartersMap(
+    warehouseIds: number[],
+  ): Promise<Map<number, string>> {
+    const map = new Map<number, string>();
+    const uniqueIds = Array.from(
+      new Set(warehouseIds.filter((warehouseId) => warehouseId > 0)),
+    );
+
+    if (uniqueIds.length === 0) {
+      return map;
+    }
+
+    const rows = await this.stockRepo
+      .createQueryBuilder('stock')
+      .select('stock.id_almacen', 'warehouseId')
+      .addSelect('MAX(stock.id_sede)', 'headquartersId')
+      .where('stock.id_almacen IN (:...warehouseIds)', { warehouseIds: uniqueIds })
+      .groupBy('stock.id_almacen')
+      .getRawMany<{ warehouseId: number | string; headquartersId: string | null }>();
+
+    rows.forEach((row) => {
+      const warehouseId = Number(row.warehouseId);
+      if (!Number.isInteger(warehouseId) || warehouseId <= 0) {
+        return;
+      }
+
+      const headquartersId = String(row.headquartersId ?? '').trim();
+      map.set(warehouseId, headquartersId || 'SIN-SEDE');
     });
-    return stock ? stock.id_sede : 'SIN-SEDE';
+
+    uniqueIds.forEach((warehouseId) => {
+      if (!map.has(warehouseId)) {
+        map.set(warehouseId, 'SIN-SEDE');
+      }
+    });
+
+    return map;
   }
 }

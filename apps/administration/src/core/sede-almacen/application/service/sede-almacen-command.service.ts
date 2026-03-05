@@ -6,7 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ISedeAlmacenCommandPort } from '../../domain/ports/in/sede-almacen-ports-in';
-import { ISedeAlmacenRepositoryPort, IWarehouseGatewayPort } from '../../domain/ports/out/sede-almacen-ports-out';
+import {
+  ISedeAlmacenRepositoryPort,
+  IWarehouseGatewayPort,
+} from '../../domain/ports/out/sede-almacen-ports-out';
 import { AssignWarehouseToSedeDto } from '../dto/in';
 import { SedeAlmacenResponseDto } from '../dto/out';
 import { SedeAlmacenMapper } from '../mapper/sede-almacen.mapper';
@@ -24,22 +27,31 @@ export class SedeAlmacenCommandService implements ISedeAlmacenCommandPort {
     private readonly headquartersQuery: IHeadquartersQueryPort,
   ) {}
 
-  async assignWarehouseToSede(dto: AssignWarehouseToSedeDto): Promise<SedeAlmacenResponseDto> {
+  async assignWarehouseToSede(
+    dto: AssignWarehouseToSedeDto,
+  ): Promise<SedeAlmacenResponseDto> {
     const sedeId = Number(dto.id_sede);
     const almacenId = Number(dto.id_almacen);
 
     if (!sedeId || Number.isNaN(sedeId))
-      throw new BadRequestException('id_sede es obligatorio y debe ser numerico');
+      throw new BadRequestException(
+        'id_sede es obligatorio y debe ser numerico',
+      );
     if (!almacenId || Number.isNaN(almacenId))
-      throw new BadRequestException('id_almacen es obligatorio y debe ser numerico');
+      throw new BadRequestException(
+        'id_almacen es obligatorio y debe ser numerico',
+      );
 
     const sede = await this.headquartersQuery.getHeadquarterById(sedeId);
     if (!sede) throw new NotFoundException(`Sede no encontrada: ${sedeId}`);
-    if (sede.activo === false) throw new ConflictException('La sede esta inactiva');
+    if (sede.activo === false)
+      throw new ConflictException('La sede esta inactiva');
 
     const almacen = await this.warehouseGateway.getWarehouseById(almacenId);
-    if (!almacen) throw new NotFoundException(`Almacen no encontrado: ${almacenId}`);
-    if (almacen.activo === false) throw new ConflictException('El almacen esta inactivo');
+    if (!almacen)
+      throw new NotFoundException(`Almacen no encontrado: ${almacenId}`);
+    if (almacen.activo === false)
+      throw new ConflictException('El almacen esta inactivo');
 
     const existing = await this.repository.findByWarehouseId(almacenId);
     if (existing) {
@@ -66,22 +78,31 @@ export class SedeAlmacenCommandService implements ISedeAlmacenCommandPort {
   }
 
   // ── NUEVO: reasigna aunque ya tenga sede ────────────────────────────────────
-  async reassignWarehouseToSede(dto: AssignWarehouseToSedeDto): Promise<SedeAlmacenResponseDto> {
+  async reassignWarehouseToSede(
+    dto: AssignWarehouseToSedeDto,
+  ): Promise<SedeAlmacenResponseDto> {
     const sedeId = Number(dto.id_sede);
     const almacenId = Number(dto.id_almacen);
 
     if (!sedeId || Number.isNaN(sedeId))
-      throw new BadRequestException('id_sede es obligatorio y debe ser numerico');
+      throw new BadRequestException(
+        'id_sede es obligatorio y debe ser numerico',
+      );
     if (!almacenId || Number.isNaN(almacenId))
-      throw new BadRequestException('id_almacen es obligatorio y debe ser numerico');
+      throw new BadRequestException(
+        'id_almacen es obligatorio y debe ser numerico',
+      );
 
     const sede = await this.headquartersQuery.getHeadquarterById(sedeId);
     if (!sede) throw new NotFoundException(`Sede no encontrada: ${sedeId}`);
-    if (sede.activo === false) throw new ConflictException('La sede esta inactiva');
+    if (sede.activo === false)
+      throw new ConflictException('La sede esta inactiva');
 
     const almacen = await this.warehouseGateway.getWarehouseById(almacenId);
-    if (!almacen) throw new NotFoundException(`Almacen no encontrado: ${almacenId}`);
-    if (almacen.activo === false) throw new ConflictException('El almacen esta inactivo');
+    if (!almacen)
+      throw new NotFoundException(`Almacen no encontrado: ${almacenId}`);
+    if (almacen.activo === false)
+      throw new ConflictException('El almacen esta inactivo');
 
     // Borra la asignación anterior sin importar a qué sede estaba
     await this.repository.deleteByWarehouseId(almacenId);

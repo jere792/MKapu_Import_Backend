@@ -14,10 +14,7 @@ import {
   IWarehouseGatewayPort,
 } from '../../domain/ports/out/sede-almacen-ports-out';
 import { SedeAlmacenMapper } from '../mapper/sede-almacen.mapper';
-import {
-  SedeAlmacenListResponseDto,
-  SedeAlmacenResponseDto,
-} from '../dto/out';
+import { SedeAlmacenListResponseDto, SedeAlmacenResponseDto } from '../dto/out';
 import { IHeadquartersQueryPort } from '../../../headquarters/domain/ports/in/headquarters-ports-in';
 
 @Injectable()
@@ -91,7 +88,9 @@ export class SedeAlmacenQueryService implements ISedeAlmacenQueryPort {
       );
     }
 
-    const sede = await this.headquartersQuery.getHeadquarterById(relation.id_sede);
+    const sede = await this.headquartersQuery.getHeadquarterById(
+      relation.id_sede,
+    );
     return SedeAlmacenMapper.toResponseDto(
       relation,
       sede
