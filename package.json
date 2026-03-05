@@ -24,7 +24,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed:sales": "ts-node -r tsconfig-paths/register apps/sales/src/database/seed.ts"
+    "seed:sales": "ts-node -r tsconfig-paths/register apps/sales/src/database/seed.ts",
+    "build:all": "nest build api-gateway && nest build auth && nest build administration && nest build sales && nest build logistics"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
