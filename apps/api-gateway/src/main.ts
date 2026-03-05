@@ -10,7 +10,13 @@ async function bootstrap() {
     origin: 'http://localhost:4200',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'x-role'],
+    allowedHeaders: [
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'x-role',
+      'x-transfer-mode',
+    ],
   });
 
   const authUrl      = process.env.AUTH_SERVICE_URL      ?? 'http://localhost:3001';

@@ -1,19 +1,13 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
-import { Column } from 'typeorm';
+import { Type } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
 
 export class RejectTransferDto {
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsNotEmpty()
   userId: number;
 
   @IsString()
   @IsNotEmpty()
   reason: string;
-
-  @Column({
-    name: 'fec_transf',
-    type: 'datetime',
-    default: () => 'CURRENT_TIMESTAMP', // Para que no falle si el DTO no envía fecha
-  })
-  date: Date;
 }

@@ -14,7 +14,10 @@ export interface WarehouseInfo {
 
 export interface ISedeAlmacenRepositoryPort {
   save(entity: SedeAlmacen): Promise<SedeAlmacen>;
-  findBySedeAndWarehouse(id_sede: number, id_almacen: number): Promise<SedeAlmacen | null>;
+  findBySedeAndWarehouse(
+    id_sede: number,
+    id_almacen: number,
+  ): Promise<SedeAlmacen | null>;
   findByWarehouseId(id_almacen: number): Promise<SedeAlmacen | null>;
   findBySedeId(id_sede: number): Promise<SedeAlmacen[]>;
   deleteByWarehouseId(id_almacen: number): Promise<void>;

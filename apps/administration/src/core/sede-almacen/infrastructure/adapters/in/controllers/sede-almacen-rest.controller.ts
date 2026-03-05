@@ -11,9 +11,15 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ISedeAlmacenCommandPort, ISedeAlmacenQueryPort } from '../../../../domain/ports/in/sede-almacen-ports-in';
+import {
+  ISedeAlmacenCommandPort,
+  ISedeAlmacenQueryPort,
+} from '../../../../domain/ports/in/sede-almacen-ports-in';
 import { AssignWarehouseToSedeDto } from '../../../../application/dto/in';
-import { SedeAlmacenListResponseDto, SedeAlmacenResponseDto } from '../../../../application/dto/out';
+import {
+  SedeAlmacenListResponseDto,
+  SedeAlmacenResponseDto,
+} from '../../../../application/dto/out';
 
 @Controller('sede-almacen')
 export class SedeAlmacenRestController {
