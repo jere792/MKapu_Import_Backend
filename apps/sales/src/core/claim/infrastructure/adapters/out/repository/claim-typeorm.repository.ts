@@ -14,7 +14,7 @@ export class ClaimTypeormRepository implements ClaimPortOut {
   ) {}
   async findByReceiptId(receiptId: number): Promise<Claim[] | null> {
     const claims = await this.claimRepository.find({
-      where: { id_comprobante: receiptId }, // Tu FK hacia venta
+      where: { id_comprobante: receiptId },
       relations: ['detalles'],
       order: { fecha_registro: 'DESC' },
     });
@@ -35,5 +35,14 @@ export class ClaimTypeormRepository implements ClaimPortOut {
   }
   async update(claim: Claim): Promise<void> {
     await this.save(claim);
+  }
+  async findBySedeId(sedeId: string): Promise<Claim[]> {
+    const claimsOrm = await this.claimRepository.find({
+      //where: { id_sede: sedeId },
+      relations: ['detalles'],
+      order: { fecha_registro: 'DESC' },
+    });
+
+    return claimsOrm.map((orm) => ClaimMapper.toDomain(orm));
   }
 }

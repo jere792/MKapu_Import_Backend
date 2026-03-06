@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { NestFactory } from '@nestjs/core';
 import { SalesModule } from './sales.module';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
@@ -22,7 +23,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true }, 
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
 
@@ -31,7 +32,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // --- CONFIGURACIÓN SWAGGER ---
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Sales Microservice')
     .setDescription('API Gestión de Cotizaciones, Ventas, etc.')
@@ -42,10 +42,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
-      persistAuthorization: true
-    }
+      persistAuthorization: true,
+    },
   });
-  // -------------------------------
 
   await app.startAllMicroservices();
 
@@ -54,9 +53,7 @@ async function bootstrap() {
   console.log(
     `💰 Sales Microservice corriendo en: http://localhost:${port} (TCP interno: 3012)`,
   );
-  console.log(
-    `📑 Swagger en: http://localhost:${port}/api`
-  );
+  console.log(`📑 Swagger en: http://localhost:${port}/api`);
 }
 
 bootstrap();

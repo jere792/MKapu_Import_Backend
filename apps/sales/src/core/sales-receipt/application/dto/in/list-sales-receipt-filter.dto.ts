@@ -1,11 +1,7 @@
 // list-sales-receipt-filter.dto.ts
 
-import {
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class ListSalesReceiptFilterDto {
   @IsOptional()
@@ -25,24 +21,27 @@ export class ListSalesReceiptFilterDto {
   paymentMethodId?: number;
 
   @IsOptional()
-  dateFrom?: Date | string;   // ✅ acepta ambos
+  dateFrom?: Date | string;
 
   @IsOptional()
-  dateTo?: Date | string;     // ✅ acepta ambos
+  dateTo?: Date | string;
 
   @IsOptional()
   @IsString()
   search?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   sedeId?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   page?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   limit?: number;
 }

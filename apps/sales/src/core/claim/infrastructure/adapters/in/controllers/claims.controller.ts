@@ -59,4 +59,9 @@ export class ClaimRestController {
   ): Promise<ClaimResponseDto> {
     return await this.claimCommand.resolve(id, updateDto.respuesta);
   }
+  @Get('sede/:sedeId')
+  @ApiOperation({ summary: 'Listar reclamos por sede' })
+  async listBySede(@Param('sedeId') sedeId: string) {
+    return await this.claimQuery.listBySede(sedeId);
+  }
 }

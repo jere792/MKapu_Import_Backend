@@ -5,6 +5,8 @@ import {
   CLAIM_PORT_OUT,
   ClaimPortOut,
 } from '../../domain/ports/out/claim-port-out';
+import { ClaimResponseDto } from '../dto/out/claim-response-dto';
+import { ClaimMapper } from '../mapper/claim.mapper';
 
 @Injectable()
 export class ClaimQueryService implements IClaimQueryPort {
@@ -22,5 +24,13 @@ export class ClaimQueryService implements IClaimQueryPort {
   async listBySalesReceipt(receiptId: number): Promise<Claim[]> {
     const claims = await this.claimRepository.findByReceiptId(receiptId);
     return claims || [];
+  }
+  async listBySede(sedeId: string): Promise<ClaimResponseDto[]> {
+    const claims = await this.claimRepository.findBySedeId(sedeId);
+
+    if (!claims || claims.length === 0) {
+      return [];
+    }
+    return claims.map((claim) => ClaimMapper.toResponseDto(claim));
   }
 }
