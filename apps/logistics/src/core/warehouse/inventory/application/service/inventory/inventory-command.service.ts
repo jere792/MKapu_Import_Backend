@@ -11,7 +11,7 @@ import { InventoryMapper } from '../../mapper/inventory.mapper';
 import { InventoryMovementOrmEntity } from '../../../infrastructure/entity/inventory-movement-orm.entity';
 import { ManualAdjustmentDto } from '../../dto/in/manual-adjustment.dto';
 import { StockOrmEntity } from '../../../infrastructure/entity/stock-orm-entity';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { InventoryMovementDetailOrmEntity } from '../../../infrastructure/entity/inventory-movement-detail-orm.entity';
 import { BulkManualAdjustmentDto } from '../../../../application/dto/in/bulk-manual-adjustment.dto';
 
@@ -32,27 +32,36 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
     return isActive ? stock.quantity : 0;
   }
 
-  async executeMovement(dto: CreateInventoryMovementDto): Promise<void> {
+  async executeMovement(
+    dto: CreateInventoryMovementDto,
+    manager?: EntityManager,
+  ): Promise<void> {
     const movement = InventoryMapper.toDomain(dto);
-    await this.repository.saveMovement(movement);
+    await this.repository.saveMovement(movement, manager);
   }
 
-  async registerIncome(dto: MovementRequest): Promise<void> {
+  async registerIncome(
+    dto: MovementRequest,
+    manager?: EntityManager,
+  ): Promise<void> {
     const fullDto: CreateInventoryMovementDto = {
       ...dto,
       originType: dto.originType || 'TRANSFERENCIA',
       items: dto.items.map((item) => ({ ...item, type: 'INGRESO' })),
     };
-    await this.executeMovement(fullDto);
+    await this.executeMovement(fullDto, manager);
   }
 
-  async registerExit(dto: MovementRequest): Promise<void> {
+  async registerExit(
+    dto: MovementRequest,
+    manager?: EntityManager,
+  ): Promise<void> {
     const fullDto: CreateInventoryMovementDto = {
       ...dto,
       originType: dto.originType || 'TRANSFERENCIA',
       items: dto.items.map((item) => ({ ...item, type: 'SALIDA' })),
     };
-    await this.executeMovement(fullDto);
+    await this.executeMovement(fullDto, manager);
   }
   async applyInventoryAdjustments(dto: ApplyAdjustmentsDto): Promise<void> {
     const sobrantesParaIngreso = [];

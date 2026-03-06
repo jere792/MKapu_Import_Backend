@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { IInventoryRepositoryPort } from '../../../../domain/ports/out/inventory-movement-ports-out';
 import { InventoryMovement } from '../../../../domain/entity/inventory-movement.entity';
 import { Stock } from '../../../../domain/entity/stock-domain-entity';
@@ -18,8 +18,15 @@ export class InventoryTypeOrmRepository implements IInventoryRepositoryPort {
     private readonly stockRepo: Repository<StockOrmEntity>,
   ) {}
 
-  async saveMovement(movement: InventoryMovement): Promise<void> {
-    const movementOrm = this.movementRepo.create({
+  async saveMovement(
+    movement: InventoryMovement,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const movementRepository = manager
+      ? manager.getRepository(InventoryMovementOrmEntity)
+      : this.movementRepo;
+
+    const movementOrm = movementRepository.create({
       originType: movement.originType,
       refId: movement.refId,
       refTable: movement.refTable,
@@ -33,7 +40,8 @@ export class InventoryTypeOrmRepository implements IInventoryRepositoryPort {
       })),
     });
 
-    await this.movementRepo.save(movementOrm);
+    // Guardar detalles dispara el trigger de la BD y actualiza stock.
+    await movementRepository.save(movementOrm);
   }
 
   async findStock(

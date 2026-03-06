@@ -10,6 +10,8 @@ import { TransferRestController } from './infrastructure/adapters/in/controllers
 import { UnitModule } from '../../catalog/unit/unit.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { StoreOrmEntity } from '../store/infrastructure/entity/store-orm.entity';
+import { UsersClientProvider } from './infrastructure/adapters/out/TCP/users-client.provider';
+import { UsuarioTcpProxy } from './infrastructure/adapters/out/TCP/usuario-tcp.proxy';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { StoreOrmEntity } from '../store/infrastructure/entity/store-orm.entity'
   controllers: [TransferRestController],
   providers: [
     TransferWebsocketGateway,
+    UsersClientProvider,
+    UsuarioTcpProxy,
     {
       provide: 'TransferPortsIn',
       useClass: TransferCommandService,
