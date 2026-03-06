@@ -54,6 +54,10 @@ import { DiscountAppliedOrmEntity } from './core/promotion/infrastructure/entity
 import { AccountReceivableOrmEntity } from './core/account-receivable/infrastructure/entity/account-receivable-orm.entity';
 import { AccountReceivableModule } from './core/account-receivable/account-receivable.module';
 
+import { ReniecModule } from './reniec/reniec.module';
+
+
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -136,6 +140,7 @@ import { AccountReceivableModule } from './core/account-receivable/account-recei
     CommissionModule,
     DiscountModule,
     AccountReceivableModule,
+    ReniecModule,
   ],
   controllers: [SalesController, WarrantyRestController],
   providers: [
