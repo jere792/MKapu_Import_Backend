@@ -33,6 +33,15 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
   }
 
   async executeMovement(dto: CreateInventoryMovementDto): Promise<void> {
+    for (const item of dto.items) {
+      if (item.type === 'INGRESO') {
+        await this.ensureStockExists(
+          item.productId,
+          item.warehouseId,
+          item.sedeId,
+        );
+      }
+    }
     const movement = InventoryMapper.toDomain(dto);
     await this.repository.saveMovement(movement);
   }
@@ -211,5 +220,30 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
         });
       }
     });
+  }
+
+  private async ensureStockExists(
+    productId: number,
+    warehouseId: number,
+    sedeId: number | string,
+  ): Promise<void> {
+    const stockRepo = this.dataSource.getRepository(StockOrmEntity);
+    const exists = await stockRepo.findOne({
+      where: {
+        id_producto: productId,
+        id_almacen: warehouseId,
+      },
+    });
+
+    if (!exists) {
+      await stockRepo.save({
+        id_producto: productId,
+        id_almacen: warehouseId,
+        id_sede: String(sedeId),
+        cantidad: 0,
+        estado: '1',
+        tipo_ubicacion: 'ALMACEN',
+      } as any);
+    }
   }
 }
