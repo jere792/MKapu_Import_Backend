@@ -5,10 +5,10 @@
 import { AccountReceivable } from '../../entity/account-receivable-domain-entity';
 
 export interface PaginationOptions {
-  page:  number;
-  limit: number;
+  page:    number;
+  limit:   number;
+  sedeId?: number; 
 }
-
 export interface PaginatedResult<T> {
   data:       T[];
   total:      number;

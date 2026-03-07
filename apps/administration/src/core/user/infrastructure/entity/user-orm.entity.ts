@@ -9,7 +9,7 @@ import {
 import { HeadquartersOrmEntity } from '../../../headquarters/infrastructure/entity/headquarters-orm.entity';
 import { BitToBooleanTransformer } from 'libs/common/src/infrastructure/transformers/bit-to-boolean.transformer';
 
-@Entity({ name: 'usuario', schema: 'mkp_administracion' })
+@Entity({ name: 'usuario'})
 export class UserOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_usuario' })
   id_usuario: number;

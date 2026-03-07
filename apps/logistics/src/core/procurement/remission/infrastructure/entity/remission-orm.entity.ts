@@ -90,4 +90,6 @@ export class RemissionOrmEntity {
   id_sede_ref: string;
   @OneToMany(() => RemissionDetailOrmEntity, (detail) => detail.remission)
   details: RemissionDetailOrmEntity[];
+  @Column({ name: 'Razon social', type: 'varchar' })
+  socialReason: string;
 }

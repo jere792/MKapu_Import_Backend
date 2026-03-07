@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-@Entity({ name: 'usuario', schema: 'mkp_administracion', synchronize: false })
+@Entity({ name: 'usuario' })
 export class UserOrmEntity {
   @PrimaryColumn({ name: 'id_usuario', type: 'int' })
   id_usuario: number;

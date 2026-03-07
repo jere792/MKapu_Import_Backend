@@ -6,7 +6,6 @@ export interface SalesReceiptItemDto {
   total: number;
   igv?: number;
 }
-
 export interface RegisterSalesReceiptDto {
   customerId: string;
   saleTypeId: number;
@@ -21,6 +20,9 @@ export interface RegisterSalesReceiptDto {
   currencyCode: string;
   responsibleId: string;
   branchId: number;
-  items: SalesReceiptItemDto[];
+  warehouseId: number;
   paymentMethodId: number;
+  operationNumber?: string | null;
+  esCreditoPendiente?: boolean; 
+  items: SalesReceiptItemDto[];
 }

@@ -7,4 +7,5 @@ export interface RemissionPortOut {
   findById(id: string): Promise<Remission | null>;
   findByRefId(idVenta: number): Promise<any>;
   getSummaryInfo(startDate: Date, endDate: Date): Promise<any>;
+  obtenerGuiaParaReporte(id: string): Promise<any>;
 }

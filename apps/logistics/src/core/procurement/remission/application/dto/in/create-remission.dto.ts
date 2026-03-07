@@ -14,14 +14,12 @@ import {
 } from '../../../domain/entity/remission-domain-entity';
 
 class TransportDataDto {
-  // Para Transporte PRIVADO
   @IsOptional() @IsString() nombre_completo?: string;
   @IsOptional() @IsString() tipo_documento?: string;
   @IsOptional() @IsString() numero_documento?: string;
   @IsOptional() @IsString() licencia?: string;
   @IsOptional() @IsString() placa?: string;
 
-  // Para Transporte PUBLICO
   @IsOptional() @IsString() ruc?: string;
   @IsOptional() @IsString() razon_social?: string;
 }

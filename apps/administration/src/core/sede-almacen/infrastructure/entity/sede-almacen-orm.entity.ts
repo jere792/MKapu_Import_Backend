@@ -4,7 +4,7 @@
 
 import { Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 
-@Entity({ name: 'sede_almacen', schema: 'mkp_administracion' })
+@Entity({ name: 'sede_almacen' })
 
 @Index('idx_sede_almacen_sede', ['id_sede'])
 @Index('idx_sede_almacen_almacen', ['id_almacen'])

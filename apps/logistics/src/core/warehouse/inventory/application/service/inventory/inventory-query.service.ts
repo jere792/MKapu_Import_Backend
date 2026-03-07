@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -11,8 +12,8 @@ import { IInventoryRepositoryPort } from '../../../domain/ports/out/inventory-mo
 import { StockResponseDto } from '../../dto/out/stock-response.dto';
 import { InventoryMapper } from '../../mapper/inventory.mapper';
 import { InventoryMovementResponseDto } from '../../dto/out/inventory-movement-response.dto';
-import { firstValueFrom } from 'rxjs';
-import { ClientProxy } from '@nestjs/microservices';
+import { AdminTcpProxy } from '../../../infrastructure/adapters/out/TCP/admin-tcp.proxy';
+import { IInventoryCountRepository } from '../../../domain/ports/out/inventory-count-port-out';
 
 @Injectable()
 export class InventoryQueryService {
@@ -21,8 +22,9 @@ export class InventoryQueryService {
     private readonly repository: IInventoryRepositoryPort,
     @InjectRepository(ConteoInventarioOrmEntity)
     private readonly conteoRepo: Repository<ConteoInventarioOrmEntity>,
-    @Inject('ADMIN_SERVICE')
-    private readonly adminClient: ClientProxy,
+    private readonly adminTcpProxy: AdminTcpProxy,
+    @Inject('IInventoryCountRepository')
+    private readonly inventoryCountRepository: IInventoryCountRepository,
   ) {}
 
   async getStock(
@@ -57,28 +59,14 @@ export class InventoryQueryService {
   }
 
   async listarConteosPorSede(filtros: ListInventoryCountFilterDto) {
-    const query = this.conteoRepo.createQueryBuilder('conteo');
+    const sedeParam = filtros.id_sede ? filtros.id_sede.toString() : undefined;
 
-    query.where('conteo.codSede = :idSede', { idSede: filtros.id_sede });
-
-    if (filtros.fecha_inicio) {
-      query.andWhere('DATE(conteo.fechaIni) >= :inicio', {
-        inicio: filtros.fecha_inicio,
-      });
-    }
-
-    if (filtros.fecha_fin) {
-      query.andWhere('DATE(conteo.fechaIni) <= :fin', {
-        fin: filtros.fecha_fin,
-      });
-    }
-
-    query.orderBy('conteo.fechaIni', 'DESC');
-
-    const data = await query.getMany();
+    const data =
+      await this.inventoryCountRepository.listAllHeadersBySede(sedeParam);
 
     return { status: 200, data };
   }
+
   async getMovementsHistory(
     filters: any,
   ): Promise<{ data: InventoryMovementResponseDto[]; total: number }> {
@@ -98,12 +86,12 @@ export class InventoryQueryService {
 
     let sedeMap: Record<number, string> = {};
     if (sedeIds.size > 0) {
-      try {
-        sedeMap = await firstValueFrom(
-          this.adminClient.send('get_sedes_nombres', Array.from(sedeIds)),
-        );
-      } catch (error) {
-        console.error('TCP Error al obtener sedes:', error.message);
+      // 👇 Usar el proxy para obtener las sedes
+      const result = await this.adminTcpProxy.getHeadquartersNames(
+        Array.from(sedeIds),
+      );
+      if (result) {
+        sedeMap = result;
       }
     }
 

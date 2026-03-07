@@ -38,6 +38,6 @@ import { UsuarioTcpProxy } from './infrastructure/adapters/out/TCP/usuario-tcp.p
       useClass: TransferRepository,
     },
   ],
-  exports: ['TransferPortsIn'],
+  exports: ['TransferPortsIn' ],
 })
 export class TransferModule {}

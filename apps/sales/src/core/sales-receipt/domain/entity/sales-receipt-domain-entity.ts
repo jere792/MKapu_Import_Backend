@@ -1,11 +1,11 @@
 export enum ReceiptStatus {
-  EMITIDO = 'EMITIDO',
-  ANULADO = 'ANULADO',
+  EMITIDO   = 'EMITIDO',
+  PENDIENTE = 'PENDIENTE', 
+  ANULADO   = 'ANULADO',
   RECHAZADO = 'RECHAZADO',
   EN_CAMINO = 'EN_CAMINO',
   ENTREGADO = 'ENTREGADO',
 }
-
 export interface SalesReceiptItem {
   productName: string;
   productId: string;
@@ -221,6 +221,11 @@ export class SalesReceipt {
   isIGVValido(): boolean {
     const igvCalculado = Number((this.subtotal * 0.18).toFixed(2));
     return Math.abs(this.igv - igvCalculado) < 0.01;
+  }
+
+
+  setEstado(estado: ReceiptStatus): void {
+  this.props.estado = estado;
   }
 
   isTotalValido(): boolean {

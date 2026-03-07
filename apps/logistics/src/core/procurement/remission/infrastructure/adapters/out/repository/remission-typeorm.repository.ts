@@ -200,4 +200,35 @@ export class RemissionTypeormRepository implements RemissionPortOut {
       observadas: Number(rawData.observadas || 0),
     };
   }
+  async obtenerGuiaParaReporte(id: string): Promise<any> {
+    return await this.repository
+      .createQueryBuilder('guia')
+      .leftJoinAndSelect('guia.details', 'details')
+      .leftJoinAndMapOne(
+        'guia.transfer',
+        GuideTransferOrm,
+        'transfer',
+        'transfer.id_guia = guia.id_guia',
+      )
+      .leftJoinAndMapOne(
+        'guia.driver',
+        DriverOrmEntity,
+        'driver',
+        'driver.id_guia = guia.id_guia',
+      )
+      .leftJoinAndMapOne(
+        'guia.vehicle',
+        VehiculoOrmEntity,
+        'vehicle',
+        'vehicle.id_guia = guia.id_guia',
+      )
+      .leftJoinAndMapOne(
+        'guia.carrier',
+        CarrierOrmEntity,
+        'carrier',
+        'carrier.id_guia = guia.id_guia',
+      )
+      .where('guia.id_guia = :id', { id })
+      .getOne();
+  }
 }

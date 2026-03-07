@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { RemissionCreatedEvent } from '../events/remission-created.event';
 import { randomUUID } from 'crypto';
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 export class RemissionDetail {
   constructor(
     public readonly id_producto: number,
@@ -59,6 +59,8 @@ export interface RemissionProps {
   id_almacen_origen: number;
   datos_traslado: any;
   datos_transporte: any;
+  ruc?: string;
+  razon_social?: string;
 }
 
 export class Remission {
@@ -213,6 +215,9 @@ export class Remission {
   }
   get datos_transporte() {
     return this.props.datos_transporte;
+  }
+  get razonSocial(): string {
+    return this.props.razon_social;
   }
   isEmitido(): boolean {
     return this.estado === RemissionStatus.EMITIDO;

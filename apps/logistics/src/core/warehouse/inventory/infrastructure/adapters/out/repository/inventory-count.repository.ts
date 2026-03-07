@@ -24,11 +24,22 @@ export class InventoryCountRepository implements IInventoryCountRepository {
     });
   }
 
-  async listAllHeadersBySede(codSede: string) {
-    return await this.headerRepo.find({
-      where: { codSede },
-      order: { fechaIni: 'DESC' },
-    });
+  async listAllHeadersBySede(codSede?: string) {
+    const query = this.headerRepo
+      .createQueryBuilder('conteo')
+      .leftJoinAndSelect('conteo.detalles', 'detalles')
+      .orderBy('conteo.fechaIni', 'DESC');
+
+    if (
+      codSede &&
+      codSede !== '' &&
+      codSede !== 'null' &&
+      codSede !== 'undefined'
+    ) {
+      query.andWhere('conteo.codSede = :codSede', { codSede });
+    }
+
+    return await query.getMany();
   }
 
   async findDetailById(idDetalle: number) {

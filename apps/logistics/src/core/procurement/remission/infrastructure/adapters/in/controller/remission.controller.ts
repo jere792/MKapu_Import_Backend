@@ -6,9 +6,10 @@ import {
   Param,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-
+import { Response } from 'express';
 import { RemissionCommandService } from '../../../../application/service/remission-command.service';
 import { CreateRemissionDto } from '../../../../application/dto/in/create-remission.dto';
 import { JwtAuthGuard } from '@app/common/infrastructure/guard/jwt-auth.guard';
@@ -45,5 +46,14 @@ export class RemissionController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return await this.remissionQueryService.executeFindById(id);
+  }
+  @Get(':id/export/excel')
+  async exportExcel(@Param('id') id: string, @Res() res: Response) {
+    return await this.remissionQueryService.exportExcel(id, res);
+  }
+
+  @Get(':id/export/pdf')
+  async exportPdf(@Param('id') id: string, @Res() res: Response) {
+    return await this.remissionQueryService.exportPdf(id, res);
   }
 }

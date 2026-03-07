@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-@Entity({ name: 'permiso', schema: 'mkp_administracion', synchronize: false })
+@Entity({ name: 'permiso' })
 export class PermissionOrmEntity {
   @PrimaryColumn({ name: 'id_permiso', type: 'int' })
   id_permiso: number;

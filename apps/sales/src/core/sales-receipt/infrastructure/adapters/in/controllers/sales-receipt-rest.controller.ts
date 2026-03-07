@@ -59,6 +59,14 @@ export class SalesReceiptRestController {
     return this.receiptCommandService.registerReceipt(registerDto);
   }
 
+  @Put(':id/emit')
+  @HttpCode(HttpStatus.OK)
+  async emitReceipt(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<SalesReceiptResponseDto> {
+    return this.receiptCommandService.emitReceipt(id);
+  }
+
   @Put(':id/annul')
   @HttpCode(HttpStatus.OK)
   async annulReceipt(

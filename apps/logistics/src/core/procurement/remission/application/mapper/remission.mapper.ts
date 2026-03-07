@@ -46,9 +46,9 @@ export class RemissionMapper {
       id_comprobante_ref: ormEntity.id_comprobante_ref,
       id_usuario_ref: ormEntity.id_usuario_ref,
       id_sede_ref: Number(ormEntity.id_sede_ref),
-
       datos_traslado: null,
       datos_transporte: null,
+      razon_social: ormEntity.socialReason,
     };
 
     const remission = Object.create(Remission.prototype);
@@ -60,6 +60,7 @@ export class RemissionMapper {
 
     return remission;
   }
+
   static toOrm(domainEntity: Remission): RemissionOrmEntity {
     if (!domainEntity) return null;
 
@@ -82,8 +83,9 @@ export class RemissionMapper {
     ormEntity.id_comprobante_ref = domainEntity.id_comprobante_ref;
     ormEntity.id_usuario_ref = domainEntity.id_usuario_ref;
 
-    // Cast a string para que coincida con tu declaración @Column de TypeORM
     ormEntity.id_sede_ref = String(domainEntity.id_sede_ref);
+
+    ormEntity.socialReason = domainEntity.razonSocial;
 
     return ormEntity;
   }
@@ -96,6 +98,8 @@ export class RemissionMapper {
       fechaEmision: domainEntity.fecha_emision,
       motivoTraslado: domainEntity.motivo_traslado,
       pesoTotal: domainEntity.peso_total,
+
+      razonSocial: domainEntity.razonSocial,
     };
   }
 }

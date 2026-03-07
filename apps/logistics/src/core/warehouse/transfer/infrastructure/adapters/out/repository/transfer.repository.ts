@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
@@ -144,6 +148,7 @@ export class TransferRepository implements TransferPortsOut {
       relations: ['details'],
       order: { date: 'DESC' },
     });
+
     return this.mapEntitiesWithHeadquarters(entities);
   }
 
@@ -273,4 +278,7 @@ export class TransferRepository implements TransferPortsOut {
 
     return map;
   }
+
+
+
 }

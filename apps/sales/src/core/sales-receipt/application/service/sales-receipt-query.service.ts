@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
@@ -269,7 +270,6 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
     const idSede = Number(comprobante.id_sede);
 
-    // ── 3 TCP en paralelo ────────────────────────────────────────────────────
     const [usuarios, sedeInfo, codigoMap] = await Promise.all([
       todosIds.length > 0
         ? this.usersTcpProxy.findByIds(todosIds)

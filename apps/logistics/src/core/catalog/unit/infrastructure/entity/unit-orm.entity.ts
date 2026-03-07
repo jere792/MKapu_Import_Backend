@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { ProductOrmEntity } from '../../../product/infrastructure/entity/product-orm.entity';
 import { StoreOrmEntity } from '../../../../warehouse/store/infrastructure/entity/store-orm.entity';
-@Entity({ name: 'unidad', schema: 'mkp_logistica' })
+@Entity({ name: 'unidad' })
 export class UnitOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_unidad', type: 'int' })
   id_unidad: number;

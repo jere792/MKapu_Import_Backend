@@ -221,4 +221,29 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
       }
     });
   }
+
+  private async ensureStockExists(
+    productId: number,
+    warehouseId: number,
+    sedeId: number | string,
+  ): Promise<void> {
+    const stockRepo = this.dataSource.getRepository(StockOrmEntity);
+    const exists = await stockRepo.findOne({
+      where: {
+        id_producto: productId,
+        id_almacen: warehouseId,
+      },
+    });
+
+    if (!exists) {
+      await stockRepo.save({
+        id_producto: productId,
+        id_almacen: warehouseId,
+        id_sede: String(sedeId),
+        cantidad: 0,
+        estado: '1',
+        tipo_ubicacion: 'ALMACEN',
+      } as any);
+    }
+  }
 }

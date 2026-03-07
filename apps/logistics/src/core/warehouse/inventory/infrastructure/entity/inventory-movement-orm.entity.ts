@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { InventoryMovementDetailOrmEntity } from './inventory-movement-detail-orm.entity';
 
-@Entity({ name: 'movimiento_inventario', schema: 'mkp_logistica' })
+@Entity({ name: 'movimiento_inventario' })
 export class InventoryMovementOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_movimiento' })
   id: number;

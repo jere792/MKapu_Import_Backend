@@ -1,11 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 
 export class ListInventoryCountFilterDto {
-  @IsNotEmpty({ message: 'El id_sede es obligatorio' })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  id_sede: number;
+  id_sede?: number;
 
   @IsOptional()
   @IsString()
@@ -14,6 +14,7 @@ export class ListInventoryCountFilterDto {
   @IsOptional()
   @IsString()
   fecha_fin?: string;
+
   @IsOptional()
   @Type(() => Number)
   page?: number;

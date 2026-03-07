@@ -21,6 +21,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ProductOrmEntity } from '../../catalog/product/infrastructure/entity/product-orm.entity';
 import { CategoryOrmEntity } from '../../catalog/product/infrastructure/entity/category-orm.entity';
 import { ProductModule } from '../../catalog/product/product.module';
+import { AdminTcpProxy } from './infrastructure/adapters/out/TCP/admin-tcp.proxy';
 
 @Module({
   imports: [
@@ -30,8 +31,8 @@ import { ProductModule } from '../../catalog/product/product.module';
         name: 'ADMIN_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: '127.0.0.1',
-          port: 3011,
+          host: process.env.ADMIN_TCP_HOST || 'localhost',
+          port: Number(process.env.ADMIN_TCP_PORT || 3011),
         },
       },
     ]),
@@ -66,6 +67,7 @@ import { ProductModule } from '../../catalog/product/product.module';
     },
     InventoryCountCommandService,
     InventoryCountQueryService,
+    AdminTcpProxy,
   ],
   exports: [
     InventoryCommandService,

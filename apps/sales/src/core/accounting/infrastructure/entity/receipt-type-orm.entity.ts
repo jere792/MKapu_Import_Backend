@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
-@Entity('tipo_comprobante', { schema: 'mkp_ventas' })
+@Entity({ name: 'tipo_comprobante' })
 export class ReceiptTypeOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_tipo_comprobante' })
   id: number;

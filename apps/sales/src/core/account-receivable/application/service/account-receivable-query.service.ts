@@ -36,6 +36,6 @@ export class AccountReceivableQueryService
   async getAllOpen(
     pagination: PaginationOptions,
   ): Promise<PaginatedResult<AccountReceivable>> {
-    return this.repository.findAllOpen(pagination);
+    return this.repository.findAllOpen(pagination);  
   }
 }

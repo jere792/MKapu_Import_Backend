@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -37,6 +36,8 @@ import { CommonModule } from '@app/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { WarehouseModule } from './core/warehouse/warehouse.module';
 import { WarehouseOrmEntity } from './core/warehouse/infrastructure/entity/warehouse-orm.entity';
+import { DispatchDetailOrmEntity } from './core/procurement/dispatch/infrastructure/entity/dispatch-detail-orm.entity';
+import { DispatchOrmEntity } from './core/procurement/dispatch/infrastructure/entity/dispatch-orm.entity';
 
 @Module({
   imports: [
@@ -73,6 +74,8 @@ import { WarehouseOrmEntity } from './core/warehouse/infrastructure/entity/wareh
           AuctionDetailOrmEntity,
           WarehouseOrmEntity,
           StoreOrmEntity,
+          DispatchOrmEntity,
+          DispatchDetailOrmEntity,
         ],
         autoLoadEntities: true,
         synchronize: false,
@@ -93,6 +96,7 @@ import { WarehouseOrmEntity } from './core/warehouse/infrastructure/entity/wareh
     AuctionModule,
     RemissionModule,
     WarehouseModule,
+    DispatchModule,
   ],
   controllers: [LogisticsController],
   providers: [LogisticsService],

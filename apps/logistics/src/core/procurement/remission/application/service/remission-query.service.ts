@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
@@ -14,7 +17,9 @@ import {
 } from '../dto/out/remission-detail-response.dto';
 import { RemissionSummaryResponseDto } from '../dto/out/remission-summary-response.dto';
 import { RemissionQueryPortIn } from '../../domain/ports/in/remission-query-port-in';
-
+import { Response } from 'express';
+import * as ExcelJS from 'exceljs';
+import { Buffer } from 'buffer';
 @Injectable()
 export class RemissionQueryService implements RemissionQueryPortIn {
   constructor(
@@ -113,5 +118,124 @@ export class RemissionQueryService implements RemissionQueryPortIn {
     dto.observadas = summary.observadas;
 
     return dto;
+  }
+  async exportExcel(id: string, res: Response): Promise<void> {
+    const guia = await this.remissionRepository.obtenerGuiaParaReporte(id);
+    if (!guia) throw new NotFoundException('Guía no encontrada');
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Guía de Remisión');
+
+    // Estilo y contenido similar a InventoryCount
+    worksheet.mergeCells('A1:F1');
+    const titulo = worksheet.getCell('A1');
+    titulo.value = `GUÍA DE REMISIÓN ELECTRÓNICA - ${guia.serie}-${guia.numero}`;
+    titulo.font = { size: 14, bold: true };
+    titulo.alignment = { horizontal: 'center' };
+
+    worksheet.addRow(['Motivo:', guia.motivo_traslado, 'Estado:', guia.estado]);
+    worksheet.addRow([
+      'Fecha Emisión:',
+      guia.fecha_emision,
+      'Inicio Traslado:',
+      guia.fecha_inicio,
+    ]);
+    worksheet.addRow([
+      'Punto Partida:',
+      guia.transfer?.direccion_origen || '-',
+      'Ubigeo:',
+      guia.transfer?.ubigeo_origen || '-',
+    ]);
+    worksheet.addRow([
+      'Punto Llegada:',
+      guia.transfer?.direccion_destino || '-',
+      'Ubigeo:',
+      guia.transfer?.ubigeo_destino || '-',
+    ]);
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+      'CÓDIGO',
+      'PRODUCTO',
+      'CANTIDAD',
+      'PESO UNIT',
+      'PESO TOTAL',
+    ]);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF000000' },
+      };
+    });
+
+    guia.details.forEach((det) => {
+      worksheet.addRow([
+        det.cod_prod,
+        'Producto',
+        det.cantidad,
+        det.peso_unitario,
+        det.peso_total,
+      ]);
+    });
+
+    const buffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
+
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename=Guia_${guia.serie}_${guia.numero}.xlsx`,
+      'Content-Length': buffer.byteLength,
+    });
+    res.end(buffer);
+  }
+
+  async exportPdf(id: string, res: Response): Promise<void> {
+    const guia = await this.remissionRepository.obtenerGuiaParaReporte(id);
+    if (!guia) throw new NotFoundException('Guía no encontrada');
+
+    const PDFDocument = require('pdfkit-table');
+    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=Guia_${guia.serie}_${guia.numero}.pdf`,
+    });
+
+    doc.pipe(res);
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(16)
+      .text('GUÍA DE REMISIÓN ELECTRÓNICA', { align: 'center' });
+    doc.fontSize(12).text(`${guia.serie}-${guia.numero}`, { align: 'center' });
+    doc.moveDown();
+
+    doc.fontSize(10).font('Helvetica-Bold').text('INFORMACIÓN DEL TRASLADO');
+    doc.font('Helvetica').text(`Motivo: ${guia.motivo_traslado}`);
+    doc.text(
+      `Fecha Inicio: ${new Date(guia.fecha_inicio).toLocaleDateString()}`,
+    );
+    doc.text(
+      `Punto de Llegada: ${guia.transfer?.direccion_destino || 'No especificado'}`,
+    );
+    doc.moveDown();
+
+    const table = {
+      headers: ['CÓDIGO', 'CANTIDAD', 'PESO UNIT.', 'PESO TOTAL'],
+      rows: guia.details.map((d) => [
+        d.cod_prod,
+        d.cantidad,
+        d.peso_unitario,
+        d.peso_total,
+      ]),
+    };
+
+    await doc.table(table, {
+      prepareHeader: () => doc.font('Helvetica-Bold').fontSize(9),
+    });
+
+    doc.end();
   }
 }

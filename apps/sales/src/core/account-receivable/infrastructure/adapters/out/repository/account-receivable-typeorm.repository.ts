@@ -51,33 +51,40 @@ export class AccountReceivableTypeormRepository
   async findAllOpen(
     pagination: PaginationOptions,
   ): Promise<PaginatedResult<AccountReceivable>> {
-    const { page, limit } = pagination;
+    const { page, limit, sedeId } = pagination;
     const skip = (page - 1) * limit;
 
-    const [orms, total] = await this.ormRepo.findAndCount({
-      where: {
-        status: In([
-          AccountReceivableStatus.PENDIENTE,
-          AccountReceivableStatus.PARCIAL,
-          AccountReceivableStatus.VENCIDO,
-        ]),
-      },
-      relations: ['paymentType', 'currency'],
-      order:  { dueDate: 'ASC' },
-      skip,
-      take: limit,
-    });
+    const statuses = [
+      AccountReceivableStatus.PENDIENTE,
+      AccountReceivableStatus.PARCIAL,
+      AccountReceivableStatus.VENCIDO,
+    ];
+
+    const qb = this.ormRepo
+      .createQueryBuilder('ar')
+      .leftJoinAndSelect('ar.paymentType', 'paymentType')
+      .leftJoinAndSelect('ar.currency', 'currency')
+      .innerJoin('ar.salesReceipt', 'sr')
+      .where('ar.status IN (:...statuses)', { statuses })
+      .orderBy('ar.dueDate', 'ASC')
+      .skip(skip)
+      .take(limit);
+
+    if (sedeId) {
+      qb.andWhere('sr.id_sede_ref = :sedeId', { sedeId });
+    }
+
+    const [orms, total] = await qb.getManyAndCount();
 
     return {
-      data:       orms.map((o) => this.mapper.toDomain(o)),
+      data: orms.map((o) => this.mapper.toDomain(o)),
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
     };
   }
-
-  // ── Vencidas (para cron) ──────────────────────────────────────────
+  
   async findOverdue(): Promise<AccountReceivable[]> {
     const orms = await this.ormRepo.find({
       where: {

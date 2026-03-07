@@ -12,7 +12,7 @@ import { UserOrmEntity } from './user-orm-entity';
 import { RoleOrmEntity } from './role-orm-entity';
 import { BitToBooleanTransformer } from 'libs/common/src/infrastructure/transformers/bit-to-boolean.transformer';
 
-@Entity({ name: 'cuenta_usuario', schema: 'mkp_administracion' })
+@Entity({ name: 'cuenta_usuario' })
 export class AccountUserOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_cuenta' })
   id_cuenta: number;
