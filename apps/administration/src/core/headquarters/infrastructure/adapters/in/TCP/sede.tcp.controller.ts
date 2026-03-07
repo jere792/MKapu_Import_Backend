@@ -3,11 +3,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Controller, Inject, Logger } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { SedeAlmacenOrmEntity } from '../../../../../sede-almacen/infrastructure/entity/sede-almacen-orm.entity';
 import { IHeadquartersQueryPort } from '../../../../domain/ports/in/headquarters-ports-in';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { HeadquartersOrmEntity } from '../../../entity/headquarters-orm.entity';
+import { SedeAlmacenOrmEntity } from 'apps/administration/src/core/headquarters-warehouse/infrastructure/entity/sede-almacen-orm.entity';
 
 type GetSedeByIdPayload = {
   id_sede: string | number;

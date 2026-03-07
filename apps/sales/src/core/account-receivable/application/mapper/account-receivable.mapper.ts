@@ -53,8 +53,6 @@ export class AccountReceivableMapper {
     orm.currencyCode    = domain.currencyCode;
     orm.observation     = domain.observation;
 
-    // ✅ En INSERT (id null) → no asignar updatedAt, MySQL lo rellena con CURRENT_TIMESTAMP
-    // En UPDATE (id existe) → inyectar new Date() para forzar la actualización
     if (domain.id) {
       orm.updatedAt = new Date();
     }

@@ -363,4 +363,13 @@ export class AccountReceivable {
         `${operation}: account is closed (status: ${this.props.status})`,
       );
   }
+
+  updatePaymentType(paymentTypeId: number): void {
+  if (!paymentTypeId || !Number.isInteger(paymentTypeId) || paymentTypeId <= 0)
+    throw new AccountReceivableDomainException(
+      `updatePaymentType: paymentTypeId must be a positive integer (got ${paymentTypeId})`,
+    );
+  this.props.paymentTypeId = paymentTypeId;
+  this.props.updatedAt     = new Date();
+}
 }

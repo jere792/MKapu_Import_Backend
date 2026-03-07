@@ -85,6 +85,10 @@ export class ApplyPaymentDto {
   @Length(3, 3)
   @Matches(/^[A-Z]{3}$/, { message: 'currencyCode must be a 3-letter ISO 4217 code' })
   currencyCode: string;
+
+  @IsInt()         
+  @IsPositive()
+  paymentTypeId: number;
 }
 
 // ── Cancelar cuenta ───────────────────────────────────────────────────────────

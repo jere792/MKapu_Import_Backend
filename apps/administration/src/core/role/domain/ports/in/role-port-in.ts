@@ -19,6 +19,7 @@ import {
 
 // Command Port (REST - POST, PUT, DELETE)
 export interface IRoleCommandPort {
+  getRoleById(id: number): Promise<RoleResponseDto>;
   registerRole(dto: RegisterRoleDto): Promise<RoleResponseDto>;
   updateRole(dto: UpdateRoleDto): Promise<RoleResponseDto>;
   changeRoleStatus(dto: ChangeRoleStatusDto): Promise<RoleResponseDto>;

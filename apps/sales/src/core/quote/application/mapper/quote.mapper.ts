@@ -71,7 +71,6 @@ export class QuoteMapper {
     };
   }
 
-  // ✅ Para el detalle: datos completos
   static toResponseDto(domain: Quote, cliente: any, sede: any): QuoteResponseDto {
     return {
       id_cotizacion: domain.id_cotizacion!,

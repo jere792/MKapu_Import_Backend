@@ -28,6 +28,7 @@ export interface ApplyPaymentCommand {
   accountReceivableId: number;
   amount:              number;
   currencyCode:        string;
+  paymentTypeId:       number;  
 }
 
 export interface IApplyPaymentUseCase {

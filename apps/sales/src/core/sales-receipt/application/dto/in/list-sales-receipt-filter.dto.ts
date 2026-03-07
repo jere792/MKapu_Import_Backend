@@ -25,10 +25,10 @@ export class ListSalesReceiptFilterDto {
   paymentMethodId?: number;
 
   @IsOptional()
-  dateFrom?: Date | string;   // ✅ acepta ambos
+  dateFrom?: Date | string;   
 
   @IsOptional()
-  dateTo?: Date | string;     // ✅ acepta ambos
+  dateTo?: Date | string;    
 
   @IsOptional()
   @IsString()

@@ -24,6 +24,12 @@ export class RoleCommandService implements IRoleCommandPort {
     private readonly repository: IRoleRepositoryPort,
   ) {}
 
+  async getRoleById(id: number): Promise<RoleResponseDto> {
+  const role = await this.repository.findById(id);
+  if (!role) throw new NotFoundException(`Rol con ID ${id} no encontrado`);
+  return RoleMapper.toResponseDto(role);
+  }
+
   async registerRole(dto: RegisterRoleDto): Promise<RoleResponseDto> {
     const existsByName = await this.repository.existsByName(dto.nombre);
     if (existsByName) {

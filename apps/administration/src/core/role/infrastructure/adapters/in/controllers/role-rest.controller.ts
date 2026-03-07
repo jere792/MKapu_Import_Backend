@@ -75,6 +75,14 @@ export class RoleRestController {
     return this.roleCommandService.deleteRole(id);
   }
 
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  async getRoleById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<RoleResponseDto> {
+    return this.roleCommandService.getRoleById(id);
+  }
+
   @Get()
   @HttpCode(HttpStatus.OK)
   async getAllRoles(): Promise<RoleResponseDto[]> {

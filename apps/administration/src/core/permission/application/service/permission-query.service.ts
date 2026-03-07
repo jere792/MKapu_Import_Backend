@@ -17,9 +17,9 @@ export class PermissionQueryService implements IPermissionQueryPort {
     private readonly repository: IPermissionRepositoryPort,
   ) {}
 
-  async listPermissions(filters?: ListPermissionFilterDto): Promise<PermissionListResponse> {
+  async listPermissions(filters?: ListPermissionFilterDto): Promise<PermissionResponseDto[]> {
     const permissions = await this.repository.findAll(filters);
-    return PermissionMapper.toListResponse(permissions);
+    return permissions.map(p => PermissionMapper.toResponseDto(p));
   }
 
   async getPermissionById(id: number): Promise<PermissionResponseDto | null> {

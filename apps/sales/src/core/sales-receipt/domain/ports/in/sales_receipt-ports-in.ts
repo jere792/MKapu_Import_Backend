@@ -21,6 +21,7 @@ export interface ISalesReceiptCommandPort {
   deleteReceipt(id: number): Promise<SalesReceiptDeletedResponseDto>;
   updateDispatchStatus(id_venta: number, status: string): Promise<boolean>;
   emitReceipt(id: number): Promise<SalesReceiptResponseDto>;
+  emitReceipt(id: number, paymentTypeId?: number): Promise<SalesReceiptResponseDto>;
 }
 
 export interface ISalesReceiptQueryPort {

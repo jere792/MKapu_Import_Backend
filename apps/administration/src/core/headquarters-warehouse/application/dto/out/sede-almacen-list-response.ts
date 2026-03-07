@@ -2,7 +2,7 @@
    administration/src/core/sede-almacen/application/dto/out/sede-almacen-list-response.ts
    ============================================ */
 
-import { AlmacenInfoDto, SedeSummaryDto } from './sede-almacen-response-dto.ts';
+import { AlmacenInfoDto, SedeSummaryDto } from './sede-almacen-response-dto.ts.js';
 
 export interface SedeAlmacenListItemDto {
   id_almacen: number;

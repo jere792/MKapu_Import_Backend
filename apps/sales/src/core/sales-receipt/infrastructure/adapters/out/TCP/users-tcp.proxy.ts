@@ -14,7 +14,6 @@ export class UsersTcpProxy {
     @Inject('USERS_SERVICE') private readonly client: ClientProxy,
     private readonly configService: ConfigService,
   ) {
-    // ✅ nombre exacto de tu .env
     this.internalSecret = this.configService.get<string>(
       'INTERNAL_COMM_SECRET',
       'mkapu_internal_tcp_secret_2025_$ecur3',
@@ -31,7 +30,7 @@ export class UsersTcpProxy {
       const response = await firstValueFrom(
         this.client.send('users.findByIds', {
           ids,
-          secret: this.internalSecret,  // ✅ Guard lo valida con esta key
+          secret: this.internalSecret,  
         }),
       );
 

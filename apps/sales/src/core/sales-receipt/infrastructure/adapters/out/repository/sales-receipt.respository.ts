@@ -264,12 +264,13 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
 
     const allParams = [...joinParams, ...whereParams];
 
-    const baseQuery = `
+  const baseQuery = `
     FROM mkp_ventas.comprobante_venta r
-    INNER JOIN mkp_ventas.cliente          c  ON c.id_cliente           = r.id_cliente
-    INNER JOIN mkp_ventas.tipo_comprobante tc ON tc.id_tipo_comprobante = r.id_tipo_comprobante
+    INNER JOIN mkp_ventas.cliente          c   ON c.id_cliente           = r.id_cliente
+    INNER JOIN mkp_ventas.tipo_comprobante tc  ON tc.id_tipo_comprobante = r.id_tipo_comprobante
     ${pagoJoin}
-    LEFT  JOIN mkp_ventas.tipo_pago        tp ON tp.id_tipo_pago        = p.id_tipo_pago
+    LEFT  JOIN mkp_ventas.tipo_pago        tp  ON tp.id_tipo_pago        = p.id_tipo_pago
+    LEFT  JOIN mkp_ventas.cuenta_por_cobrar cpc ON cpc.id_comprobante_venta = r.id_comprobante
     ${whereClause}
   `;
 
@@ -291,7 +292,11 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       COALESCE(c.valor_doc, '—') AS cliente_doc,
       r.id_responsable_ref AS id_responsable,
       r.id_sede_ref        AS id_sede,
-      COALESCE(tp.descripcion, 'N/A') AS metodo_pago,
+      CASE
+      WHEN p.id_pago IS NOT NULL THEN COALESCE(tp.descripcion, 'N/A')
+      WHEN cpc.id_cuenta IS NOT NULL THEN 'POR DEFINIR'
+      ELSE 'N/A'
+      END AS metodo_pago,
       r.total,
       r.estado
     ${baseQuery}

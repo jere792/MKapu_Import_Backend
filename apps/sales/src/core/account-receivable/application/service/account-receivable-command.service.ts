@@ -55,6 +55,7 @@ export class AccountReceivableCommandService
   async applyPayment(cmd: ApplyPaymentCommand): Promise<AccountReceivable> {
     const account = await this.findOrFail(cmd.accountReceivableId);
     account.applyPayment(new Money(cmd.amount, cmd.currencyCode));
+    account.updatePaymentType(cmd.paymentTypeId); // ← usa el método del dominio
     return this.repository.update(account);
   }
 

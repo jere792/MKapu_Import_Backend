@@ -93,10 +93,10 @@ export class AccountReceivableRestController {
       accountReceivableId: dto.accountReceivableId,
       amount:              dto.amount,
       currencyCode:        dto.currencyCode,
+      paymentTypeId:       dto.paymentTypeId,   
     });
     return this.mapper.toResponseDto(domain);
   }
-
   // ── PATCH /account-receivables/cancel ────────────────────────────
   @Patch('cancel')
   async cancel(

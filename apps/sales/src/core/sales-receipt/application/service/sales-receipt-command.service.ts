@@ -35,16 +35,53 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     
   ) {}
 
-
-  async emitReceipt(id: number): Promise<SalesReceiptResponseDto> {
+  async emitReceipt(id: number, paymentTypeId?: number): Promise<SalesReceiptResponseDto> {
     const receipt = await this.receiptRepository.findById(id);
     if (!receipt) throw new NotFoundException(`Comprobante ${id} no encontrado`);
     if (receipt.estado !== ReceiptStatus.PENDIENTE) {
       throw new BadRequestException(`El comprobante no está en estado PENDIENTE`);
     }
 
-    // 1️⃣ Cambiar estado primero
-    await this.receiptRepository.updateStatus(id, 'EMITIDO');
+    // 1️⃣ Cambiar estado + registrar pago en una sola transacción
+    const queryRunner = this.receiptRepository.getQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.manager.query(
+        'UPDATE comprobante_venta SET estado = ? WHERE id_comprobante = ?',
+        ['EMITIDO', id],
+      );
+
+      if (paymentTypeId) {
+        await this.paymentRepository.savePaymentInTransaction(
+          {
+            id_comprobante: id,
+            id_tipo_pago:   paymentTypeId,
+            monto:          receipt.total,
+          },
+          queryRunner,
+        );
+
+        await this.paymentRepository.registerCashMovementInTransaction(
+          {
+            idCaja:     String(receipt.id_sede_ref),
+            idTipoPago: paymentTypeId,
+            tipoMov:    'INGRESO',
+            concepto:   `VENTA (crédito saldado): ${receipt.serie}-${receipt.numero}`,
+            monto:      receipt.total,
+          },
+          queryRunner,
+        );
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
 
     // 2️⃣ Obtener almacén
     console.log(`🏢 Buscando almacén para sede: ${receipt.id_sede_ref}`);
@@ -79,10 +116,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     const updated = await this.receiptRepository.findById(id);
     return SalesReceiptMapper.toResponseDto(updated!);
   }
-
-
-
-
 
   async updateDispatchStatus(id_venta: number, status: string): Promise<boolean> {
     try {
@@ -146,21 +179,24 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
 
       const tipoMovimiento = dto.receiptTypeId === 3 ? 'EGRESO' : 'INGRESO';
 
-      await this.paymentRepository.savePaymentInTransaction(
-        { id_comprobante: savedOrm.id_comprobante, id_tipo_pago: dto.paymentMethodId, monto: savedOrm.total },
-        queryRunner,
-      );
+      if (!dto.esCreditoPendiente) {
 
-      await this.paymentRepository.registerCashMovementInTransaction(
-        {
-          idCaja:     String(dto.branchId),
-          idTipoPago: dto.paymentMethodId,
-          tipoMov:    tipoMovimiento,
-          concepto:   `${tipoMovimiento === 'INGRESO' ? 'VENTA' : 'NC'}: ${receipt.getFullNumber()}`,
-          monto:      savedOrm.total,
-        },
-        queryRunner,
-      );
+          await this.paymentRepository.savePaymentInTransaction(
+            { id_comprobante: savedOrm.id_comprobante, id_tipo_pago: dto.paymentMethodId, monto: savedOrm.total },
+            queryRunner,
+          );
+
+          await this.paymentRepository.registerCashMovementInTransaction(
+            {
+              idCaja:     String(dto.branchId),
+              idTipoPago: dto.paymentMethodId,
+              tipoMov:    tipoMovimiento,
+              concepto:   `${tipoMovimiento === 'INGRESO' ? 'VENTA' : 'NC'}: ${receipt.getFullNumber()}`,
+              monto:      savedOrm.total,
+            },
+            queryRunner,
+          );
+      }
 
       await queryRunner.commitTransaction();
       savedReceiptDomain = SalesReceiptMapper.toDomain(savedOrm);
@@ -221,26 +257,39 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     }
   }
 
+
   async annulReceipt(dto: AnnulSalesReceiptDto): Promise<SalesReceiptResponseDto> {
     const existingReceipt = await this.receiptRepository.findById(dto.receiptId);
     if (!existingReceipt) throw new NotFoundException(`ID ${dto.receiptId} no encontrado.`);
 
-    const annulledReceipt = existingReceipt.anular();
-    const savedReceipt    = await this.receiptRepository.update(annulledReceipt);
+    if (existingReceipt.estado === ReceiptStatus.RECHAZADO) {
+      throw new BadRequestException(`El comprobante ya está rechazado.`);
+    }
 
-    if (existingReceipt.id_tipo_comprobante !== 3) {
-      for (const item of savedReceipt.items) {
+    await this.receiptRepository.updateStatus(existingReceipt.id_comprobante, 'RECHAZADO');
+
+    const fueEmitido = existingReceipt.estado === ReceiptStatus.EMITIDO;
+
+    if (fueEmitido && existingReceipt.id_tipo_comprobante !== 3) {
+      const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(existingReceipt.id_sede_ref);
+      for (const item of existingReceipt.items) {
         this.stockProxy.registerMovement({
           productId:      Number(item.productId),
-          warehouseId:    savedReceipt.id_sede_ref,
-          headquartersId: savedReceipt.id_sede_ref,
-          quantityDelta:  item.quantity,
-          reason:         `ANULACION: ${savedReceipt.getFullNumber()}`,
-        });
+          warehouseId:    warehouseId ?? existingReceipt.id_sede_ref,
+          headquartersId: existingReceipt.id_sede_ref,
+          quantityDelta:  item.quantity,   
+          reason:         'DEVOLUCION',
+          refId:          existingReceipt.id_comprobante,
+        }).catch(err =>
+          console.error(`⚠️ No se pudo revertir stock del producto ${item.productId}:`, err)
+        );
       }
     }
-    return SalesReceiptMapper.toResponseDto(savedReceipt);
+
+    const updated = await this.receiptRepository.findById(existingReceipt.id_comprobante);
+    return SalesReceiptMapper.toResponseDto(updated!);
   }
+
 
   async deleteReceipt(id: number): Promise<SalesReceiptDeletedResponseDto> {
     const existingReceipt = await this.receiptRepository.findById(id);

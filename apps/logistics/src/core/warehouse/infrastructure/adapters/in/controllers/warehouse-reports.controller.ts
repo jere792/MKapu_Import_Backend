@@ -10,7 +10,7 @@ import { InventoryMovementDetailOrmEntity } from '../../../../inventory/infrastr
 export class WarehouseReportsFilterDto {
   periodo?: string;  // 'semana' | 'mes' | 'anio'
   anio?:    string;
-  sedeId?:  string;
+  sedeId?:  string;  // ✅ id_sede es string en StockOrmEntity
 }
 
 @Controller('warehouse/reports')
@@ -31,9 +31,9 @@ export class WarehouseReportsController {
   @Get('kpis')
   async getKpis(@Query() filters: WarehouseReportsFilterDto) {
     const { fechaDesde, fechaHasta } = this.getRangoFechas(filters.periodo ?? 'mes');
-    const sedeParam = filters.sedeId ?? null;
+    const sedeId = filters.sedeId ?? null;
 
-    // MySQL: parámetros con ? en lugar de $1
+    // ✅ Filtro de sede corregido — id_sede es VARCHAR en stock
     const stockStats: any[] = await this.stockRepo.query(`
       SELECT
         COALESCE(SUM(s.cantidad), 0)                          AS valor_inventario,
@@ -41,16 +41,19 @@ export class WarehouseReportsController {
         COUNT(*)                                              AS total_items
       FROM stock s
       WHERE (? IS NULL OR s.id_sede = ?)
-    `, [sedeParam, sedeParam]);
+    `, [sedeId, sedeId]);
 
+    // ✅ JOIN con stock para filtrar movimientos por sede
     const movStats: any[] = await this.movRepo.query(`
       SELECT
-        COUNT(*)                                                    AS total_movimientos,
+        COUNT(DISTINCT m.id_movimiento)                             AS total_movimientos,
         SUM(CASE WHEN d.tipo = 'SALIDA' THEN 1 ELSE 0 END)         AS total_salidas
       FROM movimiento_inventario m
       JOIN detalle_movimiento_inventario d ON d.id_movimiento = m.id_movimiento
+      JOIN stock s ON s.id_almacen = d.id_almacen
       WHERE m.fecha BETWEEN ? AND ?
-    `, [fechaDesde, fechaHasta]);
+        AND (? IS NULL OR s.id_sede = ?)
+    `, [fechaDesde, fechaHasta, sedeId, sedeId]);
 
     const sk = stockStats[0] ?? {};
     const mv = movStats[0]   ?? {};
@@ -88,30 +91,33 @@ export class WarehouseReportsController {
   async getRendimientoChart(@Query() filters: WarehouseReportsFilterDto) {
     const periodo = filters.periodo ?? 'mes';
     const { fechaDesde, fechaHasta } = this.getRangoFechas(periodo);
+    const sedeId = filters.sedeId ?? null;
 
     let labels: string[];
     let groupExpr: string;
 
     if (periodo === 'semana') {
-      // MySQL: DAYNAME o DATE_FORMAT('%a')
       labels    = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
       groupExpr = `DATE_FORMAT(m.fecha, '%a')`;
     } else if (periodo === 'anio') {
       labels    = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
       groupExpr = `DATE_FORMAT(m.fecha, '%b')`;
     } else {
-      // mes — agrupar por semana dentro del mes (1-4)
       labels    = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
       groupExpr = `CONCAT('Sem ', CEIL(DAY(m.fecha) / 7))`;
     }
 
+    // ✅ JOIN con stock y detalle para filtrar por sede
     const rows: any[] = await this.movRepo.query(`
-      SELECT ${groupExpr} AS label, COUNT(*) AS cantidad
+      SELECT ${groupExpr} AS label, COUNT(DISTINCT m.id_movimiento) AS cantidad
       FROM movimiento_inventario m
+      JOIN detalle_movimiento_inventario d ON d.id_movimiento = m.id_movimiento
+      JOIN stock s ON s.id_almacen = d.id_almacen
       WHERE m.fecha BETWEEN ? AND ?
+        AND (? IS NULL OR s.id_sede = ?)
       GROUP BY label
       ORDER BY MIN(m.fecha)
-    `, [fechaDesde, fechaHasta]);
+    `, [fechaDesde, fechaHasta, sedeId, sedeId]);
 
     const datos = labels.map(label => {
       const row = rows.find((r: any) => r.label?.trim() === label);
@@ -124,16 +130,17 @@ export class WarehouseReportsController {
   // ── GET /warehouse/reports/salud-stock ────────────────────────────
   @Get('salud-stock')
   async getSaludStock(@Query() filters: WarehouseReportsFilterDto) {
-    const sedeParam = filters.sedeId ?? null;
+    const sedeId = filters.sedeId ?? null;
 
+    // ✅ Tres categorías mutuamente excluyentes y correctas
     const rows: any[] = await this.stockRepo.query(`
       SELECT
-        SUM(CASE WHEN s.cantidad > 20  THEN 1 ELSE 0 END) AS optimo,
-        SUM(CASE WHEN s.cantidad <= 10 THEN 1 ELSE 0 END) AS bajo_stock,
-        SUM(CASE WHEN s.cantidad > 50  THEN 1 ELSE 0 END) AS sobre_stock
+        SUM(CASE WHEN s.cantidad > 20 AND s.cantidad <= 50 THEN 1 ELSE 0 END) AS optimo,
+        SUM(CASE WHEN s.cantidad <= 10                     THEN 1 ELSE 0 END) AS bajo_stock,
+        SUM(CASE WHEN s.cantidad > 50                      THEN 1 ELSE 0 END) AS sobre_stock
       FROM stock s
       WHERE (? IS NULL OR s.id_sede = ?)
-    `, [sedeParam, sedeParam]);
+    `, [sedeId, sedeId]);
 
     const row = rows[0] ?? {};
     return {
@@ -146,9 +153,9 @@ export class WarehouseReportsController {
   // ── GET /warehouse/reports/movimientos-recientes ──────────────────
   @Get('movimientos-recientes')
   async getMovimientosRecientes(@Query() filters: WarehouseReportsFilterDto) {
-    const sedeParam = filters.sedeId ?? null;
+    const sedeId = filters.sedeId ?? null;
 
-    // MySQL no tiene DISTINCT ON — usamos GROUP BY + MIN
+    // ✅ Filtro de sede directo via JOIN con stock
     const rows: any[] = await this.movRepo.query(`
       SELECT
         DATE_FORMAT(m.fecha, '%d %b %Y %H:%i') AS fecha,
@@ -157,15 +164,13 @@ export class WarehouseReportsController {
         SUM(d.cantidad)                         AS cantidad,
         'Sistema'                               AS usuario
       FROM movimiento_inventario m
-      JOIN detalle_movimiento_inventario d
-        ON d.id_movimiento = m.id_movimiento
-      LEFT JOIN stock s
-        ON s.id_almacen = d.id_almacen
-        AND (? IS NULL OR s.id_sede = ?)
+      JOIN detalle_movimiento_inventario d ON d.id_movimiento = m.id_movimiento
+      JOIN stock s ON s.id_almacen = d.id_almacen
+      WHERE (? IS NULL OR s.id_sede = ?)
       GROUP BY m.id_movimiento, m.fecha, m.tipo_origen, m.ref_tabla, m.ref_id
       ORDER BY m.fecha DESC
       LIMIT 10
-    `, [sedeParam, sedeParam]);
+    `, [sedeId, sedeId]);
 
     return rows.map((r: any) => ({
       fecha:      r.fecha,
@@ -180,9 +185,9 @@ export class WarehouseReportsController {
   // ── GET /warehouse/reports/productos-criticos ─────────────────────
   @Get('productos-criticos')
   async getProductosCriticos(@Query() filters: WarehouseReportsFilterDto) {
-    const sedeParam = filters.sedeId ?? null;
+    const sedeId = filters.sedeId ?? null;
 
-    // Usamos detalle_conteo para cod_prod y descripcion (evita JOIN a producto)
+    // ✅ Filtro de sede directo en WHERE, sin LEFT JOIN innecesario
     const rows: any[] = await this.stockRepo.query(`
       SELECT
         dc.cod_prod        AS codigo,
@@ -216,7 +221,7 @@ export class WarehouseReportsController {
         AND s.cantidad <= COALESCE(dc.stock_sistema, 10)
       ORDER BY s.cantidad ASC
       LIMIT 10
-    `, [sedeParam, sedeParam]);
+    `, [sedeId, sedeId]);
 
     return rows.map((r: any) => ({
       codigo:      r.codigo,

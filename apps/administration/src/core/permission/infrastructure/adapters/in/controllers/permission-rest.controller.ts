@@ -106,7 +106,7 @@ export class PermissionRestController {
   @Get()
   async listPermissions(
     @Query() filters: ListPermissionFilterDto,
-  ): Promise<PermissionListResponse> {
+  ): Promise<PermissionResponseDto[]> {
     return this.permissionQueryService.listPermissions(filters);
   }
 }

@@ -21,11 +21,13 @@ export interface IPermissionCommandPort {
   updatePermission(dto: UpdatePermissionDto): Promise<PermissionResponseDto>;
   changePermissionStatus(dto: ChangePermissionStatusDto): Promise<PermissionResponseDto>;
   deletePermission(id: number): Promise<PermissionDeletedResponseDto>;
+  
 }
 
 // Query Port (WebSockets - GET)
 export interface IPermissionQueryPort {
-  listPermissions(filters?: ListPermissionFilterDto): Promise<PermissionListResponse>;
+  listPermissions(filters?: ListPermissionFilterDto): Promise<PermissionResponseDto[]>;
   getPermissionById(id: number): Promise<PermissionResponseDto | null>;
   getPermissionByName(nombre: string): Promise<PermissionResponseDto | null>;
+  
 }
