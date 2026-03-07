@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { In, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { UnitPortsOut } from '../../../domain/port/out/unit-ports-out';
 import { Unit, UnitStatus } from '../../../domain/entity/unit-domain-entity';
 import { UnitOrmEntity } from '../../entity/unit-orm.entity';
-import { InjectRepository } from '@nestjs/typeorm';
 import { MapperUnit } from '../../../application/mapper/mapper-unit';
 
 export class UnitRepository implements UnitPortsOut {
@@ -11,6 +11,7 @@ export class UnitRepository implements UnitPortsOut {
     @InjectRepository(UnitOrmEntity)
     private readonly unitRepo: Repository<UnitOrmEntity>,
   ) {}
+
   async save(unit: Unit): Promise<Unit> {
     const entity = this.unitRepo.create({
       id_unidad: unit.id,
@@ -23,13 +24,16 @@ export class UnitRepository implements UnitPortsOut {
     const saved = await this.unitRepo.save(entity);
     return MapperUnit.toDomain(saved);
   }
+
   async findById(id: number): Promise<Unit | null> {
     const entity = await this.unitRepo.findOneBy({ id_unidad: id });
     return entity ? MapperUnit.toDomain(entity) : null;
   }
+
   findBySerial(serialNumber: string): Promise<Unit | null> {
     throw new Error('Method not implemented.');
   }
+
   findMany(filters: {
     productId?: number;
     warehouseId?: number;
@@ -37,26 +41,35 @@ export class UnitRepository implements UnitPortsOut {
   }): Promise<Unit[]> {
     throw new Error('Method not implemented.');
   }
-  async findBySerials(serialNumbers: string[]): Promise<Unit[]> {
+
+  async findBySerials(
+    serialNumbers: string[],
+    manager?: EntityManager,
+  ): Promise<Unit[]> {
     if (!serialNumbers.length) return [];
 
-    const entities = await this.unitRepo.find({
+    const repository = manager?.getRepository(UnitOrmEntity) ?? this.unitRepo;
+    const entities = await repository.find({
       where: {
         serie: In(serialNumbers),
       },
       relations: ['producto', 'almacen'],
     });
-    return entities.map((e) => MapperUnit.toDomain(e));
+    return entities.map((entity) => MapperUnit.toDomain(entity));
   }
+
   updateStatus(id: number, status: UnitStatus): Promise<void> {
     throw new Error('Method not implemented.');
   }
+
   async updateLocationAndStatusBySerial(
     serial: string,
     warehouseId: number,
     status: UnitStatus,
+    manager?: EntityManager,
   ): Promise<void> {
-    await this.unitRepo.update(
+    const repository = manager?.getRepository(UnitOrmEntity) ?? this.unitRepo;
+    await repository.update(
       { serie: serial },
       {
         id_almacen: warehouseId,
@@ -64,6 +77,7 @@ export class UnitRepository implements UnitPortsOut {
       },
     );
   }
+
   updateLocationAndStatus(
     id: number,
     warehouseId: number,
@@ -71,17 +85,24 @@ export class UnitRepository implements UnitPortsOut {
   ): Promise<void> {
     throw new Error('Method not implemented.');
   }
+
   async updateStatusBySerial(
     serial: string,
     status: UnitStatus,
+    manager?: EntityManager,
   ): Promise<void> {
-    await this.unitRepo.update({ serie: serial }, { estado: status });
+    const repository = manager?.getRepository(UnitOrmEntity) ?? this.unitRepo;
+    await repository.update({ serie: serial }, { estado: status });
   }
+
   async updateStatusBySerials(
     serials: string[],
     status: UnitStatus,
+    manager?: EntityManager,
   ): Promise<void> {
     if (!serials.length) return;
-    await this.unitRepo.update({ serie: In(serials) }, { estado: status });
+
+    const repository = manager?.getRepository(UnitOrmEntity) ?? this.unitRepo;
+    await repository.update({ serie: In(serials) }, { estado: status });
   }
 }

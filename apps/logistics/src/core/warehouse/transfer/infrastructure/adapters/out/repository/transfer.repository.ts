@@ -36,7 +36,9 @@ export class TransferRepository implements TransferPortsOut {
   async save(transfer: Transfer, manager?: EntityManager): Promise<Transfer> {
     const entityManager = manager ?? this.dataSource.manager;
     const transferRepository = entityManager.getRepository(TransferOrmEntity);
-    const detailRepository = entityManager.getRepository(TransferDetailOrmEntity);
+    const detailRepository = entityManager.getRepository(
+      TransferDetailOrmEntity,
+    );
 
     if (transfer.id) {
       await transferRepository.update(transfer.id, {
@@ -123,8 +125,8 @@ export class TransferRepository implements TransferPortsOut {
   }
 
   async findByHeadquarters(headquartersId: string): Promise<Transfer[]> {
-
-    const warehouseIds = await this.findWarehouseIdsByHeadquarters(headquartersId);
+    const warehouseIds =
+      await this.findWarehouseIdsByHeadquarters(headquartersId);
     if (warehouseIds.length === 0) {
       return [];
     }
@@ -164,7 +166,8 @@ export class TransferRepository implements TransferPortsOut {
       .orderBy('transfer.date', 'DESC');
 
     if (String(headquartersId ?? '').trim()) {
-      const warehouseIds = await this.findWarehouseIdsByHeadquarters(headquartersId);
+      const warehouseIds =
+        await this.findWarehouseIdsByHeadquarters(headquartersId);
       if (warehouseIds.length === 0) {
         return { transfers: [], total: 0 };
       }
@@ -227,7 +230,9 @@ export class TransferRepository implements TransferPortsOut {
 
     return rows
       .map((row) => Number(row.warehouseId))
-      .filter((warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0);
+      .filter(
+        (warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0,
+      );
   }
 
   private async resolveHeadquartersMap(
@@ -246,9 +251,14 @@ export class TransferRepository implements TransferPortsOut {
       .createQueryBuilder('stock')
       .select('stock.id_almacen', 'warehouseId')
       .addSelect('MAX(stock.id_sede)', 'headquartersId')
-      .where('stock.id_almacen IN (:...warehouseIds)', { warehouseIds: uniqueIds })
+      .where('stock.id_almacen IN (:...warehouseIds)', {
+        warehouseIds: uniqueIds,
+      })
       .groupBy('stock.id_almacen')
-      .getRawMany<{ warehouseId: number | string; headquartersId: string | null }>();
+      .getRawMany<{
+        warehouseId: number | string;
+        headquartersId: string | null;
+      }>();
 
     rows.forEach((row) => {
       const warehouseId = Number(row.warehouseId);

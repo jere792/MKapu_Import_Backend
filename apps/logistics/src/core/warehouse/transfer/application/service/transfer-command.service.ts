@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { UnitPortsOut } from 'apps/logistics/src/core/catalog/unit/domain/port/out/unit-ports-out';
 import { UnitStatus } from 'apps/logistics/src/core/catalog/unit/domain/entity/unit-domain-entity';
 import { StockOrmEntity } from '../../../inventory/infrastructure/entity/stock-orm-entity';
@@ -33,6 +33,8 @@ import {
 import { TransferPortsIn } from '../../domain/ports/in/transfer-ports-in';
 import { TransferPortsOut } from '../../domain/ports/out/transfer-ports-out';
 import { TransferWebsocketGateway } from '../../infrastructure/adapters/out/transfer-websocket.gateway';
+import { UsuarioTcpProxy } from '../../infrastructure/adapters/out/TCP/usuario-tcp.proxy';
+import { TransferOrmEntity } from '../../infrastructure/entity/transfer-orm.entity';
 
 type NormalizedTransferItem = {
   productId: number;
@@ -100,6 +102,7 @@ export class TransferCommandService implements TransferPortsIn {
   constructor(
     @Inject('TransferPortsOut')
     private readonly transferRepo: TransferPortsOut,
+    private readonly dataSource: DataSource,
     @Inject('UnitPortsOut')
     private readonly unitRepo: UnitPortsOut,
     private readonly transferGateway: TransferWebsocketGateway,
@@ -108,6 +111,7 @@ export class TransferCommandService implements TransferPortsIn {
     @InjectRepository(StoreOrmEntity)
     private readonly storeRepo: Repository<StoreOrmEntity>,
     private readonly inventoryService: InventoryCommandService,
+    private readonly usuarioTcpProxy: UsuarioTcpProxy,
   ) {}
 
   async requestTransfer(dto: RequestTransferDto): Promise<Transfer> {
@@ -130,44 +134,49 @@ export class TransferCommandService implements TransferPortsIn {
       this.groupRequestedQuantityByProduct(normalizedItems);
     await this.validateStockLevels(groupedRequest, dto.originWarehouseId);
 
-    if (transferMode === TransferMode.SERIALIZED) {
-      await this.validateSerializedUnits(
-        normalizedItems,
+    const savedTransfer = await this.dataSource.transaction(async (manager) => {
+      if (transferMode === TransferMode.SERIALIZED) {
+        await this.validateSerializedUnits(
+          normalizedItems,
+          dto.originWarehouseId,
+          manager,
+        );
+      }
+
+      const transfer = new Transfer(
+        dto.originHeadquartersId,
         dto.originWarehouseId,
-      );
-    }
-
-    const transfer = new Transfer(
-      dto.originHeadquartersId,
-      dto.originWarehouseId,
-      dto.destinationHeadquartersId,
-      dto.destinationWarehouseId,
-      normalizedItems.map((item) =>
-        transferMode === TransferMode.AGGREGATED
-          ? TransferItem.fromQuantity(item.productId, item.quantity)
-          : new TransferItem(item.productId, item.series),
-      ),
-      dto.observation,
-      undefined,
-      dto.userId,
-      TransferStatus.REQUESTED,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      transferMode,
-    );
-
-    const savedTransfer = await this.transferRepo.save(transfer);
-
-    if (transferMode === TransferMode.SERIALIZED) {
-      const allSeries = normalizedItems.flatMap((item) => item.series);
-      await Promise.all(
-        allSeries.map((serial) =>
-          this.unitRepo.updateStatusBySerial(serial, UnitStatus.TRANSFERRING),
+        dto.destinationHeadquartersId,
+        dto.destinationWarehouseId,
+        normalizedItems.map((item) =>
+          transferMode === TransferMode.AGGREGATED
+            ? TransferItem.fromQuantity(item.productId, item.quantity)
+            : new TransferItem(item.productId, item.series),
         ),
+        dto.observation,
+        undefined,
+        dto.userId,
+        TransferStatus.REQUESTED,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        transferMode,
       );
-    }
+
+      const persistedTransfer = await this.transferRepo.save(transfer, manager);
+
+      if (transferMode === TransferMode.SERIALIZED) {
+        const allSeries = normalizedItems.flatMap((item) => item.series);
+        await this.unitRepo.updateStatusBySerials(
+          allSeries,
+          UnitStatus.TRANSFERRING,
+          manager,
+        );
+      }
+
+      return persistedTransfer;
+    });
 
     this.transferGateway.notifyNewRequest(dto.destinationHeadquartersId, {
       id: savedTransfer.id,
@@ -182,37 +191,40 @@ export class TransferCommandService implements TransferPortsIn {
     transferId: number,
     dto: ApproveTransferDto,
   ): Promise<Transfer> {
-    const transfer = await this.transferRepo.findById(transferId);
-    if (!transfer) {
-      throw new NotFoundException('Transferencia no encontrada');
-    }
-    if (transfer.status !== TransferStatus.REQUESTED) {
-      throw new ConflictException(
-        'Solo se pueden aprobar transferencias en estado SOLICITADA.',
+    const savedTransfer = await this.dataSource.transaction(async (manager) => {
+      const transfer = await this.loadTransferForUpdate(manager, transferId);
+      if (transfer.status !== TransferStatus.REQUESTED) {
+        throw new ConflictException(
+          'Solo se pueden aprobar transferencias en estado SOLICITADA.',
+        );
+      }
+
+      const groupedItems = this.groupTransferQuantityByProduct(transfer.items);
+      await this.validateStockLevels(groupedItems, transfer.originWarehouseId);
+      if (transfer.mode === TransferMode.SERIALIZED) {
+        await this.validateTransferSeriesBeforeApproval(transfer, manager);
+      }
+
+      transfer.approve();
+      const transferDocId = this.requireTransferId(transfer);
+
+      await this.inventoryService.registerExit(
+        {
+          refId: transferDocId,
+          refTable: 'transferencia',
+          observation: `Salida por transferencia #${transferDocId} (Aprobado por usuario ${dto.userId})`,
+          items: this.toInventoryItems(
+            groupedItems,
+            transfer.originWarehouseId,
+            transfer.originHeadquartersId,
+          ),
+        },
+        manager,
       );
-    }
 
-    const groupedItems = this.groupTransferQuantityByProduct(transfer.items);
-    await this.validateStockLevels(groupedItems, transfer.originWarehouseId);
-    if (transfer.mode === TransferMode.SERIALIZED) {
-      await this.validateTransferSeriesBeforeApproval(transfer);
-    }
-
-    transfer.approve();
-    const transferDocId = this.requireTransferId(transfer);
-
-    await this.inventoryService.registerExit({
-      refId: transferDocId,
-      refTable: 'transferencia',
-      observation: `Salida por transferencia #${transferDocId} (Aprobado por usuario ${dto.userId})`,
-      items: this.toInventoryItems(
-        groupedItems,
-        transfer.originWarehouseId,
-        transfer.originHeadquartersId,
-      ),
+      return this.transferRepo.save(transfer, manager);
     });
 
-    const savedTransfer = await this.transferRepo.save(transfer);
     this.notifyStatusToBothHeadquarters(savedTransfer, TransferStatus.APPROVED);
     return savedTransfer;
   }
@@ -221,46 +233,57 @@ export class TransferCommandService implements TransferPortsIn {
     transferId: number,
     dto: ConfirmReceiptTransferDto,
   ): Promise<Transfer> {
-    const transfer = await this.transferRepo.findById(transferId);
-    if (!transfer) {
-      throw new NotFoundException('Transferencia no encontrada');
-    }
-    if (transfer.status !== TransferStatus.APPROVED) {
-      throw new ConflictException(
-        'Solo se puede confirmar la recepcion de transferencias APROBADAS.',
-      );
-    }
+    const savedTransfer = await this.dataSource.transaction(async (manager) => {
+      const transfer = await this.loadTransferForUpdate(manager, transferId);
+      if (transfer.status !== TransferStatus.APPROVED) {
+        throw new ConflictException(
+          'Solo se puede confirmar la recepcion de transferencias APROBADAS.',
+        );
+      }
 
-    if (transfer.mode === TransferMode.SERIALIZED) {
-      const allSeries = transfer.items.flatMap((item) => item.series);
-      await Promise.all(
-        allSeries.map((serial) =>
-          this.unitRepo.updateLocationAndStatusBySerial(
-            serial,
-            transfer.destinationWarehouseId,
-            UnitStatus.AVAILABLE,
+      if (transfer.mode === TransferMode.SERIALIZED) {
+        const allSeries = transfer.items.flatMap((item) => item.series);
+        await Promise.all(
+          allSeries.map((serial) =>
+            this.unitRepo.updateLocationAndStatusBySerial(
+              serial,
+              transfer.destinationWarehouseId,
+              UnitStatus.AVAILABLE,
+              manager,
+            ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    const groupedItems = this.groupTransferQuantityByProduct(transfer.items);
-    const transferDocId = this.requireTransferId(transfer);
-    await this.inventoryService.registerIncome({
-      refId: transferDocId,
-      refTable: 'transferencia',
-      observation: `Ingreso por transferencia #${transferDocId} (Confirmado por usuario ${dto.userId})`,
-      items: this.toInventoryItems(
+      const groupedItems = this.groupTransferQuantityByProduct(transfer.items);
+      await this.ensureDestinationStockRows(
+        manager,
         groupedItems,
+        transfer.originWarehouseId,
         transfer.destinationWarehouseId,
         transfer.destinationHeadquartersId,
-      ),
+      );
+
+      const transferDocId = this.requireTransferId(transfer);
+      await this.inventoryService.registerIncome(
+        {
+          refId: transferDocId,
+          refTable: 'transferencia',
+          observation: `Ingreso por transferencia #${transferDocId} (Confirmado por usuario ${dto.userId})`,
+          items: this.toInventoryItems(
+            groupedItems,
+            transfer.destinationWarehouseId,
+            transfer.destinationHeadquartersId,
+          ),
+        },
+        manager,
+      );
+
+      transfer.complete();
+      transfer.approveUserId = dto.userId;
+      return this.transferRepo.save(transfer, manager);
     });
 
-    transfer.complete();
-    transfer.approveUserId = dto.userId;
-
-    const savedTransfer = await this.transferRepo.save(transfer);
     this.notifyStatusToBothHeadquarters(
       savedTransfer,
       TransferStatus.COMPLETED,
@@ -272,49 +295,54 @@ export class TransferCommandService implements TransferPortsIn {
     transferId: number,
     dto: RejectTransferDto,
   ): Promise<Transfer> {
-    const transfer = await this.transferRepo.findById(transferId);
-    if (!transfer) {
-      throw new NotFoundException('Transferencia no encontrada');
-    }
-    if (transfer.status === TransferStatus.REJECTED) {
-      throw new ConflictException(
-        'La transferencia ya se encuentra rechazada.',
-      );
-    }
-    if (transfer.status === TransferStatus.COMPLETED) {
-      throw new ConflictException(
-        'No se puede rechazar una transferencia completada.',
-      );
-    }
+    const savedTransfer = await this.dataSource.transaction(async (manager) => {
+      const transfer = await this.loadTransferForUpdate(manager, transferId);
+      if (transfer.status === TransferStatus.REJECTED) {
+        throw new ConflictException(
+          'La transferencia ya se encuentra rechazada.',
+        );
+      }
+      if (transfer.status === TransferStatus.COMPLETED) {
+        throw new ConflictException(
+          'No se puede rechazar una transferencia completada.',
+        );
+      }
 
-    if (transfer.status === TransferStatus.APPROVED) {
-      const groupedItems = this.groupTransferQuantityByProduct(transfer.items);
-      const transferDocId = this.requireTransferId(transfer);
-      await this.inventoryService.registerIncome({
-        refId: transferDocId,
-        refTable: 'transferencia',
-        observation: `Reversion de salida por rechazo de transferencia #${transferDocId} (Usuario ${dto.userId})`,
-        items: this.toInventoryItems(
-          groupedItems,
-          transfer.originWarehouseId,
-          transfer.originHeadquartersId,
-        ),
-      });
-    }
+      if (transfer.status === TransferStatus.APPROVED) {
+        const groupedItems = this.groupTransferQuantityByProduct(
+          transfer.items,
+        );
+        const transferDocId = this.requireTransferId(transfer);
+        await this.inventoryService.registerIncome(
+          {
+            refId: transferDocId,
+            refTable: 'transferencia',
+            observation: `Reversion de salida por rechazo de transferencia #${transferDocId} (Usuario ${dto.userId})`,
+            items: this.toInventoryItems(
+              groupedItems,
+              transfer.originWarehouseId,
+              transfer.originHeadquartersId,
+            ),
+          },
+          manager,
+        );
+      }
 
-    transfer.reject(dto.reason);
-    transfer.approveUserId = dto.userId;
+      transfer.reject(dto.reason);
+      transfer.approveUserId = dto.userId;
 
-    if (transfer.mode === TransferMode.SERIALIZED) {
-      const allSeries = transfer.items.flatMap((item) => item.series);
-      await Promise.all(
-        allSeries.map((serial) =>
-          this.unitRepo.updateStatusBySerial(serial, UnitStatus.AVAILABLE),
-        ),
-      );
-    }
+      if (transfer.mode === TransferMode.SERIALIZED) {
+        const allSeries = transfer.items.flatMap((item) => item.series);
+        await this.unitRepo.updateStatusBySerials(
+          allSeries,
+          UnitStatus.AVAILABLE,
+          manager,
+        );
+      }
 
-    const savedTransfer = await this.transferRepo.save(transfer);
+      return this.transferRepo.save(transfer, manager);
+    });
+
     this.notifyStatusToBothHeadquarters(
       savedTransfer,
       TransferStatus.REJECTED,
@@ -405,7 +433,7 @@ export class TransferCommandService implements TransferPortsIn {
         id_almacen: transfer.originWarehouseId,
         nomAlm:
           originWarehouse?.nombre ??
-          `Almacén ${String(transfer.originWarehouseId)}`,
+          `AlmacÃƒÆ’Ã‚Â©n ${String(transfer.originWarehouseId)}`,
       },
       destination: {
         id_sede: destinationHeadquartersId,
@@ -417,7 +445,7 @@ export class TransferCommandService implements TransferPortsIn {
         id_almacen: transfer.destinationWarehouseId,
         nomAlm:
           destinationWarehouse?.nombre ??
-          `Almacén ${String(transfer.destinationWarehouseId)}`,
+          `AlmacÃƒÆ’Ã‚Â©n ${String(transfer.destinationWarehouseId)}`,
       },
       totalQuantity: transfer.totalQuantity,
       status: transfer.status,
@@ -478,6 +506,169 @@ export class TransferCommandService implements TransferPortsIn {
       },
     };
     return response;
+  }
+
+  private async loadTransferForUpdate(
+    manager: EntityManager,
+    transferId: number,
+  ): Promise<Transfer> {
+    const transferOrm = await manager
+      .getRepository(TransferOrmEntity)
+      .createQueryBuilder('transfer')
+      .leftJoinAndSelect('transfer.details', 'details')
+      .where('transfer.id = :transferId', { transferId })
+      .setLock('pessimistic_write')
+      .getOne();
+
+    if (!transferOrm) {
+      throw new NotFoundException('Transferencia no encontrada');
+    }
+
+    const originHeadquartersId = await this.resolveHeadquartersByWarehouse(
+      manager,
+      transferOrm.originWarehouseId,
+    );
+    const destinationHeadquartersId = await this.resolveHeadquartersByWarehouse(
+      manager,
+      transferOrm.destinationWarehouseId,
+    );
+
+    const transferMode =
+      transferOrm.operationType === 'TRANSFERENCIA_AGGREGATED'
+        ? TransferMode.AGGREGATED
+        : TransferMode.SERIALIZED;
+
+    const items: TransferItem[] = [];
+    const details = transferOrm.details ?? [];
+
+    if (transferMode === TransferMode.AGGREGATED) {
+      const groupedQuantities = new Map<number, number>();
+      details.forEach((detail) => {
+        groupedQuantities.set(
+          detail.productId,
+          (groupedQuantities.get(detail.productId) ?? 0) +
+            Number(detail.quantity ?? 0),
+        );
+      });
+
+      groupedQuantities.forEach((quantity, productId) => {
+        items.push(TransferItem.fromQuantity(productId, quantity));
+      });
+    } else {
+      const groupedSeries = new Map<number, string[]>();
+      details.forEach((detail) => {
+        const productSeries = groupedSeries.get(detail.productId) ?? [];
+        productSeries.push(detail.serialNumber);
+        groupedSeries.set(detail.productId, productSeries);
+      });
+
+      groupedSeries.forEach((series, productId) => {
+        items.push(new TransferItem(productId, series));
+      });
+    }
+
+    return new Transfer(
+      originHeadquartersId,
+      transferOrm.originWarehouseId,
+      destinationHeadquartersId,
+      transferOrm.destinationWarehouseId,
+      items,
+      transferOrm.motive ?? undefined,
+      transferOrm.id,
+      transferOrm.userIdRefOrigin ?? undefined,
+      transferOrm.status as TransferStatus,
+      transferOrm.date,
+      undefined,
+      undefined,
+      transferOrm.userIdRefDest ?? undefined,
+      transferMode,
+    );
+  }
+
+  private async ensureDestinationStockRows(
+    manager: EntityManager,
+    groupedItems: Map<number, number>,
+    originWarehouseId: number,
+    destinationWarehouseId: number,
+    destinationHeadquartersId: string,
+  ): Promise<void> {
+    const stockRepository = manager.getRepository(StockOrmEntity);
+
+    for (const [productId] of groupedItems.entries()) {
+      const destinationStock = await stockRepository.findOne({
+        where: {
+          id_producto: productId,
+          id_almacen: destinationWarehouseId,
+          id_sede: destinationHeadquartersId,
+        },
+        order: { id_stock: 'ASC' },
+      });
+
+      if (destinationStock) {
+        continue;
+      }
+
+      const originStock = await stockRepository.findOne({
+        where: {
+          id_producto: productId,
+          id_almacen: originWarehouseId,
+        },
+        order: { id_stock: 'ASC' },
+      });
+
+      await stockRepository.save(
+        stockRepository.create({
+          id_producto: productId,
+          id_almacen: destinationWarehouseId,
+          id_sede: destinationHeadquartersId,
+          tipo_ubicacion: originStock?.tipo_ubicacion ?? 'ALMACEN',
+          cantidad: 0,
+          estado: originStock?.estado ?? '1',
+        }),
+      );
+    }
+  }
+
+  private async resolveHeadquartersByWarehouse(
+    manager: EntityManager,
+    warehouseId: number,
+  ): Promise<string> {
+    const stockRow = await manager
+      .getRepository(StockOrmEntity)
+      .createQueryBuilder('stock')
+      .select('stock.id_sede', 'id_sede')
+      .where('stock.id_almacen = :warehouseId', { warehouseId })
+      .andWhere("TRIM(COALESCE(stock.id_sede, '')) <> ''")
+      .groupBy('stock.id_sede')
+      .orderBy('stock.id_sede', 'ASC')
+      .limit(1)
+      .getRawOne<{ id_sede: string | null }>();
+
+    const stockHeadquartersId = String(stockRow?.id_sede ?? '').trim();
+    if (stockHeadquartersId) {
+      return stockHeadquartersId;
+    }
+
+    const warehouseRows = await manager.query<
+      Array<{ id_sede?: string | number | null }>
+    >(
+      `SELECT CAST(id_sede AS CHAR) AS id_sede
+       FROM mkp_logistica.almacen
+       WHERE id_almacen = ? AND id_sede IS NOT NULL
+       LIMIT 1`,
+      [warehouseId],
+    );
+
+    const warehouseHeadquartersId = String(
+      warehouseRows[0]?.id_sede ?? '',
+    ).trim();
+    if (warehouseHeadquartersId) {
+      return warehouseHeadquartersId;
+    }
+
+    throw new BadRequestException(
+      `No se encontro la sede asociada al almacen ${warehouseId}.`,
+    );
   }
 
   private validateWarehouseSelection(dto: RequestTransferDto): void {
@@ -610,6 +801,7 @@ export class TransferCommandService implements TransferPortsIn {
   private async validateSerializedUnits(
     items: NormalizedTransferItem[],
     originWarehouseId: number,
+    manager?: EntityManager,
   ): Promise<void> {
     const allSeries = items.flatMap((item) => item.series);
     if (allSeries.length === 0) {
@@ -618,6 +810,7 @@ export class TransferCommandService implements TransferPortsIn {
 
     const units = (await this.unitRepo.findBySerials(
       allSeries,
+      manager,
     )) as unknown as RawUnit[];
     if (units.length !== allSeries.length) {
       throw new NotFoundException(
@@ -665,6 +858,7 @@ export class TransferCommandService implements TransferPortsIn {
 
   private async validateTransferSeriesBeforeApproval(
     transfer: Transfer,
+    manager?: EntityManager,
   ): Promise<void> {
     const allSeries = transfer.items.flatMap((item) => item.series);
     if (allSeries.length === 0) {
@@ -673,6 +867,7 @@ export class TransferCommandService implements TransferPortsIn {
 
     const units = (await this.unitRepo.findBySerials(
       allSeries,
+      manager,
     )) as unknown as RawUnit[];
     if (units.length !== allSeries.length) {
       throw new ConflictException(
@@ -1050,6 +1245,16 @@ export class TransferCommandService implements TransferPortsIn {
   ): Promise<TransferLookupUserDto | null> {
     if (!userId || !Number.isFinite(Number(userId)) || Number(userId) <= 0) {
       return null;
+    }
+
+    const tcpUser = await this.usuarioTcpProxy.getUserById(Number(userId));
+    if (tcpUser) {
+      return {
+        id_usuario: Number(tcpUser.id_usuario),
+        usu_nom: this.toSafeString(tcpUser.usu_nom),
+        ape_pat: this.toSafeString(tcpUser.ape_pat),
+        ape_mat: this.toSafeString(tcpUser.ape_mat) || undefined,
+      };
     }
 
     const adminDb = await this.resolveAdminDatabaseName();
