@@ -74,17 +74,16 @@ export class QuoteTypeOrmRepository implements IQuoteRepositoryPort {
       .leftJoinAndSelect('quote.detalles', 'detalles');
 
     if (estado) {
-      console.log('✅ Aplicando filtro estado:', estado);
       query = query.andWhere('quote.estado = :estado', { estado });
     } else {
-      console.log('⚠️ Sin filtro estado');
+      console.log('Sin filtro estado');
     }
 
     if (idSedeNum) {
-      console.log('✅ Aplicando filtro id_sede:', idSedeNum);
+      console.log('Aplicando filtro id_sede:', idSedeNum);
       query = query.andWhere('quote.id_sede = :id_sede', { id_sede: idSedeNum });
     } else {
-      console.log('⚠️ Sin filtro id_sede');
+      console.log('Sin filtro id_sede');
     }
 
     if (search) {

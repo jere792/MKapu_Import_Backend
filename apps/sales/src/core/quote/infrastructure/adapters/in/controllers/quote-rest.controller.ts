@@ -17,7 +17,6 @@ export class QuoteController {
     private readonly commandPort: IQuoteCommandPort,
     @Inject('IQuoteQueryPort')
     private readonly queryPort: IQuoteQueryPort,
-    // inyectamos el servicio concreto para acceder a exportPdf/sendByEmail
     private readonly quoteQueryService: QuoteQueryService,
   ) {}
 
