@@ -11,6 +11,7 @@ import { Repository } from 'typeorm';
 import { SalesReceiptOrmEntity } from '../../../sales-receipt/infrastructure/entity/sales-receipt-orm.entity';
 import { ClaimMapper } from '../mapper/claim.mapper';
 import { ClaimResponseDto } from '../dto/out/claim-response-dto';
+import { ClaimDetail } from '../../domain/entity/claim-detail-domain-entity';
 
 @Injectable()
 export class ClaimCommandService implements IClaimCommandPort {
@@ -33,27 +34,40 @@ export class ClaimCommandService implements IClaimCommandPort {
     const savedClaim = await this.claimRepository.save(newClaim);
     return savedClaim;
   }
-  async attend(id: number): Promise<Claim> {
+  async attend(id: number, respuesta: string): Promise<ClaimResponseDto> {
     const claim = await this.claimRepository.findById(id);
-    if (!claim) {
-      throw new NotFoundException(`Reclamo con ID ${id} no encontrado.`);
-    }
-    const claimInProcess = claim.iniciarReclamo();
+    if (!claim)
+      throw new NotFoundException(`Reclamo con ID ${id} no encontrado`);
 
-    await this.claimRepository.update(claimInProcess);
+    const claimEnProceso = claim.iniciarReclamo();
 
-    return claimInProcess;
+    const nuevoDetalle = ClaimDetail.create({
+      tipo: 'ATENCIÓN (En Proceso)',
+      descripcion: respuesta,
+      fecha: new Date(),
+    });
+
+    const claimConHistorial = claimEnProceso.agregarDetalle(nuevoDetalle);
+    await this.claimRepository.save(claimConHistorial);
+
+    return ClaimMapper.toResponseDto(claimConHistorial);
   }
   async resolve(id: number, respuesta: string): Promise<ClaimResponseDto> {
     const claim = await this.claimRepository.findById(id);
-    if (!claim) {
+    if (!claim)
       throw new NotFoundException(`Reclamo con ID ${id} no encontrado`);
-    }
+
     const claimResolved = claim.resolver(respuesta);
 
-    const savedClaim = await this.claimRepository.save(claimResolved);
+    const detalleResolucion = ClaimDetail.create({
+      tipo: 'RESOLUCIÓN (Finalizado)',
+      descripcion: respuesta,
+      fecha: new Date(),
+    });
 
-    // 4. Mapear y retornar el DTO de respuesta
-    return ClaimMapper.toResponseDto(savedClaim);
+    const claimConHistorial = claimResolved.agregarDetalle(detalleResolucion);
+    await this.claimRepository.save(claimConHistorial);
+
+    return ClaimMapper.toResponseDto(claimConHistorial);
   }
 }

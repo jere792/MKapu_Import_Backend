@@ -1,5 +1,6 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -17,6 +18,9 @@ export class ClaimDetailOrmEntity {
 
   @Column({ name: 'descripcion', type: 'text' })
   descripcion: string;
+
+  @CreateDateColumn({ name: 'fecha_registro' })
+  fecha: Date;
 
   @ManyToOne(() => ClaimOrmEntity, (claim) => claim.detalles, {
     onDelete: 'CASCADE',

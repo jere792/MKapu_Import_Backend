@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -120,6 +121,22 @@ export class InventoryCountCommandService implements IInventoryCountCommandPort 
 
       if (dto.estado === ConteoEstado.AJUSTADO) {
         ajustesParaMovimientos = conteoDomain.finalizarAjuste(dto.data);
+
+        ajustesParaMovimientos = ajustesParaMovimientos.map((ajuste) => {
+          const idBuscado = ajuste.productId || ajuste.idProducto;
+          const detalleOrm = conteoOrm.detalles.find(
+            (d) => d.idProducto === idBuscado,
+          );
+
+          const almacenReal = detalleOrm
+            ? detalleOrm.idAlmacen
+            : dto.data[0]?.warehouseId || Number(conteoOrm.codSede);
+
+          return {
+            ...ajuste,
+            warehouseId: almacenReal,
+          };
+        });
       } else {
         conteoDomain.anularConteo();
       }
@@ -149,6 +166,10 @@ export class InventoryCountCommandService implements IInventoryCountCommandPort 
     });
 
     if (ajustesParaMovimientos.length > 0) {
+      console.log(
+        'ENVIANDO AJUSTES AL MODULE DE MOVIMIENTOS:',
+        JSON.stringify(ajustesParaMovimientos, null, 2),
+      );
       await this.movementCommandPort.applyInventoryAdjustments({
         refId: idConteo,
         refTable: 'conteo_inventario',
@@ -187,7 +208,7 @@ export class InventoryCountCommandService implements IInventoryCountCommandPort 
     detalleOrm.stockConteo = detalleDomain.stockConteo;
     detalleOrm.diferencia = detalleDomain.diferencia;
     detalleOrm.estado = detalleDomain.estado;
-    detalleOrm.observacion = dto.observacion; // Guardamos la observación que llegó del frontend
+    detalleOrm.observacion = dto.observacion;
 
     return await repo.save(detalleOrm);
   }

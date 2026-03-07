@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-floating-promises */
 import {
   Injectable,
   Inject,
@@ -12,11 +15,14 @@ import { IPaymentRepositoryPort } from '../../domain/ports/out/payment-repositor
 import { LogisticsStockProxy } from '../../infrastructure/adapters/out/TCP/logistics-stock.proxy';
 
 import { RegisterSalesReceiptDto, AnnulSalesReceiptDto } from '../dto/in';
-import { SalesReceiptDeletedResponseDto, SalesReceiptResponseDto } from '../dto/out';
+import {
+  SalesReceiptDeletedResponseDto,
+  SalesReceiptResponseDto,
+} from '../dto/out';
 import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 import {
   SalesReceiptOrmEntity,
-  ReceiptStatusOrm,       
+  ReceiptStatusOrm,
 } from '../../infrastructure/entity/sales-receipt-orm.entity';
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { ReceiptStatus } from '../../domain/entity/sales-receipt-domain-entity';
@@ -34,7 +40,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     private readonly sedeTcpProxy: SedeTcpProxy,
     
   ) {}
-
   async emitReceipt(id: number, paymentTypeId?: number): Promise<SalesReceiptResponseDto> {
     const receipt = await this.receiptRepository.findById(id);
     if (!receipt) throw new NotFoundException(`Comprobante ${id} no encontrado`);
@@ -132,7 +137,9 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     }
   }
 
-  async registerReceipt(dto: RegisterSalesReceiptDto): Promise<SalesReceiptResponseDto> {
+  async registerReceipt(
+    dto: RegisterSalesReceiptDto,
+  ): Promise<SalesReceiptResponseDto> {
     console.log('📥 DTO completo:', JSON.stringify(dto, null, 2));
     console.log('🏢 branchId:', dto.branchId, '| tipo:', typeof dto.branchId);
     console.log('📋 serie recibida:', dto.serie);
@@ -174,8 +181,16 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       console.log('📋 estado asignado:', receiptOrm.estado);
       // ────────────────────────────────────────────────────────────────────
 
-      const savedOrm = await queryRunner.manager.save(SalesReceiptOrmEntity, receiptOrm);
-      console.log('💾 savedOrm.id_sede_ref:', savedOrm.id_sede_ref, '| id:', savedOrm.id_comprobante);
+      const savedOrm = await queryRunner.manager.save(
+        SalesReceiptOrmEntity,
+        receiptOrm,
+      );
+      console.log(
+        '💾 savedOrm.id_sede_ref:',
+        savedOrm.id_sede_ref,
+        '| id:',
+        savedOrm.id_comprobante,
+      );
 
       const tipoMovimiento = dto.receiptTypeId === 3 ? 'EGRESO' : 'INGRESO';
 
@@ -202,7 +217,9 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       savedReceiptDomain = SalesReceiptMapper.toDomain(savedOrm);
 
       if (dto.receiptTypeId !== 3 && !dto.esCreditoPendiente) {
-        const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(dto.branchId);
+        const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(
+          dto.branchId,
+        );
         if (!warehouseId) {
           await this.annulReceiptDueToStockFailure(savedOrm.id_comprobante);
           throw new BadRequestException(
@@ -214,32 +231,46 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         for (const item of receipt.items) {
           try {
             await this.stockProxy.registerMovement({
-              productId:      Number(item.productId),
-              warehouseId:    warehouseId,
+              productId: Number(item.productId),
+              warehouseId: warehouseId,
               headquartersId: Number(dto.branchId),
-              quantityDelta:  -item.quantity,
-              reason:         'VENTA',
-              refId:          savedOrm.id_comprobante,
+              quantityDelta: -item.quantity,
+              reason: 'VENTA',
+              refId: savedOrm.id_comprobante,
             });
           } catch (error) {
             await this.annulReceiptDueToStockFailure(savedOrm.id_comprobante);
-            throw new BadRequestException(`Fallo de Inventario: ${error.message}`);
+            throw new BadRequestException(
+              `Fallo de Inventario: ${error.message}`,
+            );
           }
         }
       }
     } catch (error) {
-      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
+      if (queryRunner.isTransactionActive)
+        await queryRunner.rollbackTransaction();
       throw error;
     } finally {
       await queryRunner.release();
     }
 
-    console.log(`sedeId: ${dto.branchId}, receiptId: ${savedReceiptDomain.id_comprobante} - Venta registrada exitosamente.`);
-    console.log('📤 Response DTO:', JSON.stringify(SalesReceiptMapper.toResponseDto(savedReceiptDomain), null, 2));
+    console.log(
+      `sedeId: ${dto.branchId}, receiptId: ${savedReceiptDomain.id_comprobante} - Venta registrada exitosamente.`,
+    );
+    console.log(
+      '📤 Response DTO:',
+      JSON.stringify(
+        SalesReceiptMapper.toResponseDto(savedReceiptDomain),
+        null,
+        2,
+      ),
+    );
     return SalesReceiptMapper.toResponseDto(savedReceiptDomain);
   }
 
-  private async annulReceiptDueToStockFailure(receiptId: number): Promise<void> {
+  private async annulReceiptDueToStockFailure(
+    receiptId: number,
+  ): Promise<void> {
     const queryRunner = this.receiptRepository.getQueryRunner();
     try {
       await queryRunner.connect();
@@ -250,21 +281,28 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       );
       await queryRunner.commitTransaction();
     } catch (err) {
-      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
-      console.error(`🚨 ERROR CRÍTICO: Fallo al compensar venta ${receiptId}`, err);
+      if (queryRunner.isTransactionActive)
+        await queryRunner.rollbackTransaction();
+      console.error(
+        `🚨 ERROR CRÍTICO: Fallo al compensar venta ${receiptId}`,
+        err,
+      );
     } finally {
       await queryRunner.release();
     }
   }
 
+  async annulReceipt(
+    dto: AnnulSalesReceiptDto,
+  ): Promise<SalesReceiptResponseDto> {
+    const existingReceipt = await this.receiptRepository.findById(
+      dto.receiptId,
+    );
+    if (!existingReceipt)
+      throw new NotFoundException(`ID ${dto.receiptId} no encontrado.`);
 
-  async annulReceipt(dto: AnnulSalesReceiptDto): Promise<SalesReceiptResponseDto> {
-    const existingReceipt = await this.receiptRepository.findById(dto.receiptId);
-    if (!existingReceipt) throw new NotFoundException(`ID ${dto.receiptId} no encontrado.`);
-
-    if (existingReceipt.estado === ReceiptStatus.RECHAZADO) {
-      throw new BadRequestException(`El comprobante ya está rechazado.`);
-    }
+    const annulledReceipt = existingReceipt.anular();
+    const savedReceipt = await this.receiptRepository.update(annulledReceipt);
 
     await this.receiptRepository.updateStatus(existingReceipt.id_comprobante, 'RECHAZADO');
 
@@ -274,15 +312,12 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(existingReceipt.id_sede_ref);
       for (const item of existingReceipt.items) {
         this.stockProxy.registerMovement({
-          productId:      Number(item.productId),
-          warehouseId:    warehouseId ?? existingReceipt.id_sede_ref,
-          headquartersId: existingReceipt.id_sede_ref,
-          quantityDelta:  item.quantity,   
-          reason:         'DEVOLUCION',
-          refId:          existingReceipt.id_comprobante,
-        }).catch(err =>
-          console.error(`⚠️ No se pudo revertir stock del producto ${item.productId}:`, err)
-        );
+          productId: Number(item.productId),
+          warehouseId: savedReceipt.id_sede_ref,
+          headquartersId: savedReceipt.id_sede_ref,
+          quantityDelta: item.quantity,
+          reason: `ANULACION: ${savedReceipt.getFullNumber()}`,
+        });
       }
     }
 
@@ -293,13 +328,22 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
 
   async deleteReceipt(id: number): Promise<SalesReceiptDeletedResponseDto> {
     const existingReceipt = await this.receiptRepository.findById(id);
-    if (!existingReceipt) throw new NotFoundException(`ID ${id} no encontrado.`);
+    if (!existingReceipt)
+      throw new NotFoundException(`ID ${id} no encontrado.`);
     await this.receiptRepository.delete(id);
-    return { receiptId: id, message: 'Comprobante eliminado.', deletedAt: new Date() };
+    return {
+      receiptId: id,
+      message: 'Comprobante eliminado.',
+      deletedAt: new Date(),
+    };
   }
 
   private getAssignedSerie(receiptTypeId: number): string {
-    const seriesMap: Record<number, string> = { 1: 'F001', 2: 'B001', 3: 'NC01' };
+    const seriesMap: Record<number, string> = {
+      1: 'F001',
+      2: 'B001',
+      3: 'NC01',
+    };
     return seriesMap[receiptTypeId] || 'T001';
   }
 }

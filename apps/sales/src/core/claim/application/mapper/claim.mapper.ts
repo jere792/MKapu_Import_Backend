@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import {
   ClaimDetail,
@@ -23,11 +25,13 @@ export class ClaimMapper {
       estado: ormEntity.estado as ClaimStatus,
       fecha_registro: ormEntity.fecha_registro,
       fecha_resolucion: ormEntity.fecha_resolucion,
+
       detalles:
         ormEntity.detalles?.map((d) =>
           ClaimDetail.create({
             tipo: d.tipo,
             descripcion: d.descripcion,
+            fecha: d.fecha || new Date(), // Pasamos la fecha al Dominio
           }),
         ) || [],
     };
@@ -44,17 +48,18 @@ export class ClaimMapper {
     orm.descripcion = domainEntity.descripcion;
     orm.respuesta = domainEntity.respuesta;
     orm.estado = domainEntity.estado;
-
     orm.fecha_registro = domainEntity.fecha_registro;
+
     if (domainEntity.fecha_resolucion) {
       orm.fecha_resolucion = domainEntity.fecha_resolucion;
     }
+
     if (domainEntity.detalles && domainEntity.detalles.length > 0) {
       orm.detalles = domainEntity.detalles.map((d) => {
         const detalleOrm = new ClaimDetailOrmEntity();
-
         detalleOrm.tipo = d.tipo;
         detalleOrm.descripcion = d.descripcion;
+        detalleOrm.fecha = d.fecha;
         return detalleOrm;
       });
     }
@@ -72,6 +77,12 @@ export class ClaimMapper {
       status: claim.estado,
       registeredAt: claim.fecha_registro,
       resolvedAt: claim.fecha_resolucion,
+      respuesta: claim.respuesta,
+      detalles: claim.detalles.map((d) => ({
+        tipo: d.tipo,
+        descripcion: d.descripcion,
+        fecha: d.fecha,
+      })),
     };
   }
 
