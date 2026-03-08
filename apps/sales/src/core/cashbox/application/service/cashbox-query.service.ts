@@ -24,7 +24,7 @@ export class CashboxQueryService implements ICashboxQueryPort {
     return cashbox ? CashboxMapper.toResponseDto(cashbox) : null;
   }
 
-  async getResumenDia(idSede: number): Promise<{ totalVentas: number; totalMonto: number; ticketPromedio: number } | null> {
-    return await this.repository.getResumenDia(idSede); 
+  async getResumenDia(idSede: number): Promise<any> {
+    return await this.repository.getResumenDia(idSede);
   }
 }
