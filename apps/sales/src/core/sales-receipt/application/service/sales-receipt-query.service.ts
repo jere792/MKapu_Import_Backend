@@ -18,6 +18,8 @@ import {
   SalesReceiptSummaryListDto,
   SalesReceiptSummaryItemDto,
   SalesReceiptDetalleCompletoDto,
+  SaleTypeResponseDto,
+  ReceiptTypeResponseDto,
 } from '../dto/out';
 import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 
@@ -365,5 +367,15 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         total_pages: Math.ceil(historialTotal / HISTORIAL_LIMIT),
       },
     };
+  }
+
+  async getAllSaleTypes(): Promise<SaleTypeResponseDto[]> {
+    const types = await this.receiptRepository.findAllSaleTypes();
+    return types.map(SalesReceiptMapper.toSaleTypeDto);
+  }
+
+  async getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]> {
+    const types = await this.receiptRepository.findAllReceiptTypes();
+    return types.map(SalesReceiptMapper.toReceiptTypeDto);
   }
 }

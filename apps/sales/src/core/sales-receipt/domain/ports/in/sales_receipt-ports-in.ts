@@ -11,6 +11,8 @@ import {
   SalesReceiptKpiDto,
   SalesReceiptSummaryListDto,
   SalesReceiptDetalleCompletoDto,
+  SaleTypeResponseDto,
+  ReceiptTypeResponseDto,
 } from '../../../application/dto/out';
 
 export interface ISalesReceiptCommandPort {
@@ -21,7 +23,10 @@ export interface ISalesReceiptCommandPort {
   deleteReceipt(id: number): Promise<SalesReceiptDeletedResponseDto>;
   updateDispatchStatus(id_venta: number, status: string): Promise<boolean>;
   emitReceipt(id: number): Promise<SalesReceiptResponseDto>;
-  emitReceipt(id: number, paymentTypeId?: number): Promise<SalesReceiptResponseDto>;
+  emitReceipt(
+    id: number,
+    paymentTypeId?: number,
+  ): Promise<SalesReceiptResponseDto>;
 }
 
 export interface ISalesReceiptQueryPort {
@@ -32,7 +37,7 @@ export interface ISalesReceiptQueryPort {
   getReceiptsBySerie(serie: string): Promise<SalesReceiptListResponse>;
   findSaleByCorrelativo(correlativo: string): Promise<any>;
   verifySaleForRemission(id: number): Promise<any>;
-  
+
   getDetalleCompleto(
     id_comprobante: number,
     historialPage?: number,
@@ -42,4 +47,8 @@ export interface ISalesReceiptQueryPort {
   listReceiptsPaginated(
     filters: ListSalesReceiptFilterDto,
   ): Promise<SalesReceiptSummaryListDto>;
+
+  getAllSaleTypes(): Promise<SaleTypeResponseDto[]>;
+  getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]>;
 }
+  

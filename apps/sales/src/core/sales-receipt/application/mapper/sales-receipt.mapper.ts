@@ -16,7 +16,13 @@ import { ReceiptTypeOrmEntity } from '../../infrastructure/entity/receipt-type-o
 import { SunatCurrencyOrmEntity } from '../../infrastructure/entity/sunat-currency-orm.entity';
 import { CustomerOrmEntity } from '../../../customer/infrastructure/entity/customer-orm.entity';
 import { RegisterSalesReceiptDto } from '../dto/in';
-import { SalesReceiptResponseDto } from '../dto/out';
+import {
+  SalesReceiptResponseDto,
+  SaleTypeResponseDto,
+  ReceiptTypeResponseDto,       // ← nuevo
+} from '../dto/out';
+import { SalesType } from '../../domain/entity/sale-type-domain-entity';
+import { ReceiptType } from '../../domain/entity/receipt-type-domain-entity';
 
 export class SalesReceiptMapper {
   static fromRegisterDto(
@@ -120,16 +126,13 @@ export class SalesReceiptMapper {
         detail.pre_uni = item.unitPrice;
         detail.valor_uni = item.unitPrice;
         detail.igv = item.igv || 0;
-
         detail.descripcion = (
           item.productName ||
           item.description ||
           ''
         ).substring(0, 45);
-
         (detail as any).tipo_afectacion_igv = 1;
         (detail as any).id_descuento = 1;
-
         return detail;
       });
     }
@@ -168,6 +171,24 @@ export class SalesReceiptMapper {
         tipoAfectacionIgv: item.igv || 1,
         total: item.total,
       })),
+    };
+  }
+
+  static toSaleTypeDto(domain: SalesType): SaleTypeResponseDto {
+    return {
+      id: domain.id_tipo_venta!,
+      tipo: domain.tipo,
+      descripcion: domain.descripcion,
+    };
+  }
+
+  // ← nuevo
+  static toReceiptTypeDto(domain: ReceiptType): ReceiptTypeResponseDto {
+    return {
+      id: domain.id_tipo_comprobante!,
+      codSunat: domain.cod_sunat,
+      descripcion: domain.descripcion,
+      estado: domain.estado,
     };
   }
 }

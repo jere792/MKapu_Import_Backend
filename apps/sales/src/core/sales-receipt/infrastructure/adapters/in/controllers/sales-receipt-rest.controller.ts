@@ -30,6 +30,8 @@ import {
   SalesReceiptResponseDto,
   SalesReceiptListResponse,
   SalesReceiptDeletedResponseDto,
+  SaleTypeResponseDto,
+  ReceiptTypeResponseDto,
 } from '../../../../application/dto/out';
 import { PaymentTypeOrmEntity } from '../../../entity/payment-type-orm.entity';
 import { SunatCurrencyOrmEntity } from '../../../entity/sunat-currency-orm.entity';
@@ -57,7 +59,6 @@ export class SalesReceiptRestController {
   ): Promise<SalesReceiptResponseDto> {
     return this.receiptCommandService.registerReceipt(registerDto);
   }
-
 
   @Put(':id/emit')
   @HttpCode(HttpStatus.OK)
@@ -101,6 +102,18 @@ export class SalesReceiptRestController {
   @Get('currencies')
   async getCurrencies() {
     return this.currencyRepo.find({ order: { codigo: 'ASC' } });
+  }
+
+  @Get('sale-types')
+  @HttpCode(HttpStatus.OK)
+  async getAllSaleTypes(): Promise<SaleTypeResponseDto[]> {
+    return this.receiptQueryService.getAllSaleTypes();
+  }
+
+  @Get('receipt-types')
+  @HttpCode(HttpStatus.OK)
+  async getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]> {
+    return this.receiptQueryService.getAllReceiptTypes();
   }
 
   @Get('kpi/semanal')

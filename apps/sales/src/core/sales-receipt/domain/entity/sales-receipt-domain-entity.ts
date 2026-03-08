@@ -6,6 +6,7 @@ export enum ReceiptStatus {
   EN_CAMINO = 'EN_CAMINO',
   ENTREGADO = 'ENTREGADO',
 }
+
 export interface SalesReceiptItem {
   productName: string;
   productId: string;

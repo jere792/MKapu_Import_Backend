@@ -11,16 +11,28 @@ import {
   SalesReceiptSummaryRaw,
 } from '../../../../domain/ports/out/sales_receipt-ports-out';
 import { SalesReceipt } from '../../../../domain/entity/sales-receipt-domain-entity';
+import {
+  SalesType,
+  SalesTypeEnum,
+} from '../../../../domain/entity/sale-type-domain-entity';
+import { ReceiptType } from '../../../../domain/entity/receipt-type-domain-entity';
 import { SalesReceiptOrmEntity } from '../../../entity/sales-receipt-orm.entity';
+import { SalesTypeOrmEntity } from '../../../entity/sales-type-orm.entity';
+import { ReceiptTypeOrmEntity } from '../../../entity/receipt-type-orm.entity';
 import { SalesReceiptMapper } from '../../../../application/mapper/sales-receipt.mapper';
-import { PaymentOrmEntity } from '../../../entity/payment-orm.entity';
-import { PaymentTypeOrmEntity } from '../../../entity/payment-type-orm.entity';
 
 @Injectable()
 export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
   constructor(
     @InjectRepository(SalesReceiptOrmEntity)
     private readonly receiptOrmRepository: Repository<SalesReceiptOrmEntity>,
+
+    @InjectRepository(SalesTypeOrmEntity)
+    private readonly salesTypeOrmRepository: Repository<SalesTypeOrmEntity>,
+
+    @InjectRepository(ReceiptTypeOrmEntity)
+    private readonly receiptTypeOrmRepository: Repository<ReceiptTypeOrmEntity>,
+
     private readonly dataSource: DataSource,
   ) {}
 
@@ -269,7 +281,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
 
     const allParams = [...joinParams, ...whereParams];
 
-  const baseQuery = `
+    const baseQuery = `
     FROM mkp_ventas.comprobante_venta r
     INNER JOIN mkp_ventas.cliente          c   ON c.id_cliente           = r.id_cliente
     INNER JOIN mkp_ventas.tipo_comprobante tc  ON tc.id_tipo_comprobante = r.id_tipo_comprobante
@@ -328,7 +340,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       total,
     ];
   }
-  
+
   async findDetalleCompleto(
     id_comprobante: number,
     historialPage: number = 1,
@@ -368,7 +380,6 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
 
     if (!comprobante) return null;
 
-    // ── Productos ────────────────────────────────────────────────────────────
     const productos = await this.receiptOrmRepository.manager
       .createQueryBuilder()
       .select([
@@ -384,7 +395,6 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .where('d.id_comprobante = :id', { id: id_comprobante })
       .getRawMany();
 
-    // ── Historial: COUNT total real del cliente (excluyendo este comprobante) ─
     const historialCountRow = await this.receiptOrmRepository
       .createQueryBuilder('r')
       .select('COUNT(r.id_comprobante) AS total')
@@ -396,7 +406,6 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
 
     const historialTotal = Number(historialCountRow?.total ?? 0);
 
-    // ── Stats globales del cliente (sobre TODOS sus comprobantes, no solo la página) ─
     const statsRow = await this.receiptOrmRepository
       .createQueryBuilder('r')
       .select([
@@ -409,7 +418,6 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .setParameter('anulado', 'ANULADO')
       .getRawOne();
 
-    // ── Historial paginado ───────────────────────────────────────────────────
     const historialOffset = (historialPage - 1) * historialLimit;
 
     const historial = await this.receiptOrmRepository
@@ -447,5 +455,41 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
         cantidad_compras: Number(statsRow?.cantidad_compras ?? 0),
       },
     };
+  }
+
+  async findAllSaleTypes(): Promise<SalesType[]> {
+    const rows = await this.salesTypeOrmRepository.find({
+      order: { id_tipo_venta: 'ASC' },
+    });
+    return rows.map((r) =>
+      SalesType.create({
+        id_tipo_venta: r.id_tipo_venta,
+        tipo: SalesTypeEnum[r.tipo as keyof typeof SalesTypeEnum],
+        descripcion: r.descripcion,
+      }),
+    );
+  }
+
+  async findAllReceiptTypes(): Promise<ReceiptType[]> {
+    const rows = await this.receiptTypeOrmRepository.find({
+      order: { id_tipo_comprobante: 'ASC' },
+    });
+    return rows
+      .filter((r) => this.normalizarBit(r.estado))
+      .map((r) =>
+        ReceiptType.create({
+          id_tipo_comprobante: r.id_tipo_comprobante,
+          cod_sunat: r.cod_sunat, // ← nota: cod_sunat no codSunat
+          descripcion: r.descripcion,
+          estado: true,
+        }),
+      );
+  }
+
+  private normalizarBit(valor: any): boolean {
+    if (typeof valor === 'boolean') return valor;
+    if (typeof valor === 'number') return valor === 1;
+    if (Buffer.isBuffer(valor)) return valor[0] === 1;
+    return false;
   }
 }

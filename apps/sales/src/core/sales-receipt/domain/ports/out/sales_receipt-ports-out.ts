@@ -1,6 +1,8 @@
 import { QueryRunner } from 'typeorm';
 import { SalesReceipt } from '../../entity/sales-receipt-domain-entity';
 import { SalesReceiptOrmEntity } from '../../../infrastructure/entity/sales-receipt-orm.entity';
+import { SalesType } from '../../entity/sale-type-domain-entity';
+import { ReceiptType } from '../../entity/receipt-type-domain-entity';
 
 export interface SalesReceiptKpiRaw {
   total_ventas:      number;
@@ -75,4 +77,7 @@ export interface ISalesReceiptRepositoryPort {
     page: number,
     limit: number,
   ): Promise<[SalesReceiptSummaryRaw[], number]>;
+
+  findAllSaleTypes(): Promise<SalesType[]>;
+  findAllReceiptTypes(): Promise<ReceiptType[]>;
 }

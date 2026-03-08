@@ -16,12 +16,7 @@ export class SalesTypeOrmEntity {
   @PrimaryGeneratedColumn({ name: 'id_tipo_venta' })
   id_tipo_venta: number;
 
-  @Column({
-    type: 'enum',
-    enum: SalesTypeOrmEnum,
-    default: SalesTypeOrmEnum.PRESENCIAL,
-    name: 'tipo',
-  })
+  @Column({ type: 'enum', enum: SalesTypeOrmEnum, name: 'tipo' })
   tipo: SalesTypeOrmEnum;
 
   @Column({ type: 'varchar', length: 255, name: 'descripcion' })
