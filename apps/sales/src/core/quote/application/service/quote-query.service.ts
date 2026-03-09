@@ -1,16 +1,20 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
 import { IQuoteQueryPort } from '../../domain/ports/in/quote-ports-in';
 import { IQuoteRepositoryPort } from '../../domain/ports/out/quote-ports-out';
 import { ICustomerRepositoryPort } from '../../../customer/domain/ports/out/customer-port-out';
 import { ISedeProxy } from '../../domain/ports/out/sede-proxy.port';
-import { QuoteResponseDto, QuotePagedResponseDto } from '../dto/out/quote-response.dto';
+import {
+  QuoteResponseDto,
+  QuotePagedResponseDto,
+} from '../dto/out/quote-response.dto';
 import { QuoteMapper } from '../mapper/quote.mapper';
 import { QuoteQueryFiltersDto } from '../dto/in/quote-query-filters.dto';
 import * as nodemailer from 'nodemailer';
-import { buildQuotePdf }    from '../../utils/Quote pdf.util';
+import { buildQuotePdf } from '../../utils/quote-pdf.util';
 import { getWhatsAppStatus, sendWhatsApp } from 'libs/whatsapp.util';
-
 
 @Injectable()
 export class QuoteQueryService implements IQuoteQueryPort {
@@ -38,45 +42,67 @@ export class QuoteQueryService implements IQuoteQueryPort {
     if (!customer) return [];
     const quotes = await this.repository.findByCustomerId(customer.id_cliente);
     return Promise.all(
-      quotes.map(async quote => {
+      quotes.map(async (quote) => {
         const sede = await this.sedeProxy.getSedeById(quote.id_sede);
         return QuoteMapper.toResponseDto(quote, customer, sede);
       }),
     );
   }
 
-  async findAllPaged(filters: QuoteQueryFiltersDto): Promise<QuotePagedResponseDto> {
+  async findAllPaged(
+    filters: QuoteQueryFiltersDto,
+  ): Promise<QuotePagedResponseDto> {
     const { data, total } = await this.repository.findAllPaged(filters);
-    const page  = Number(filters.page)  || 1;
+    const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 10;
 
-    const sedeIds    = [...new Set(data.map(q => q.id_sede))];
-    const clienteIds = [...new Set(data.map(q => q.id_cliente))];
+    const sedeIds = [...new Set(data.map((q) => q.id_sede))];
+    const clienteIds = [...new Set(data.map((q) => q.id_cliente))];
 
     const [sedes, clientes] = await Promise.all([
-      Promise.all(sedeIds.map(id    => this.sedeProxy.getSedeById(id).then(s => ({ id, data: s })))),
-      Promise.all(clienteIds.map(id => this.customerRepository.findById(id).then(c => ({ id, data: c })))),
+      Promise.all(
+        sedeIds.map((id) =>
+          this.sedeProxy.getSedeById(id).then((s) => ({ id, data: s })),
+        ),
+      ),
+      Promise.all(
+        clienteIds.map((id) =>
+          this.customerRepository.findById(id).then((c) => ({ id, data: c })),
+        ),
+      ),
     ]);
 
-    const sedeMap    = new Map(sedes.map(s    => [s.id, s.data]));
-    const clienteMap = new Map(clientes.map(c => [c.id, c.data]));
+    const sedeMap = new Map(sedes.map((s) => [s.id, s.data]));
+    const clienteMap = new Map(clientes.map((c) => [c.id, c.data]));
 
-    const mapped = data.map(quote => {
-      const sede    = sedeMap.get(quote.id_sede);
+    const mapped = data.map((quote) => {
+      const sede = sedeMap.get(quote.id_sede);
       const cliente = clienteMap.get(quote.id_cliente);
       const cliente_nombre =
         cliente?.razon_social ||
         `${cliente?.nombres ?? ''} ${cliente?.apellidos ?? ''}`.trim() ||
         quote.id_cliente;
-      return QuoteMapper.toListItemDto(quote, sede?.nombre ?? '', cliente_nombre);
+      return QuoteMapper.toListItemDto(
+        quote,
+        sede?.nombre ?? '',
+        cliente_nombre,
+      );
     });
 
-    return { data: mapped, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data: mapped,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   // ── Generador de buffer PDF (reutilizado por email y whatsapp) ────────────
 
-  private async buildPdfBuffer(id: number): Promise<{ buffer: Buffer; quote: QuoteResponseDto }> {
+  private async buildPdfBuffer(
+    id: number,
+  ): Promise<{ buffer: Buffer; quote: QuoteResponseDto }> {
     const quote = await this.getById(id);
     if (!quote) throw new NotFoundException(`Cotización ${id} no encontrada`);
     const buffer = await buildQuotePdf(quote);
@@ -90,9 +116,9 @@ export class QuoteQueryService implements IQuoteQueryPort {
     const codigo = (quote as any).codigo ?? `COT-${quote.id_cotizacion}`;
 
     res.set({
-      'Content-Type':        'application/pdf',
+      'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename=Cotizacion_${codigo}.pdf`,
-      'Content-Length':      buffer.length,
+      'Content-Length': buffer.length,
     });
     res.end(buffer);
   }
@@ -103,7 +129,8 @@ export class QuoteQueryService implements IQuoteQueryPort {
     const { buffer, quote } = await this.buildPdfBuffer(id);
 
     const email = quote.cliente?.email;
-    if (!email) throw new NotFoundException('El cliente no tiene email registrado');
+    if (!email)
+      throw new NotFoundException('El cliente no tiene email registrado');
 
     const codigo = (quote as any).codigo ?? `COT-${quote.id_cotizacion}`;
     const nombre =
@@ -112,15 +139,15 @@ export class QuoteQueryService implements IQuoteQueryPort {
       'Cliente';
 
     const transporter = nodemailer.createTransport({
-      host:   process.env.MAIL_HOST ?? 'smtp.gmail.com',
-      port:   Number(process.env.MAIL_PORT ?? 587),
+      host: process.env.MAIL_HOST ?? 'smtp.gmail.com',
+      port: Number(process.env.MAIL_PORT ?? 587),
       secure: false,
       auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
     });
 
     await transporter.sendMail({
-      from:    `"MKapu Import" <${process.env.MAIL_USER}>`,
-      to:      email,
+      from: `"MKapu Import" <${process.env.MAIL_USER}>`,
+      to: email,
       subject: `Cotización ${codigo} - MKapu Import`,
       html: `
         <p>Estimado/a <strong>${nombre}</strong>,</p>
@@ -129,11 +156,13 @@ export class QuoteQueryService implements IQuoteQueryPort {
         <br/>
         <p>Atentamente,<br/><strong>MKapu Import</strong></p>
       `,
-      attachments: [{
-        filename:    `Cotizacion_${codigo}.pdf`,
-        content:     buffer,
-        contentType: 'application/pdf',
-      }],
+      attachments: [
+        {
+          filename: `Cotizacion_${codigo}.pdf`,
+          content: buffer,
+          contentType: 'application/pdf',
+        },
+      ],
     });
 
     return { message: 'Email enviado correctamente', sentTo: email };
@@ -145,11 +174,14 @@ export class QuoteQueryService implements IQuoteQueryPort {
 
   // ── Enviar PDF por WhatsApp ───────────────────────────────────────────────
 
-  async sendByWhatsApp(id: number): Promise<{ message: string; sentTo: string }> {
+  async sendByWhatsApp(
+    id: number,
+  ): Promise<{ message: string; sentTo: string }> {
     const { buffer, quote } = await this.buildPdfBuffer(id); // mismo buildPdfBuffer que email
 
     const telefono = quote.cliente?.telefono;
-    if (!telefono) throw new NotFoundException('El cliente no tiene teléfono registrado');
+    if (!telefono)
+      throw new NotFoundException('El cliente no tiene teléfono registrado');
 
     const codigo = (quote as any).codigo ?? `COT-${quote.id_cotizacion}`;
     const nombre =

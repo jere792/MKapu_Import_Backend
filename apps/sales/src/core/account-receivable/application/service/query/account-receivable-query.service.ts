@@ -20,7 +20,9 @@ import { getWhatsAppStatus, sendWhatsApp } from 'libs/whatsapp.util';
 
 @Injectable()
 export class AccountReceivableQueryService
-  implements IGetAccountReceivableByIdUseCase, IGetAllOpenAccountReceivablesUseCase
+  implements
+    IGetAccountReceivableByIdUseCase,
+    IGetAllOpenAccountReceivablesUseCase
 {
   constructor(
     @Inject(ACCOUNT_RECEIVABLE_REPOSITORY)
@@ -32,11 +34,14 @@ export class AccountReceivableQueryService
 
   async getById(id: number): Promise<AccountReceivable> {
     const account = await this.repository.findById(id);
-    if (!account) throw new NotFoundException(`AccountReceivable #${id} not found`);
+    if (!account)
+      throw new NotFoundException(`AccountReceivable #${id} not found`);
     return account;
   }
 
-  async getAllOpen(pagination: PaginationOptions): Promise<PaginatedResult<AccountReceivable>> {
+  async getAllOpen(
+    pagination: PaginationOptions,
+  ): Promise<PaginatedResult<AccountReceivable>> {
     return this.repository.findAllOpen(pagination);
   }
 
@@ -54,7 +59,8 @@ export class AccountReceivableQueryService
         'currency',
       ],
     });
-    if (!entity) throw new NotFoundException(`Cuenta por cobrar #${id} no encontrada`);
+    if (!entity)
+      throw new NotFoundException(`Cuenta por cobrar #${id} no encontrada`);
     return entity;
   }
 
@@ -64,9 +70,9 @@ export class AccountReceivableQueryService
     const buffer = await buildAccountReceivablePdf(entity);
 
     res.set({
-      'Content-Type':        'application/pdf',
+      'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename=CuentaPorCobrar_${entity.id}.pdf`,
-      'Content-Length':      buffer.length,
+      'Content-Length': buffer.length,
     });
     res.end(buffer);
   }
@@ -76,7 +82,8 @@ export class AccountReceivableQueryService
     const entity = await this.loadFull(id);
 
     const email = entity.salesReceipt?.cliente?.email;
-    if (!email) throw new NotFoundException('El cliente no tiene email registrado');
+    if (!email)
+      throw new NotFoundException('El cliente no tiene email registrado');
 
     const cl = entity.salesReceipt?.cliente;
     const nombreCliente =
@@ -85,19 +92,19 @@ export class AccountReceivableQueryService
       'Cliente';
 
     const moneda = entity.currency?.codigo ?? entity.currencyCode ?? 'S/.';
-    const saldo  = Number(entity.pendingBalance ?? 0).toFixed(2);
+    const saldo = Number(entity.pendingBalance ?? 0).toFixed(2);
     const buffer = await buildAccountReceivablePdf(entity);
 
     const transporter = nodemailer.createTransport({
-      host:   process.env.MAIL_HOST ?? 'smtp.gmail.com',
-      port:   Number(process.env.MAIL_PORT ?? 587),
+      host: process.env.MAIL_HOST ?? 'smtp.gmail.com',
+      port: Number(process.env.MAIL_PORT ?? 587),
       secure: false,
       auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
     });
 
     await transporter.sendMail({
-      from:    `"MKapu Import" <${process.env.MAIL_USER}>`,
-      to:      email,
+      from: `"MKapu Import" <${process.env.MAIL_USER}>`,
+      to: email,
       subject: `Cuenta por Cobrar N° ${entity.id} - MKapu Import`,
       html: `
         <p>Estimado/a <strong>${nombreCliente}</strong>,</p>
@@ -111,11 +118,13 @@ export class AccountReceivableQueryService
         <p>Adjuntamos el detalle en PDF.</p>
         <br/><p>Atentamente,<br/><strong>MKapu Import</strong></p>
       `,
-      attachments: [{
-        filename:    `CuentaPorCobrar_${entity.id}.pdf`,
-        content:     buffer,
-        contentType: 'application/pdf',
-      }],
+      attachments: [
+        {
+          filename: `CuentaPorCobrar_${entity.id}.pdf`,
+          content: buffer,
+          contentType: 'application/pdf',
+        },
+      ],
     });
 
     return { message: 'Email enviado correctamente', sentTo: email };
@@ -127,11 +136,14 @@ export class AccountReceivableQueryService
   }
 
   // ── Enviar PDF por WhatsApp ───────────────────────────────────────
-  async sendByWhatsApp(id: number): Promise<{ message: string; sentTo: string }> {
+  async sendByWhatsApp(
+    id: number,
+  ): Promise<{ message: string; sentTo: string }> {
     const entity = await this.loadFull(id); // mismo loadFull que email
 
     const telefono = entity.salesReceipt?.cliente?.telefono;
-    if (!telefono) throw new NotFoundException('El cliente no tiene teléfono registrado');
+    if (!telefono)
+      throw new NotFoundException('El cliente no tiene teléfono registrado');
 
     const cl = entity.salesReceipt?.cliente;
     const nombreCliente =
@@ -140,8 +152,8 @@ export class AccountReceivableQueryService
       'Cliente';
 
     const moneda = entity.currency?.codigo ?? entity.currencyCode ?? 'PEN';
-    const saldo  = Number(entity.pendingBalance ?? 0).toFixed(2);
-    const venc   = new Date(entity.dueDate).toLocaleDateString('es-PE');
+    const saldo = Number(entity.pendingBalance ?? 0).toFixed(2);
+    const venc = new Date(entity.dueDate).toLocaleDateString('es-PE');
     const buffer = await buildAccountReceivablePdf(entity);
 
     const mensaje = [
