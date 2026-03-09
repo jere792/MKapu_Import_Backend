@@ -338,6 +338,14 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
       productos: (productos as any[]).map((p) => {
         const codigoReal = codigoMap.get(Number(p.id_prod_ref));
+        const montoPromo =
+          p.descuento_promo_monto != null
+            ? Number(p.descuento_promo_monto)
+            : null;
+        const baseItemSinIgv = Number(
+          (Number(p.cantidad) * Number(p.precio_unit)).toFixed(2),
+        );
+
         return {
           id_prod_ref: p.id_prod_ref,
           cod_prod: codigoReal ?? p.cod_prod ?? p.id_prod_ref,
@@ -348,6 +356,12 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
           total: Number(p.total),
           descuento_nombre: p.descuento_nombre || null,
           descuento_porcentaje: Number(p.descuento_porcentaje) || null,
+          promocion_aplicada: Boolean(p.promocion_aplicada),
+          descuento_promo_monto: montoPromo,
+          descuento_promo_porcentaje:
+            montoPromo != null && baseItemSinIgv > 0
+              ? Number(((montoPromo / baseItemSinIgv) * 100).toFixed(2))
+              : null,
         };
       }),
 
@@ -367,6 +381,8 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
             monto_descuento: promocion.monto_descuento,
             descuento_nombre: promocion.descuento_nombre,
             descuento_porcentaje: promocion.descuento_porcentaje,
+            reglas: promocion.reglas ?? [],
+            productosIds: promocion.productosIds ?? [],
           }
         : null,
 
