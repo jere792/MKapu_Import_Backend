@@ -62,6 +62,10 @@ export class InventoryTypeOrmRepository implements IInventoryRepositoryPort {
   }
 
   async findAllMovements(filters: any): Promise<[any[], number]> {
+    const page  = Number(filters.page  ?? 1);
+    const limit = Number(filters.limit ?? 10);
+    const skip  = (page - 1) * limit;
+
     const query = this.movementRepo
       .createQueryBuilder('mov')
       .leftJoinAndSelect('mov.details', 'det')
@@ -110,6 +114,9 @@ export class InventoryTypeOrmRepository implements IInventoryRepositoryPort {
       );
     }
 
+    query.skip(skip).take(limit);
+
     return await query.getManyAndCount();
   }
+
 }

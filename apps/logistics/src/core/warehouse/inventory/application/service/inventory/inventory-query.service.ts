@@ -68,8 +68,14 @@ export class InventoryQueryService {
   async getMovementsHistory(
     filters: any,
   ): Promise<{ data: InventoryMovementResponseDto[]; total: number }> {
-    const [movements, total] = await this.repository.findAllMovements(filters);
+    const page  = Number(filters.page  ?? 1);
+    const limit = Number(filters.limit ?? 10);
 
+    const [movements, total] = await this.repository.findAllMovements({
+      ...filters,
+      page,
+      limit,
+    });
     const sedeIds = new Set<number>();
     movements.forEach((mov) => {
       mov.details.forEach((det: { warehouseRelation: { sedeId: any } }) => {
