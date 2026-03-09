@@ -8,7 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   CLAIM_COMMAND_PORT,
   CLAIM_QUERY_PORT,
@@ -63,7 +63,12 @@ export class ClaimRestController {
   }
   @Get('sede/:sedeId')
   @ApiOperation({ summary: 'Listar reclamos por sede' })
-  async listBySede(@Param('sedeId') sedeId: string) {
+  @ApiParam({
+    name: 'sedeId',
+    description: 'ID de la sede del usuario',
+    type: 'number',
+  })
+  async listBySede(@Param('sedeId', ParseIntPipe) sedeId: number) {
     return await this.claimQuery.listBySede(sedeId);
   }
 }

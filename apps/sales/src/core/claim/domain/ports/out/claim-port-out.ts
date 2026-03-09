@@ -7,5 +7,5 @@ export interface ClaimPortOut {
   findById(id: number): Promise<Claim | null>;
   findByReceiptId(receiptId: number): Promise<Claim[] | null>;
   update(claim: Claim): Promise<void>;
-  findBySedeId(sedeId: string): Promise<Claim[]>;
+  findBySedeId(sedeId: number): Promise<Claim[]>;
 }

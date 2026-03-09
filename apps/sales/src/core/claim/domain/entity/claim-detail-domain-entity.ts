@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 export enum ClaimStatus {
   REGISTRADO = 'REGISTRADO',
-  EN_PROCESO = 'EN PROCESO',
+  EN_PROCESO = 'EN_PROCESO',
   RESUELTO = 'RESUELTO',
   RECHAZADO = 'RECHAZADO',
 }

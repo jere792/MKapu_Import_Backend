@@ -37,6 +37,9 @@ export class ClaimOrmEntity {
   })
   estado: ClaimStatus;
 
+  @Column({ name: 'id_sede', type: 'int', nullable: true })
+  id_sede: number;
+
   @CreateDateColumn({ name: 'fec_creacion' })
   fecha_registro: Date;
 

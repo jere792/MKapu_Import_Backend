@@ -10,6 +10,7 @@ export interface ClaimProps {
   estado: ClaimStatus;
   fecha_registro: Date;
   fecha_resolucion?: Date;
+  id_sede?: number;
   detalles: ClaimDetail[];
 }
 
@@ -43,6 +44,7 @@ export class Claim {
     id_vendedor_ref: string,
     motivo: string,
     descripcion: string,
+    id_sede?: number,
     detalles: ClaimDetail[] = [],
   ): Claim {
     return Claim.create({
@@ -52,6 +54,7 @@ export class Claim {
       descripcion,
       estado: ClaimStatus.REGISTRADO,
       fecha_registro: new Date(),
+      id_sede,
       detalles,
     });
   }
@@ -92,6 +95,9 @@ export class Claim {
 
   get fecha_resolucion(): Date | undefined {
     return this.props.fecha_resolucion;
+  }
+  get id_sede(): number | undefined {
+    return this.props.id_sede;
   }
 
   iniciarReclamo(): Claim {

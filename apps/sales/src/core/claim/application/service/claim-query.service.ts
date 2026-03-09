@@ -25,7 +25,7 @@ export class ClaimQueryService implements IClaimQueryPort {
     const claims = await this.claimRepository.findByReceiptId(receiptId);
     return claims || [];
   }
-  async listBySede(sedeId: string): Promise<ClaimResponseDto[]> {
+  async listBySede(sedeId: number): Promise<ClaimResponseDto[]> {
     const claims = await this.claimRepository.findBySedeId(sedeId);
 
     if (!claims || claims.length === 0) {

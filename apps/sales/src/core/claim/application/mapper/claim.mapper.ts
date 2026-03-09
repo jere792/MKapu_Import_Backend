@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import {
   ClaimDetail,
@@ -19,6 +17,7 @@ export class ClaimMapper {
       id_reclamo: ormEntity.id_reclamo,
       id_comprobante: ormEntity.id_comprobante,
       id_vendedor_ref: ormEntity.id_vendedor_ref,
+      id_sede: ormEntity.id_sede,
       motivo: ormEntity.motivo,
       descripcion: ormEntity.descripcion,
       respuesta: ormEntity.respuesta,
@@ -31,12 +30,13 @@ export class ClaimMapper {
           ClaimDetail.create({
             tipo: d.tipo,
             descripcion: d.descripcion,
-            fecha: d.fecha || new Date(), // Pasamos la fecha al Dominio
+            fecha: d.fecha || new Date(),
           }),
         ) || [],
     };
     return Claim.create(props);
   }
+
   static toOrm(domainEntity: Claim): ClaimOrmEntity {
     const orm = new ClaimOrmEntity();
     if (domainEntity.id_reclamo) {
@@ -44,6 +44,7 @@ export class ClaimMapper {
     }
     orm.id_comprobante = domainEntity.id_comprobante;
     orm.id_vendedor_ref = domainEntity.id_vendedor_ref;
+    orm.id_sede = domainEntity.id_sede;
     orm.motivo = domainEntity.motivo;
     orm.descripcion = domainEntity.descripcion;
     orm.respuesta = domainEntity.respuesta;
@@ -76,13 +77,15 @@ export class ClaimMapper {
       description: claim.descripcion,
       status: claim.estado,
       registeredAt: claim.fecha_registro,
-      resolvedAt: claim.fecha_resolucion,
+      resolvedAt: claim.fecha_resolucion || null,
+      detalles:
+        claim.detalles?.map((d) => ({
+          tipo: d.tipo,
+          descripcion: d.descripcion,
+          fecha: d.fecha,
+        })) || [],
       respuesta: claim.respuesta,
-      detalles: claim.detalles.map((d) => ({
-        tipo: d.tipo,
-        descripcion: d.descripcion,
-        fecha: d.fecha,
-      })),
+      sedeId: claim.id_sede,
     };
   }
 
@@ -96,11 +99,14 @@ export class ClaimMapper {
   }
 
   static fromRegisterDto(dto: RegisterClaimDto): Claim {
+    // Nota: Si usas 'createNew', asegúrate de actualizar ese método en la entidad Claim
+    // para que acepte el id_sede como 5to parámetro.
     return Claim.createNew(
       dto.id_comprobante,
       dto.id_vendedor_ref,
       dto.motivo,
       dto.descripcion,
+      dto.id_sede,
     );
   }
 
@@ -109,6 +115,7 @@ export class ClaimMapper {
       id_reclamo: claim.id_reclamo,
       id_comprobante: claim.id_comprobante,
       id_vendedor_ref: claim.id_vendedor_ref,
+      id_sede: claim.id_sede,
       motivo: dto.reason ?? claim.motivo,
       descripcion: dto.description ?? claim.descripcion,
       estado: claim.estado,
@@ -123,6 +130,7 @@ export class ClaimMapper {
       id_reclamo: claim.id_reclamo,
       id_comprobante: claim.id_comprobante,
       id_vendedor_ref: claim.id_vendedor_ref,
+      id_sede: claim.id_sede, // <-- NUEVO (Se mantiene la misma sede)
       motivo: claim.motivo,
       descripcion: claim.descripcion,
       estado: status,

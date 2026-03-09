@@ -14,5 +14,5 @@ export interface IClaimCommandPort {
 export interface IClaimQueryPort {
   getById(id: number): Promise<Claim>;
   listBySalesReceipt(receiptId: number): Promise<Claim[]>;
-  listBySede(sedeId: string): Promise<ClaimResponseDto[]>;
+  listBySede(sedeId: number): Promise<ClaimResponseDto[]>;
 }

@@ -36,9 +36,11 @@ export class ClaimTypeormRepository implements ClaimPortOut {
   async update(claim: Claim): Promise<void> {
     await this.save(claim);
   }
-  async findBySedeId(sedeId: string): Promise<Claim[]> {
+  async findBySedeId(sedeId: number): Promise<Claim[]> {
     const claimsOrm = await this.claimRepository.find({
-      //where: { id_sede: sedeId },
+      where: {
+        id_sede: Number(sedeId),
+      },
       relations: ['detalles'],
       order: { fecha_registro: 'DESC' },
     });

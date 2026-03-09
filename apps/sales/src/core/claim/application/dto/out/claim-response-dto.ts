@@ -9,4 +9,5 @@ export interface ClaimResponseDto {
   resolvedAt: Date | null;
   detalles?: { tipo: string; descripcion: string; fecha?: Date }[];
   respuesta?: string;
+  sedeId?: number;
 }
