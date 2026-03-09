@@ -25,13 +25,15 @@ import { UsersTcpProxy } from './infrastructure/adapters/out/TCP/users-tcp.proxy
 import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { LogisticsTcpProxy } from './infrastructure/adapters/out/TCP/logistics-tcp.proxy';
 
-
 import { SalesReceiptRepository } from './infrastructure/adapters/out/repository/sales-receipt.respository';
 import { PaymentRepository } from './infrastructure/adapters/out/repository/payment.repository';
 import { CustomerRepository } from '../customer/infrastructure/adapters/out/repository/customer.repository';
 
 import { CustomerModule } from '../customer/customer.module';
 import { SalesReceiptRestController } from './infrastructure/adapters/in/controllers/sales-receipt-rest.controller';
+
+// ← Promociones viven en el mismo microservicio de sales, no necesitan TCP
+import { PromotionModule } from '../promotion/promotion.module';
 
 @Module({
   imports: [
@@ -89,9 +91,10 @@ import { SalesReceiptRestController } from './infrastructure/adapters/in/control
       PaymentOrmEntity,
       VoucherOrmEntity,
       CashMovementOrmEntity,
-      
     ]),
     CustomerModule,
+    // ← Importar PromotionModule para acceder a PromotionQueryService
+    PromotionModule,
   ],
 
   controllers: [SalesReceiptRestController],
