@@ -18,6 +18,8 @@ import {
   SalesReceiptSummaryListDto,
   SalesReceiptSummaryItemDto,
   SalesReceiptDetalleCompletoDto,
+  SaleTypeResponseDto,
+  ReceiptTypeResponseDto,
 } from '../dto/out';
 import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 
@@ -142,14 +144,14 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     domingo.setDate(lunes.getDate() + 6);
 
     return {
-      total_ventas:      raw.total_ventas,
-      cantidad_ventas:   raw.cantidad_ventas,
-      total_boletas:     raw.total_boletas,
-      total_facturas:    raw.total_facturas,
-      cantidad_boletas:  raw.cantidad_boletas,   
-      cantidad_facturas: raw.cantidad_facturas,  
-      semana_desde:      lunes.toISOString().split('T')[0],
-      semana_hasta:      domingo.toISOString().split('T')[0],
+      total_ventas: raw.total_ventas,
+      cantidad_ventas: raw.cantidad_ventas,
+      total_boletas: raw.total_boletas,
+      total_facturas: raw.total_facturas,
+      cantidad_boletas: raw.cantidad_boletas,
+      cantidad_facturas: raw.cantidad_facturas,
+      semana_desde: lunes.toISOString().split('T')[0],
+      semana_hasta: domingo.toISOString().split('T')[0],
     };
   }
 
@@ -242,8 +244,14 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     );
     if (!raw) return null;
 
-    const { comprobante, productos, historial, historialTotal, statsCliente } =
-      raw;
+    const {
+      comprobante,
+      productos,
+      historial,
+      historialTotal,
+      statsCliente,
+      promocion,
+    } = raw;
 
     const idResponsablePrincipal = Number(comprobante.id_responsable);
 
@@ -292,7 +300,6 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     const nombreCliente =
       comprobante.cliente_nombre?.trim() || comprobante.cliente_doc || '—';
 
-    // ── totalGastado y cantidadCompras vienen del repo (sobre TODOS los registros) ─
     const totalGastadoFinal =
       comprobante.estado !== 'ANULADO'
         ? statsCliente.total_gastado
@@ -310,6 +317,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
       numero: Number(comprobante.numero),
       tipo_comprobante: comprobante.tipo_comprobante ?? '—',
       fec_emision: comprobante.fec_emision,
+      fec_venc: comprobante.fec_venc ?? null,
       estado: comprobante.estado,
       subtotal: Number(comprobante.subtotal),
       igv: Number(comprobante.igv),
@@ -321,9 +329,9 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         nombre: nombreCliente,
         documento: comprobante.cliente_doc,
         tipo_documento: comprobante.cliente_tipo_doc ?? '—',
-        direccion: comprobante.cliente_direccion,
-        email: comprobante.cliente_email,
-        telefono: comprobante.cliente_telefono,
+        direccion: comprobante.cliente_direccion ?? '',
+        email: comprobante.cliente_email ?? '',
+        telefono: comprobante.cliente_telefono ?? '',
         total_gastado_cliente: totalGastadoFinal,
         cantidad_compras: cantidadComprasFinal,
       },
@@ -338,6 +346,8 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
           precio_unit: Number(p.precio_unit),
           igv: Number(p.igv),
           total: Number(p.total),
+          descuento_nombre: p.descuento_nombre || null,
+          descuento_porcentaje: Number(p.descuento_porcentaje) || null,
         };
       }),
 
@@ -347,6 +357,18 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         sede: idSede,
         nombreSede,
       },
+
+      promocion: promocion
+        ? {
+            id: promocion.id,
+            codigo: promocion.codigo,
+            nombre: promocion.nombre,
+            tipo: promocion.tipo,
+            monto_descuento: promocion.monto_descuento,
+            descuento_nombre: promocion.descuento_nombre,
+            descuento_porcentaje: promocion.descuento_porcentaje,
+          }
+        : null,
 
       historial_cliente: (historial as any[]).map((h) => ({
         id_comprobante: Number(h.id_comprobante),
@@ -365,5 +387,15 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         total_pages: Math.ceil(historialTotal / HISTORIAL_LIMIT),
       },
     };
+  }
+
+  async getAllSaleTypes(): Promise<SaleTypeResponseDto[]> {
+    const types = await this.receiptRepository.findAllSaleTypes();
+    return types.map(SalesReceiptMapper.toSaleTypeDto);
+  }
+
+  async getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]> {
+    const types = await this.receiptRepository.findAllReceiptTypes();
+    return types.map(SalesReceiptMapper.toReceiptTypeDto);
   }
 }

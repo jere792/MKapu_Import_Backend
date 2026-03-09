@@ -12,23 +12,19 @@ import { DiscountOrmEntity } from '../discount/infrastructure/entity/discount-or
 import { PromotionRuleOrmEntity } from './infrastructure/entity/promotion_rule-orm.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature(
-    [
+  imports: [
+    TypeOrmModule.forFeature([
       PromotionOrmEntity,
       DiscountAppliedOrmEntity,
       PromotionRuleOrmEntity,
-      DiscountOrmEntity
-    ])],
+      DiscountOrmEntity,
+    ]),
+  ],
   controllers: [PromotionRestController],
   providers: [
-    // Servicios
     PromotionCommandService,
     PromotionQueryService,
-    
-    // Repositorio
     PromotionRepository,
-    
-    // Inyección de dependencias por token
     {
       provide: 'IPromotionCommandPort',
       useClass: PromotionCommandService,
@@ -43,8 +39,10 @@ import { PromotionRuleOrmEntity } from './infrastructure/entity/promotion_rule-o
     },
   ],
   exports: [
-    PromotionCommandService, 
+    PromotionCommandService,
     PromotionQueryService,
+    // ← Exportar el token para que SalesReceiptModule pueda inyectarlo
+    'IPromotionQueryPort',
   ],
 })
 export class PromotionModule {}

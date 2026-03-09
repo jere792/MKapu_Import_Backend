@@ -3,8 +3,8 @@ import {
   Param, ParseIntPipe, Patch, Post, Query, Res,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { AccountReceivableCommandService } from '../../../../application/service/account-receivable-command.service';
-import { AccountReceivableQueryService }   from '../../../../application/service/account-receivable-query.service';
+import { AccountReceivableCommandService } from '../../../../application/service/command/account-receivable-command.service';
+import { AccountReceivableQueryService }   from '../../../../application/service/query/account-receivable-query.service';
 import { AccountReceivableMapper }         from '../../../../application/mapper/account-receivable.mapper';
 import {
   CreateAccountReceivableDto, ApplyPaymentDto,
@@ -56,19 +56,32 @@ export class AccountReceivableRestController {
     };
   }
 
-  // ── NUEVO: exportar PDF ───────────────────────────────────────────
+  // ── Rutas estáticas — ANTES de :id ───────────────────────────────
+
+  @Get('whatsapp/status')
+  async whatsAppStatus() {
+    return this.queryService.whatsAppStatus();
+  }
+
+  // ── PDF y envíos ──────────────────────────────────────────────────
+
   @Get(':id/export/pdf')
   async exportPdf(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
     return await this.queryService.exportPdf(id, res);
   }
 
-  // ── NUEVO: enviar por email ───────────────────────────────────────
   @Post(':id/send-email')
   async sendByEmail(@Param('id', ParseIntPipe) id: number) {
     return await this.queryService.sendByEmail(id);
   }
 
-  // ── Al final para no bloquear rutas anteriores ────────────────────
+  @Post(':id/send-whatsapp')
+  async sendByWhatsApp(@Param('id', ParseIntPipe) id: number) {
+    return await this.queryService.sendByWhatsApp(id);
+  }
+
+  // ── Rutas dinámicas con :id — AL FINAL ───────────────────────────
+
   @Get(':id')
   async findById(@Param('id', ParseIntPipe) id: number): Promise<AccountReceivableResponseDto> {
     const domain = await this.queryService.getById(id);

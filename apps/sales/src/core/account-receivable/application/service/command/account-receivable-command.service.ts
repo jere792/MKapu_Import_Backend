@@ -6,11 +6,11 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AccountReceivable,
   Money,
-} from '../../domain/entity/account-receivable-domain-entity';
+} from '../../../domain/entity/account-receivable-domain-entity';
 import {
   IAccountReceivableRepository,
   ACCOUNT_RECEIVABLE_REPOSITORY,
-} from '../../domain/ports/out/account-receivable-port-out';
+} from '../../../domain/ports/out/account-receivable-port-out';
 import {
   ICreateAccountReceivableUseCase,
   CreateAccountReceivableCommand,
@@ -21,7 +21,7 @@ import {
   IUpdateDueDateUseCase,
   UpdateDueDateCommand,
   ICheckExpirationUseCase,
-} from '../../domain/ports/in/account-receivable-port-in';
+} from '../../../domain/ports/in/account-receivable-port-in';
 
 @Injectable()
 export class AccountReceivableCommandService

@@ -23,4 +23,8 @@ export class CashboxQueryService implements ICashboxQueryPort {
     const cashbox = await this.repository.findActiveBySede(id_sede_ref);
     return cashbox ? CashboxMapper.toResponseDto(cashbox) : null;
   }
+
+  async getResumenDia(idSede: number): Promise<any> {
+    return await this.repository.getResumenDia(idSede);
+  }
 }

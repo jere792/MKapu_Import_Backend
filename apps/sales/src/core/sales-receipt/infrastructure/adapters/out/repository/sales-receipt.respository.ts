@@ -11,16 +11,28 @@ import {
   SalesReceiptSummaryRaw,
 } from '../../../../domain/ports/out/sales_receipt-ports-out';
 import { SalesReceipt } from '../../../../domain/entity/sales-receipt-domain-entity';
+import {
+  SalesType,
+  SalesTypeEnum,
+} from '../../../../domain/entity/sale-type-domain-entity';
+import { ReceiptType } from '../../../../domain/entity/receipt-type-domain-entity';
 import { SalesReceiptOrmEntity } from '../../../entity/sales-receipt-orm.entity';
+import { SalesTypeOrmEntity } from '../../../entity/sales-type-orm.entity';
+import { ReceiptTypeOrmEntity } from '../../../entity/receipt-type-orm.entity';
 import { SalesReceiptMapper } from '../../../../application/mapper/sales-receipt.mapper';
-import { PaymentOrmEntity } from '../../../entity/payment-orm.entity';
-import { PaymentTypeOrmEntity } from '../../../entity/payment-type-orm.entity';
 
 @Injectable()
 export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
   constructor(
     @InjectRepository(SalesReceiptOrmEntity)
     private readonly receiptOrmRepository: Repository<SalesReceiptOrmEntity>,
+
+    @InjectRepository(SalesTypeOrmEntity)
+    private readonly salesTypeOrmRepository: Repository<SalesTypeOrmEntity>,
+
+    @InjectRepository(ReceiptTypeOrmEntity)
+    private readonly receiptTypeOrmRepository: Repository<ReceiptTypeOrmEntity>,
+
     private readonly dataSource: DataSource,
   ) {}
 
@@ -32,22 +44,22 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     serie: string,
     queryRunner: QueryRunner,
   ): Promise<number> {
-    const lastReceipt = await queryRunner.manager
+    const last = await queryRunner.manager
       .createQueryBuilder(SalesReceiptOrmEntity, 'receipt')
       .where('receipt.serie = :serie', { serie })
       .orderBy('receipt.numero', 'DESC')
       .getOne();
-    return lastReceipt ? Number(lastReceipt.numero) + 1 : 1;
+    return last ? Number(last.numero) + 1 : 1;
   }
 
   async save(receipt: SalesReceipt): Promise<SalesReceipt> {
-    const receiptOrm = SalesReceiptMapper.toOrm(receipt);
-    const savedOrm = await this.receiptOrmRepository.save(receiptOrm);
-    return this.findById(savedOrm.id_comprobante) as Promise<SalesReceipt>;
+    const orm = SalesReceiptMapper.toOrm(receipt);
+    const saved = await this.receiptOrmRepository.save(orm);
+    return this.findById(saved.id_comprobante) as Promise<SalesReceipt>;
   }
 
   async findById(id: number): Promise<SalesReceipt | null> {
-    const receiptOrm = await this.receiptOrmRepository.findOne({
+    const orm = await this.receiptOrmRepository.findOne({
       where: { id_comprobante: id },
       relations: [
         'details',
@@ -57,12 +69,12 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
         'moneda',
       ],
     });
-    return receiptOrm ? SalesReceiptMapper.toDomain(receiptOrm) : null;
+    return orm ? SalesReceiptMapper.toDomain(orm) : null;
   }
 
   async update(receipt: SalesReceipt): Promise<SalesReceipt> {
-    const receiptOrm = SalesReceiptMapper.toOrm(receipt);
-    const updated = await this.receiptOrmRepository.save(receiptOrm);
+    const orm = SalesReceiptMapper.toOrm(receipt);
+    const updated = await this.receiptOrmRepository.save(orm);
     return SalesReceiptMapper.toDomain(updated);
   }
 
@@ -71,12 +83,12 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
   }
 
   async findBySerie(serie: string): Promise<SalesReceipt[]> {
-    const receiptsOrm = await this.receiptOrmRepository.find({
+    const rows = await this.receiptOrmRepository.find({
       where: { serie },
       relations: ['details'],
       order: { numero: 'DESC' },
     });
-    return receiptsOrm.map((r) => SalesReceiptMapper.toDomain(r));
+    return rows.map((r) => SalesReceiptMapper.toDomain(r));
   }
 
   async findAll(filters?: {
@@ -87,7 +99,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     fec_hasta?: Date | string;
     search?: string;
   }): Promise<SalesReceipt[]> {
-    const query = this.receiptOrmRepository
+    const qb = this.receiptOrmRepository
       .createQueryBuilder('receipt')
       .leftJoinAndSelect('receipt.details', 'details')
       .leftJoinAndSelect('receipt.cliente', 'cliente')
@@ -96,62 +108,67 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .leftJoinAndSelect('receipt.moneda', 'moneda');
 
     if (filters?.estado) {
-      query.andWhere('receipt.estado = :estado', { estado: filters.estado });
+      qb.andWhere('receipt.estado = :estado', { estado: filters.estado });
     }
     if (filters?.fec_desde) {
-      query.andWhere('receipt.fec_emision >= :fec_desde', {
+      qb.andWhere('receipt.fec_emision >= :fec_desde', {
         fec_desde: filters.fec_desde,
       });
     }
     if (filters?.fec_hasta) {
       const hasta = new Date(filters.fec_hasta);
       hasta.setHours(23, 59, 59, 999);
-      query.andWhere('receipt.fec_emision <= :fec_hasta', { fec_hasta: hasta });
+      qb.andWhere('receipt.fec_emision <= :fec_hasta', { fec_hasta: hasta });
     }
     if (filters?.id_cliente) {
-      query.andWhere('cliente.id_cliente = :id_cliente', {
+      qb.andWhere('cliente.id_cliente = :id_cliente', {
         id_cliente: filters.id_cliente,
       });
     }
     if (filters?.id_tipo_comprobante) {
-      query.andWhere('tipoComprobante.id_tipo_comprobante = :typeId', {
+      qb.andWhere('tipoComprobante.id_tipo_comprobante = :typeId', {
         typeId: filters.id_tipo_comprobante,
       });
     }
     if (filters?.search) {
-      query.andWhere(
-        '(receipt.serie LIKE :search OR receipt.numero LIKE :search OR cliente.razon_social LIKE :search)',
+      qb.andWhere(
+        `(receipt.serie            LIKE :search
+          OR receipt.numero        LIKE :search
+          OR cliente.razon_social  LIKE :search
+          OR cliente.nombres       LIKE :search
+          OR cliente.apellidos     LIKE :search
+          OR CONCAT(COALESCE(cliente.nombres,''), ' ', COALESCE(cliente.apellidos,'')) LIKE :search)`,
         { search: `%${filters.search}%` },
       );
     }
-    query.orderBy('receipt.fec_emision', 'DESC');
 
-    const receiptsOrm = await query.getMany();
-    return receiptsOrm.map((r) => SalesReceiptMapper.toDomain(r));
+    qb.orderBy('receipt.fec_emision', 'DESC');
+    const rows = await qb.getMany();
+    return rows.map((r) => SalesReceiptMapper.toDomain(r));
   }
 
   async getNextNumber(serie: string): Promise<number> {
-    const lastReceipt = await this.receiptOrmRepository.findOne({
+    const last = await this.receiptOrmRepository.findOne({
       where: { serie },
       order: { numero: 'DESC' },
     });
-    return lastReceipt ? Number(lastReceipt.numero) + 1 : 1;
+    return last ? Number(last.numero) + 1 : 1;
   }
 
   async updateStatus(
     id: number,
     status: string,
   ): Promise<SalesReceiptOrmEntity> {
-    const dataToUpdate = await this.receiptOrmRepository.findOne({
+    const entity = await this.receiptOrmRepository.findOne({
       where: { id_comprobante: id },
     });
-    if (!dataToUpdate) throw new Error(`Sales receipt with id ${id} not found`);
-    dataToUpdate.estado = status as any;
-    return this.receiptOrmRepository.save(dataToUpdate);
+    if (!entity) throw new Error(`Sales receipt with id ${id} not found`);
+    entity.estado = status as any;
+    return this.receiptOrmRepository.save(entity);
   }
 
   async findByCorrelativo(serie: string, numero: number): Promise<any | null> {
-    return await this.receiptOrmRepository.findOne({
+    return this.receiptOrmRepository.findOne({
       where: { serie: serie.trim(), numero },
       relations: ['details'],
     });
@@ -181,12 +198,12 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     if (sedeId) qb.andWhere('r.id_sede_ref = :sedeId', { sedeId });
 
     qb.select([
-      'COALESCE(SUM(r.total), 0)                                                AS total_ventas',
-      'COUNT(r.id_comprobante)                                                  AS cantidad_ventas',
-      'COALESCE(SUM(CASE WHEN r.serie LIKE :boleta  THEN r.total END), 0)       AS total_boletas',
-      'COALESCE(SUM(CASE WHEN r.serie LIKE :factura THEN r.total END), 0)       AS total_facturas',
-      'COUNT(CASE WHEN r.serie LIKE :boleta  THEN r.id_comprobante END)         AS cantidad_boletas',
-      'COUNT(CASE WHEN r.serie LIKE :factura THEN r.id_comprobante END)         AS cantidad_facturas',
+      'COALESCE(SUM(r.total), 0)                                              AS total_ventas',
+      'COUNT(r.id_comprobante)                                                AS cantidad_ventas',
+      'COALESCE(SUM(CASE WHEN r.serie LIKE :boleta  THEN r.total END), 0)     AS total_boletas',
+      'COALESCE(SUM(CASE WHEN r.serie LIKE :factura THEN r.total END), 0)     AS total_facturas',
+      'COUNT(CASE WHEN r.serie LIKE :boleta  THEN r.id_comprobante END)       AS cantidad_boletas',
+      'COUNT(CASE WHEN r.serie LIKE :factura THEN r.id_comprobante END)       AS cantidad_facturas',
     ]);
 
     const row = await qb
@@ -195,15 +212,14 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .getRawOne();
 
     return {
-      total_ventas:      Number(row?.total_ventas      ?? 0),
-      cantidad_ventas:   Number(row?.cantidad_ventas   ?? 0),
-      total_boletas:     Number(row?.total_boletas     ?? 0),
-      total_facturas:    Number(row?.total_facturas    ?? 0),
-      cantidad_boletas:  Number(row?.cantidad_boletas  ?? 0),  
-      cantidad_facturas: Number(row?.cantidad_facturas ?? 0),  
+      total_ventas: Number(row?.total_ventas ?? 0),
+      cantidad_ventas: Number(row?.cantidad_ventas ?? 0),
+      total_boletas: Number(row?.total_boletas ?? 0),
+      total_facturas: Number(row?.total_facturas ?? 0),
+      cantidad_boletas: Number(row?.cantidad_boletas ?? 0),
+      cantidad_facturas: Number(row?.cantidad_facturas ?? 0),
     };
   }
-
 
   async findAllPaginated(
     filters: {
@@ -254,10 +270,16 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     }
     if (filters.search) {
       conditions.push(
-        '(r.serie LIKE ? OR CAST(r.numero AS CHAR) LIKE ? OR c.razon_social LIKE ? OR c.valor_doc LIKE ? OR c.nombres LIKE ?)',
+        `(r.serie LIKE ?
+          OR CAST(r.numero AS CHAR) LIKE ?
+          OR c.razon_social LIKE ?
+          OR c.valor_doc LIKE ?
+          OR c.nombres LIKE ?
+          OR c.apellidos LIKE ?
+          OR CONCAT(COALESCE(c.nombres,''), ' ', COALESCE(c.apellidos,'')) LIKE ?)`,
       );
       const s = `%${filters.search}%`;
-      whereParams.push(s, s, s, s, s);
+      whereParams.push(s, s, s, s, s, s, s);
     }
     if (filters.sedeId) {
       conditions.push('r.id_sede_ref = ?');
@@ -266,18 +288,17 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
 
     const whereClause =
       conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
     const allParams = [...joinParams, ...whereParams];
 
-  const baseQuery = `
-    FROM mkp_ventas.comprobante_venta r
-    INNER JOIN mkp_ventas.cliente          c   ON c.id_cliente           = r.id_cliente
-    INNER JOIN mkp_ventas.tipo_comprobante tc  ON tc.id_tipo_comprobante = r.id_tipo_comprobante
-    ${pagoJoin}
-    LEFT  JOIN mkp_ventas.tipo_pago        tp  ON tp.id_tipo_pago        = p.id_tipo_pago
-    LEFT  JOIN mkp_ventas.cuenta_por_cobrar cpc ON cpc.id_comprobante_venta = r.id_comprobante
-    ${whereClause}
-  `;
+    const baseQuery = `
+      FROM mkp_ventas.comprobante_venta r
+      INNER JOIN mkp_ventas.cliente           c   ON c.id_cliente           = r.id_cliente
+      INNER JOIN mkp_ventas.tipo_comprobante  tc  ON tc.id_tipo_comprobante = r.id_tipo_comprobante
+      ${pagoJoin}
+      LEFT  JOIN mkp_ventas.tipo_pago         tp  ON tp.id_tipo_pago        = p.id_tipo_pago
+      LEFT  JOIN mkp_ventas.cuenta_por_cobrar cpc ON cpc.id_comprobante_venta = r.id_comprobante
+      ${whereClause}
+    `;
 
     const countResult = await this.dataSource.query(
       `SELECT COUNT(DISTINCT r.id_comprobante) AS total ${baseQuery}`,
@@ -288,25 +309,29 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     const offset = (page - 1) * limit;
     const rows = await this.dataSource.query(
       `SELECT
-      r.id_comprobante,
-      r.serie,
-      r.numero,
-      tc.descripcion AS tipo_comprobante,
-      r.fec_emision,
-      COALESCE(NULLIF(TRIM(c.razon_social),''), NULLIF(TRIM(CONCAT(COALESCE(c.nombres,''),' ',COALESCE(c.apellidos,''))), ''), '—') AS cliente_nombre,
-      COALESCE(c.valor_doc, '—') AS cliente_doc,
-      r.id_responsable_ref AS id_responsable,
-      r.id_sede_ref        AS id_sede,
-      CASE
-      WHEN p.id_pago IS NOT NULL THEN COALESCE(tp.descripcion, 'N/A')
-      WHEN cpc.id_cuenta IS NOT NULL THEN 'POR DEFINIR'
-      ELSE 'N/A'
-      END AS metodo_pago,
-      r.total,
-      r.estado
-    ${baseQuery}
-    ORDER BY r.fec_emision DESC
-    LIMIT ? OFFSET ?`,
+         r.id_comprobante,
+         r.serie,
+         r.numero,
+         tc.descripcion AS tipo_comprobante,
+         r.fec_emision,
+         COALESCE(
+           NULLIF(TRIM(c.razon_social), ''),
+           NULLIF(TRIM(CONCAT(COALESCE(c.nombres,''), ' ', COALESCE(c.apellidos,''))), ''),
+           '—'
+         ) AS cliente_nombre,
+         COALESCE(c.valor_doc, '—') AS cliente_doc,
+         r.id_responsable_ref       AS id_responsable,
+         r.id_sede_ref              AS id_sede,
+         CASE
+           WHEN p.id_pago     IS NOT NULL THEN COALESCE(tp.descripcion, 'N/A')
+           WHEN cpc.id_cuenta IS NOT NULL THEN 'POR DEFINIR'
+           ELSE 'N/A'
+         END AS metodo_pago,
+         r.total,
+         r.estado
+       ${baseQuery}
+       ORDER BY r.fec_emision DESC
+       LIMIT ? OFFSET ?`,
       [...allParams, limit, offset],
     );
 
@@ -328,63 +353,88 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       total,
     ];
   }
-  
+
   async findDetalleCompleto(
     id_comprobante: number,
     historialPage: number = 1,
     historialLimit: number = 5,
   ): Promise<any> {
+    // ── Comprobante principal ──────────────────────────────────────────────
     const comprobante = await this.receiptOrmRepository
       .createQueryBuilder('r')
       .leftJoin('r.cliente', 'c')
       .leftJoin('c.tipoDocumento', 'td')
       .leftJoin('r.tipoComprobante', 'tc')
       .leftJoin('pago', 'p', 'p.id_comprobante = r.id_comprobante')
-      .leftJoin('tipo_pago', 'tp', 'tp.id_tipo_pago = p.id_tipo_pago')
+      .leftJoin('tipo_pago', 'tp', 'tp.id_tipo_pago  = p.id_tipo_pago')
       .select([
-        'r.id_comprobante                                                                                                                               AS id_comprobante',
-        'r.serie                                                                                                                                        AS serie',
-        'r.numero                                                                                                                                       AS numero',
-        'tc.descripcion                                                                                                                                 AS tipo_comprobante',
-        'r.fec_emision                                                                                                                                  AS fec_emision',
-        'r.fec_venc                                                                                                                                     AS fec_venc',
-        'r.subtotal                                                                                                                                     AS subtotal',
-        'r.igv                                                                                                                                          AS igv',
-        'r.total                                                                                                                                        AS total',
-        'r.estado                                                                                                                                       AS estado',
-        'r.id_responsable_ref                                                                                                                           AS id_responsable',
-        'r.id_sede_ref                                                                                                                                  AS id_sede',
-        'COALESCE(tp.descripcion, "N/A")                                                                                                               AS metodo_pago',
-        'c.id_cliente                                                                                                                                   AS cliente_id',
-        'COALESCE(NULLIF(TRIM(c.razon_social),""), NULLIF(TRIM(CONCAT(COALESCE(c.nombres,"")," ",COALESCE(c.apellidos,""))), ""), "—")                 AS cliente_nombre',
-        'COALESCE(c.valor_doc,   "—")                                                                                                                  AS cliente_doc',
-        'COALESCE(td.descripcion, "—")                                                                                                                 AS cliente_tipo_doc',
-        'COALESCE(c.direccion,   "")                                                                                                                   AS cliente_direccion',
-        'COALESCE(c.email,       "")                                                                                                                   AS cliente_email',
-        'COALESCE(c.telefono,    "")                                                                                                                   AS cliente_telefono',
+        'r.id_comprobante                                                                                                                AS id_comprobante',
+        'r.serie                                                                                                                         AS serie',
+        'r.numero                                                                                                                        AS numero',
+        'tc.descripcion                                                                                                                  AS tipo_comprobante',
+        'r.fec_emision                                                                                                                   AS fec_emision',
+        'r.fec_venc                                                                                                                      AS fec_venc',
+        'r.subtotal                                                                                                                      AS subtotal',
+        'r.igv                                                                                                                           AS igv',
+        'r.total                                                                                                                         AS total',
+        'r.estado                                                                                                                        AS estado',
+        'r.id_responsable_ref                                                                                                            AS id_responsable',
+        'r.id_sede_ref                                                                                                                   AS id_sede',
+        'COALESCE(tp.descripcion, "N/A")                                                                                                 AS metodo_pago',
+        'c.id_cliente                                                                                                                    AS cliente_id',
+        'COALESCE(NULLIF(TRIM(c.razon_social),""), NULLIF(TRIM(CONCAT(COALESCE(c.nombres,"")," ",COALESCE(c.apellidos,""))), ""), "—")   AS cliente_nombre',
+        'COALESCE(c.valor_doc,    "—")                                                                                                   AS cliente_doc',
+        'COALESCE(td.descripcion, "—")                                                                                                   AS cliente_tipo_doc',
+        'COALESCE(c.direccion,    "")                                                                                                    AS cliente_direccion',
+        'COALESCE(c.email,        "")                                                                                                    AS cliente_email',
+        'COALESCE(c.telefono,     "")                                                                                                    AS cliente_telefono',
       ])
       .where('r.id_comprobante = :id', { id: id_comprobante })
       .getRawOne();
 
     if (!comprobante) return null;
 
-    // ── Productos ────────────────────────────────────────────────────────────
-    const productos = await this.receiptOrmRepository.manager
-      .createQueryBuilder()
-      .select([
-        'd.id_prod_ref                           AS id_prod_ref',
-        'COALESCE(d.cod_prod, d.id_prod_ref)     AS cod_prod',
-        'd.descripcion                           AS descripcion',
-        'd.cantidad                              AS cantidad',
-        'd.pre_uni                               AS precio_unit',
-        'd.igv                                   AS igv',
-        '(d.cantidad * d.pre_uni)                AS total',
-      ])
-      .from('detalle_comprobante', 'd')
-      .where('d.id_comprobante = :id', { id: id_comprobante })
-      .getRawMany();
+    // ── Productos con descuento por ítem ──────────────────────────────────
+    const productos = await this.receiptOrmRepository.manager.query(
+      `SELECT
+         d.id_prod_ref,
+         COALESCE(d.cod_prod, d.id_prod_ref) AS cod_prod,
+         d.descripcion,
+         d.cantidad,
+         d.pre_uni                           AS precio_unit,
+         d.igv,
+         (d.cantidad * d.pre_uni)            AS total,
+         d.id_descuento,
+         COALESCE(desc_.nombre,     '')      AS descuento_nombre,
+         COALESCE(desc_.porcentaje, 0)       AS descuento_porcentaje
+       FROM mkp_ventas.detalle_comprobante d
+       LEFT JOIN mkp_ventas.descuento desc_
+              ON desc_.id_descuento = d.id_descuento
+             AND d.id_descuento != 0
+       WHERE d.id_comprobante = ?`,
+      [id_comprobante],
+    );
 
-    // ── Historial: COUNT total real del cliente (excluyendo este comprobante) ─
+    // ── Promoción aplicada al comprobante ─────────────────────────────────
+    // Busca directamente por id_comprobante en descuento_aplicado.
+    // REQUIERE que la columna id_comprobante exista (migration_descuento_aplicado.sql).
+    const promoRow = await this.receiptOrmRepository.manager.query(
+      `SELECT
+         da.id_descuento,
+         da.monto       AS monto_descuento,
+         da.id_promocion,
+         p.concepto     AS promo_concepto,
+         p.tipo         AS promo_tipo
+       FROM mkp_ventas.descuento_aplicado da
+       INNER JOIN mkp_ventas.promocion p ON p.id_promocion = da.id_promocion
+       WHERE da.id_comprobante = ?
+       LIMIT 1`,
+      [id_comprobante],
+    );
+
+    const promo = promoRow?.[0] ?? null;
+
+    // ── Historial del cliente ──────────────────────────────────────────────
     const historialCountRow = await this.receiptOrmRepository
       .createQueryBuilder('r')
       .select('COUNT(r.id_comprobante) AS total')
@@ -395,36 +445,21 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .getRawOne();
 
     const historialTotal = Number(historialCountRow?.total ?? 0);
-
-    // ── Stats globales del cliente (sobre TODOS sus comprobantes, no solo la página) ─
-    const statsRow = await this.receiptOrmRepository
-      .createQueryBuilder('r')
-      .select([
-        'COALESCE(SUM(CASE WHEN r.estado != :anulado THEN r.total ELSE 0 END), 0) AS total_gastado',
-        'COUNT(CASE WHEN r.estado != :anulado THEN 1 END) AS cantidad_compras',
-      ])
-      .where('r.id_cliente = :id_cliente', {
-        id_cliente: comprobante.cliente_id,
-      })
-      .setParameter('anulado', 'ANULADO')
-      .getRawOne();
-
-    // ── Historial paginado ───────────────────────────────────────────────────
     const historialOffset = (historialPage - 1) * historialLimit;
 
     const historial = await this.receiptOrmRepository
       .createQueryBuilder('r')
       .leftJoin('pago', 'p', 'p.id_comprobante = r.id_comprobante')
-      .leftJoin('tipo_pago', 'tp', 'tp.id_tipo_pago = p.id_tipo_pago')
+      .leftJoin('tipo_pago', 'tp', 'tp.id_tipo_pago  = p.id_tipo_pago')
       .select([
-        'r.id_comprobante                    AS id_comprobante',
-        'r.serie                             AS serie',
-        'r.numero                            AS numero',
-        'r.fec_emision                       AS fec_emision',
-        'r.total                             AS total',
-        'r.estado                            AS estado',
-        'r.id_responsable_ref                AS id_responsable',
-        'COALESCE(tp.descripcion, "N/A")     AS metodo_pago',
+        'r.id_comprobante                AS id_comprobante',
+        'r.serie                         AS serie',
+        'r.numero                        AS numero',
+        'r.fec_emision                   AS fec_emision',
+        'r.total                         AS total',
+        'r.estado                        AS estado',
+        'r.id_responsable_ref            AS id_responsable',
+        'COALESCE(tp.descripcion, "N/A") AS metodo_pago',
       ])
       .where('r.id_cliente = :id_cliente', {
         id_cliente: comprobante.cliente_id,
@@ -434,6 +469,19 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .limit(historialLimit)
       .offset(historialOffset)
       .getRawMany();
+
+    // ── Stats del cliente ──────────────────────────────────────────────────
+    const statsRow = await this.receiptOrmRepository
+      .createQueryBuilder('r')
+      .select([
+        'COALESCE(SUM(CASE WHEN r.estado != :anulado THEN r.total ELSE 0 END), 0) AS total_gastado',
+        'COUNT(CASE WHEN r.estado != :anulado THEN 1 END)                         AS cantidad_compras',
+      ])
+      .where('r.id_cliente = :id_cliente', {
+        id_cliente: comprobante.cliente_id,
+      })
+      .setParameter('anulado', 'ANULADO')
+      .getRawOne();
 
     return {
       comprobante,
@@ -446,6 +494,131 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
         total_gastado: Number(statsRow?.total_gastado ?? 0),
         cantidad_compras: Number(statsRow?.cantidad_compras ?? 0),
       },
+      promocion: promo
+        ? {
+            id:                  Number(promo.id_promocion),
+            codigo:              promo.promo_concepto ?? '',
+            nombre:              promo.promo_concepto ?? '',
+            tipo:                promo.promo_tipo ?? '',
+            monto_descuento:     Number(promo.monto_descuento ?? 0),
+            descuento_nombre:    '',
+            descuento_porcentaje: 0,
+          }
+        : null,
     };
+  }
+
+  async findAllSaleTypes(): Promise<SalesType[]> {
+    const rows = await this.salesTypeOrmRepository.find({
+      order: { id_tipo_venta: 'ASC' },
+    });
+    return rows.map((r) =>
+      SalesType.create({
+        id_tipo_venta: r.id_tipo_venta,
+        tipo: SalesTypeEnum[r.tipo as keyof typeof SalesTypeEnum],
+        descripcion: r.descripcion,
+      }),
+    );
+  }
+
+  async findAllReceiptTypes(): Promise<ReceiptType[]> {
+    const rows = await this.receiptTypeOrmRepository.find({
+      order: { id_tipo_comprobante: 'ASC' },
+    });
+    return rows
+      .filter((r) => this.normalizarBit(r.estado))
+      .map((r) =>
+        ReceiptType.create({
+          id_tipo_comprobante: r.id_tipo_comprobante,
+          cod_sunat: r.cod_sunat,
+          descripcion: r.descripcion,
+          estado: true,
+        }),
+      );
+  }
+
+  private normalizarBit(valor: any): boolean {
+    if (typeof valor === 'boolean') return valor;
+    if (typeof valor === 'number') return valor === 1;
+    if (Buffer.isBuffer(valor)) return valor[0] === 1;
+    return false;
+  }
+
+  async findPromocionesActivas(): Promise<any[]> {
+    return this.dataSource.query(`
+      SELECT
+        p.id_promocion,
+        p.concepto,
+        p.tipo,
+        p.valor,
+        p.activo,
+        JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'id_regla',        r.id_regla,
+            'tipo_condicion',  r.tipo_condicion,
+            'valor_condicion', r.valor_condicion
+          )
+        ) AS reglas
+      FROM mkp_ventas.promocion p
+      LEFT JOIN mkp_ventas.regla_promocion r ON r.id_promocion = p.id_promocion
+      WHERE p.activo = 1
+      GROUP BY p.id_promocion
+    `);
+  }
+
+  async findPromocionById(id: number): Promise<any | null> {
+    const rows = await this.dataSource.query(
+      `SELECT
+         p.id_promocion,
+         p.concepto,
+         p.tipo,
+         p.valor,
+         p.activo,
+         JSON_ARRAYAGG(
+           JSON_OBJECT(
+             'id_regla',        r.id_regla,
+             'tipo_condicion',  r.tipo_condicion,
+             'valor_condicion', r.valor_condicion
+           )
+         ) AS reglas
+       FROM mkp_ventas.promocion p
+       LEFT JOIN mkp_ventas.regla_promocion r
+              ON r.id_promocion = p.id_promocion
+       WHERE p.id_promocion = ?
+         AND p.activo = 1
+       GROUP BY p.id_promocion`,
+      [id],
+    );
+    if (!rows?.[0]) return null;
+
+    const row = rows[0];
+    const reglas = Array.isArray(row.reglas)
+      ? row.reglas.filter((r: any) => r.id_regla !== null)
+      : [];
+
+    return { ...row, reglas };
+  }
+
+  async saveDescuentoAplicado(
+    idComprobante: number,
+    idPromocion: number,
+    monto: number,
+  ): Promise<void> {
+    await this.dataSource.query(
+      `INSERT INTO mkp_ventas.descuento_aplicado
+         (id_promocion, id_comprobante, monto)
+       VALUES (?, ?, ?)`,
+      [idPromocion, idComprobante, monto],
+    );
+  }
+
+  async findCantidadComprasCliente(idCliente: string): Promise<number> {
+    const row = await this.receiptOrmRepository
+      .createQueryBuilder('r')
+      .select('COUNT(r.id_comprobante) AS total')
+      .where('r.id_cliente = :idCliente', { idCliente })
+      .andWhere('r.estado != :anulado', { anulado: 'ANULADO' })
+      .getRawOne();
+    return Number(row?.total ?? 0);
   }
 }

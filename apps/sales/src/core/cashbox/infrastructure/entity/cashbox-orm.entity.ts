@@ -12,20 +12,15 @@ export class CashboxOrmEntity {
   @Column({ type: 'int' })
   id_sede_ref: number;
 
-  @Column({
-    type: 'enum',
-    enum: ['ABIERTA', 'CERRADA'],
-    default: 'ABIERTA',
-  })
+  @Column({ type: 'enum', enum: ['ABIERTA', 'CERRADA'], default: 'ABIERTA' })
   estado: 'ABIERTA' | 'CERRADA';
 
-  @CreateDateColumn({
-    type: 'datetime',
-    precision: 0,
-    default: () => 'CURRENT_TIMESTAMP',
-  })
+  @CreateDateColumn({ type: 'datetime', precision: 0, default: () => 'CURRENT_TIMESTAMP' })
   fec_apertura: Date;
 
   @Column({ type: 'datetime', nullable: true })
   fec_cierre: Date | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) 
+  monto_inicial: number | null;
 }

@@ -64,6 +64,16 @@ export class QuoteController {
     return await this.quoteQueryService.sendByEmail(id);
   }
 
+  @Get('whatsapp/status')
+  async whatsAppStatus() {
+    return this.quoteQueryService.whatsAppStatus();
+  }
+
+  @Post(':id/send-whatsapp')
+  async sendByWhatsApp(@Param('id', ParseIntPipe) id: number) {
+    return this.quoteQueryService.sendByWhatsApp(id);
+  }
+
   @Get(':id')
   async getById(@Param('id', ParseIntPipe) id: number): Promise<QuoteResponseDto | null> {
     return await this.queryPort.getById(id);

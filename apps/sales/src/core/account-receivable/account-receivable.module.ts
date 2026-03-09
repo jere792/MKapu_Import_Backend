@@ -9,8 +9,8 @@ import { AccountReceivableOrmEntity } from './infrastructure/entity/account-rece
 
 import { AccountReceivableRestController } from './infrastructure/adapters/in/controllers/account-receivable-rest.controller';
 
-import { AccountReceivableCommandService } from './application/service/account-receivable-command.service';
-import { AccountReceivableQueryService }   from './application/service/account-receivable-query.service';
+import { AccountReceivableCommandService } from './application/service/command/account-receivable-command.service';
+import { AccountReceivableQueryService }   from './application/service/query/account-receivable-query.service';
 import { AccountReceivableMapper }         from './application/mapper/account-receivable.mapper';
 
 import { AccountReceivableTypeormRepository } from './infrastructure/adapters/out/repository/account-receivable-typeorm.repository';

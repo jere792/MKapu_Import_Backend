@@ -54,29 +54,24 @@ export class AccountReceivableTypeormRepository
     const { page, limit, sedeId, status } = pagination;
     const skip = (page - 1) * limit;
 
-    // Si viene un status específico usar solo ese,
-    // si no, mostrar todos los estados activos por defecto
-    const statuses: AccountReceivableStatus[] = status
-      ? [status as AccountReceivableStatus]
-      : [
-          AccountReceivableStatus.PENDIENTE,
-          AccountReceivableStatus.PARCIAL,
-          AccountReceivableStatus.VENCIDO,
-        ];
-
     const qb = this.ormRepo
       .createQueryBuilder('ar')
       .leftJoinAndSelect('ar.paymentType', 'paymentType')
       .leftJoinAndSelect('ar.currency', 'currency')
-      .innerJoin('ar.salesReceipt', 'sr')
-      .where('ar.status IN (:...statuses)', { statuses })
-      .orderBy('ar.dueDate', 'ASC')
-      .skip(skip)
-      .take(limit);
+      .innerJoin('ar.salesReceipt', 'sr');
+
+    // Si viene status filtra por ese estado; si no, devuelve TODOS
+    if (status) {
+      qb.where('ar.status = :status', { status });
+    }
 
     if (sedeId) {
       qb.andWhere('sr.id_sede_ref = :sedeId', { sedeId });
     }
+
+    qb.orderBy('ar.dueDate', 'ASC')
+      .skip(skip)
+      .take(limit);
 
     const [orms, total] = await qb.getManyAndCount();
 

@@ -5,24 +5,29 @@ export interface SalesReceiptItemDto {
   description: string;
   total: number;
   igv?: number;
+  codigo?: string; // ← para reglas PRODUCTO
+  categoriaId?: number; // ← para reglas CATEGORIA
 }
+
 export interface RegisterSalesReceiptDto {
   customerId: string;
   saleTypeId: number;
   receiptTypeId: number;
   serie: string;
   dueDate: Date;
-  operationType: string;
+  operationType?: string;
   subtotal: number;
   igv: number;
   isc: number;
   total: number;
-  currencyCode: string;
+  currencyCode?: string;
   responsibleId: string;
   branchId: number;
   warehouseId: number;
   paymentMethodId: number;
   operationNumber?: string | null;
-  esCreditoPendiente?: boolean; 
+  esCreditoPendiente?: boolean;
+  promotionId?: number | null;
+  descuento?: number;
   items: SalesReceiptItemDto[];
 }

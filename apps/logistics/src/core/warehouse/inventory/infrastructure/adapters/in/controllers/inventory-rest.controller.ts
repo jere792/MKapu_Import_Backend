@@ -44,6 +44,9 @@ export class InventoryMovementRestController {
       },
     };
   }
+
+
+
   @Get('movements')
   async getMovementsHistory(
     @Query('search') search?: string,
@@ -51,10 +54,14 @@ export class InventoryMovementRestController {
     @Query('fechaInicio') fechaInicio?: string,
     @Query('fechaFin') fechaFin?: string,
     @Query('sedeId') sedeId?: string,
+    @Query('page') page?: number,    
+    @Query('limit') limit?: number,  
   ) {
-    const filters = { search, tipoId, fechaInicio, fechaFin, sedeId };
+    const filters = { search, tipoId, fechaInicio, fechaFin, sedeId, page, limit };
     return await this.inventoryQueryService.getMovementsHistory(filters);
   }
+
+
   @Post('adjustment')
   async makeAdjustment(@Body() dto: ManualAdjustmentDto) {
     try {

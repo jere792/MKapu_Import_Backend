@@ -39,12 +39,17 @@ export class CashboxController {
     return await this.commandPort.closeCashbox(dto);
   }
 
-  @Get('active/:idSede')
+  @Get('active/:idSede')      
   async getActive(@Param('idSede', ParseIntPipe) idSede: number) {
     return await this.queryPort.findActiveBySede(idSede);
   }
 
-  @Get(':id')
+  @Get('resumen/:idSede')     
+  async getResumen(@Param('idSede', ParseIntPipe) idSede: number) {
+    return await this.queryPort.getResumenDia(idSede);
+  }
+
+  @Get(':id')                  
   async getById(@Param('id') id: string) {
     return await this.queryPort.getById(id);
   }

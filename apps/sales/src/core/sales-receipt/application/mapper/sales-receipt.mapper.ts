@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* sales/src/core/sales-receipt/application/mapper/sales-receipt.mapper.ts */
 
 import {
@@ -16,23 +15,45 @@ import { ReceiptTypeOrmEntity } from '../../infrastructure/entity/receipt-type-o
 import { SunatCurrencyOrmEntity } from '../../infrastructure/entity/sunat-currency-orm.entity';
 import { CustomerOrmEntity } from '../../../customer/infrastructure/entity/customer-orm.entity';
 import { RegisterSalesReceiptDto } from '../dto/in';
-import { SalesReceiptResponseDto } from '../dto/out';
+import {
+  SalesReceiptResponseDto,
+  SaleTypeResponseDto,
+  ReceiptTypeResponseDto,
+} from '../dto/out';
+import { SalesType } from '../../domain/entity/sale-type-domain-entity';
+import { ReceiptType } from '../../domain/entity/receipt-type-domain-entity';
 
 export class SalesReceiptMapper {
+
+
   static fromRegisterDto(
     dto: RegisterSalesReceiptDto,
     nextNumber: number,
   ): SalesReceipt {
-    const domainItems: SalesReceiptItem[] = dto.items
-      ? dto.items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          productName: item.description,
-          total: item.total || item.quantity * item.unitPrice,
-          igv: item.igv || 0,
-        }))
-      : [];
+    if (!dto.serie)
+      throw new Error('El campo "serie" es obligatorio y no puede estar vacío');
+    if (!dto.items || dto.items.length === 0)
+      throw new Error('El comprobante debe contener al menos un item');
+
+    const operationType = dto.operationType ?? '0101';
+    const currencyCode = dto.currencyCode ?? 'PEN';
+    const descuento = dto.descuento ?? 0;
+
+    // Recalcular totales reales con descuento aplicado
+    const totalFinal = Number((dto.total - descuento).toFixed(2));
+    const subtotalFinal = Number((totalFinal / 1.18).toFixed(2));
+    const igvFinal = Number((totalFinal - subtotalFinal).toFixed(2));
+
+    const domainItems: SalesReceiptItem[] = dto.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      productName: item.description,
+      total: item.total || item.quantity * item.unitPrice,
+      igv: item.igv || 0,
+      codigo: item.codigo, // ← regla PRODUCTO
+      categoriaId: item.categoriaId, // ← regla CATEGORIA
+    }));
 
     return SalesReceipt.createNew(
       dto.customerId,
@@ -42,18 +63,23 @@ export class SalesReceiptMapper {
       nextNumber,
       new Date(),
       dto.dueDate,
-      dto.operationType,
-      dto.subtotal,
-      dto.igv,
+      operationType,
+      subtotalFinal,
+      igvFinal,
       dto.isc,
-      dto.total,
+      totalFinal,
       dto.responsibleId,
       dto.branchId,
-      dto.currencyCode,
+      currencyCode,
       domainItems,
+      dto.promotionId ?? null, // ← nuevo
+      descuento, // ← nuevo
     );
   }
 
+
+
+  
   static toDomain(orm: SalesReceiptOrmEntity): SalesReceipt {
     return SalesReceipt.create({
       id_comprobante: orm.id_comprobante,
@@ -120,16 +146,13 @@ export class SalesReceiptMapper {
         detail.pre_uni = item.unitPrice;
         detail.valor_uni = item.unitPrice;
         detail.igv = item.igv || 0;
-
         detail.descripcion = (
           item.productName ||
           item.description ||
           ''
         ).substring(0, 45);
-
         (detail as any).tipo_afectacion_igv = 1;
-        (detail as any).id_descuento = 1;
-
+        (detail as any).id_descuento = item.discountId ?? null;
         return detail;
       });
     }
@@ -168,6 +191,23 @@ export class SalesReceiptMapper {
         tipoAfectacionIgv: item.igv || 1,
         total: item.total,
       })),
+    };
+  }
+
+  static toSaleTypeDto(domain: SalesType): SaleTypeResponseDto {
+    return {
+      id: domain.id_tipo_venta!,
+      tipo: domain.tipo,
+      descripcion: domain.descripcion,
+    };
+  }
+
+  static toReceiptTypeDto(domain: ReceiptType): ReceiptTypeResponseDto {
+    return {
+      id: domain.id_tipo_comprobante!,
+      codSunat: domain.cod_sunat,
+      descripcion: domain.descripcion,
+      estado: domain.estado,
     };
   }
 }

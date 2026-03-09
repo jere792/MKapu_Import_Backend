@@ -4,4 +4,5 @@ export class CashboxResponseDto {
   estado: string;
   fec_apertura: Date;
   fec_cierre?: Date | null;
+  monto_inicial?: number | null; 
 }
