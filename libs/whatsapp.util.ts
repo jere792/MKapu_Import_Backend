@@ -14,6 +14,7 @@ async function ensureWhatsApp(): Promise<void> {
     authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
     puppeteer: {
       headless: true,
+      executablePath: undefined,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     },
   });
@@ -44,9 +45,13 @@ async function ensureWhatsApp(): Promise<void> {
  * Llama a ensureWhatsApp() la primera vez — igual que buildQuotePdf hace require('pdfkit').
  */
 export async function getWhatsAppStatus(): Promise<{ ready: boolean; qr: string | null }> {
-  await ensureWhatsApp();
+  try {
+    await ensureWhatsApp();
+  } catch (err) {
+    console.error('[WhatsApp] Error al inicializar:', err);
+    throw new Error('No se pudo inicializar WhatsApp: ' + (err as any)?.message);
+  }
 
-  // Espera hasta 15s a que llegue el QR si recién se inicializó
   if (!waReady && !waQrBase64) {
     await new Promise<void>((resolve) => {
       const timeout  = setTimeout(resolve, 15_000);

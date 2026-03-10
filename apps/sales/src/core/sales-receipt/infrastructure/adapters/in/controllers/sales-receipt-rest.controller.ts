@@ -45,12 +45,8 @@ import {
 } from '../../../../utils/sales-receipt-pdf.util';
 import * as nodemailer from 'nodemailer';
 
-// ── Helpers dinámicos para whatsapp.util ─────────────────────────────────────
-// Se usan require() en runtime para evitar que webpack intente resolver
-// whatsapp-web.js en tiempo de compilación (igual que hace el propio util).
 async function waStatus(): Promise<{ ready: boolean; qr: string | null }> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { getWhatsAppStatus } = require('../../../../libs/whatsapp.util');
+  const { getWhatsAppStatus } = require('libs/whatsapp.util');
   return getWhatsAppStatus();
 }
 
@@ -60,8 +56,7 @@ async function waSend(
   buffer: Buffer,
   filename: string,
 ): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { sendWhatsApp } = require('../../../../libs/whatsapp.util');
+  const { sendWhatsApp } = require('libs/whatsapp.util');
   return sendWhatsApp(telefono, mensaje, buffer, filename);
 }
 
@@ -180,8 +175,6 @@ export class SalesReceiptRestController {
     };
   }
 
-  // ── Endpoints ─────────────────────────────────────────────────────────────
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async registerReceipt(
@@ -289,7 +282,6 @@ export class SalesReceiptRestController {
     return this.receiptQueryService.listReceipts(filters);
   }
 
-  // ── WhatsApp status (debe ir ANTES de :id/detalle) ────────────────────────
   @Get('whatsapp/status')
   @HttpCode(HttpStatus.OK)
   async whatsAppStatus(): Promise<{ ready: boolean; qr: string | null }> {

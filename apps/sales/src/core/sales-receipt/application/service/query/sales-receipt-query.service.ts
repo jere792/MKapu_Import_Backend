@@ -7,8 +7,6 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { Response } from 'express';
 import * as nodemailer from 'nodemailer';
 import { ISalesReceiptQueryPort } from '../../../domain/ports/in/sales_receipt-ports-in';
@@ -26,14 +24,18 @@ import {
   ReceiptTypeResponseDto,
 } from '../../dto/out';
 import { SalesReceiptMapper } from '../../mapper/sales-receipt.mapper';
-import { UsersTcpProxy } from '../../../infrastructure/adapters/out/TCP/users-tcp.proxy';
-import { SedeTcpProxy } from '../../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
+import { UsersTcpProxy }     from '../../../infrastructure/adapters/out/TCP/users-tcp.proxy';
+import { SedeTcpProxy }      from '../../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { LogisticsTcpProxy } from '../../../infrastructure/adapters/out/TCP/logistics-tcp.proxy';
 import {
   buildSalesReceiptPdf,
   SalesReceiptPdfData,
 } from '../../../utils/sales-receipt-pdf.util';
-import { getWhatsAppStatus, sendWhatsApp } from 'libs/whatsapp.util';
+
+// ── ELIMINADO: import estático que webpack no puede resolver ──────────────────
+// import { getWhatsAppStatus, sendWhatsApp } from 'libs/whatsapp.util';
+// Se reemplaza por require() dinámico dentro de cada método.
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
@@ -44,21 +46,14 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     @Inject('ICustomerRepositoryPort')
     private readonly customerRepository: ICustomerRepositoryPort,
 
-    private readonly usersTcpProxy: UsersTcpProxy,
-    private readonly sedeTcpProxy: SedeTcpProxy,
+    private readonly usersTcpProxy:     UsersTcpProxy,
+    private readonly sedeTcpProxy:      SedeTcpProxy,
     private readonly logisticsTcpProxy: LogisticsTcpProxy,
-
-    // No se inyecta repo ORM adicional: reutilizamos getDetalleCompleto
   ) {}
 
   // ─────────────────────────────────────────────────────────────────
-  //  HELPERS PRIVADOS
+  //  HELPER PRIVADO — buildPdfData
   // ─────────────────────────────────────────────────────────────────
-
-  /**
-   * Construye el SalesReceiptPdfData reutilizando getDetalleCompleto.
-   * Misma lógica que usa el REST controller en GET :id/pdf.
-   */
   private async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
     const detalle = await this.getDetalleCompleto(id, 1);
     if (!detalle) throw new NotFoundException(`Comprobante ${id} no encontrado`);
@@ -66,11 +61,11 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     const tipoPromo = (detalle.promocion?.tipo ?? '').toUpperCase();
 
     let promoData: SalesReceiptPdfData['promocion'] = null;
-    let codigosPromo: string[] = [];
-    let porcentajePromo: number | null = null;
+    let codigosPromo: string[]                       = [];
+    let porcentajePromo: number | null               = null;
 
     if (detalle.promocion) {
-      const reglas       = detalle.promocion.reglas ?? [];
+      const reglas        = detalle.promocion.reglas ?? [];
       const montoCabecera = Number(detalle.promocion.monto_descuento);
       const rawPromo: any = detalle.promocion;
 
@@ -121,13 +116,13 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     const productos = (detalle.productos ?? []).map((p: any) => {
       const estaEnPromo = codigosPromo.includes(p.cod_prod);
       return {
-        cod_prod:              p.cod_prod,
-        descripcion:           p.descripcion,
-        cantidad:              Number(p.cantidad),
-        precio_unit:           Number(p.pre_uni ?? p.precio_unit),
-        total:                 Number(p.total),
-        descuento_nombre:      estaEnPromo && porcentajePromo != null ? `${porcentajePromo}%` : null,
-        descuento_porcentaje:  estaEnPromo && porcentajePromo != null ? porcentajePromo : null,
+        cod_prod:             p.cod_prod,
+        descripcion:          p.descripcion,
+        cantidad:             Number(p.cantidad),
+        precio_unit:          Number(p.pre_uni ?? p.precio_unit),
+        total:                Number(p.total),
+        descuento_nombre:     estaEnPromo && porcentajePromo != null ? `${porcentajePromo}%` : null,
+        descuento_porcentaje: estaEnPromo && porcentajePromo != null ? porcentajePromo : null,
       };
     });
 
@@ -161,11 +156,11 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  //  EXPORT PDF  (para el REST controller)
+  //  EXPORT PDF
   // ─────────────────────────────────────────────────────────────────
   async exportPdf(id: number, res: Response): Promise<void> {
-    const pdfData = await this.buildPdfData(id);
-    const buffer  = await buildSalesReceiptPdf(pdfData);
+    const pdfData  = await this.buildPdfData(id);
+    const buffer   = await buildSalesReceiptPdf(pdfData);
     const filename = `comprobante-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
 
     res.set({
@@ -184,12 +179,11 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     const email   = pdfData.cliente.email;
     if (!email) throw new NotFoundException('El cliente no tiene email registrado');
 
-    const buffer   = await buildSalesReceiptPdf(pdfData);
-    const docRef   = `${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}`;
-    const tipoDoc  = pdfData.tipo_comprobante.toUpperCase();
-    const moneda   = 'S/';
-    const total    = Number(pdfData.total).toFixed(2);
-    const fecEmision = new Date(pdfData.fec_emision).toLocaleDateString('es-PE');
+    const buffer        = await buildSalesReceiptPdf(pdfData);
+    const docRef        = `${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}`;
+    const tipoDoc       = pdfData.tipo_comprobante.toUpperCase();
+    const total         = Number(pdfData.total).toFixed(2);
+    const fecEmision    = new Date(pdfData.fec_emision).toLocaleDateString('es-PE');
     const nombreCliente = pdfData.cliente.nombre;
 
     const transporter = nodemailer.createTransport({
@@ -212,17 +206,19 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         <ul>
           <li><strong>Documento:</strong> ${tipoDoc} N° ${docRef}</li>
           <li><strong>Fecha de emisión:</strong> ${fecEmision}</li>
-          <li><strong>Total pagado:</strong> ${moneda} ${total}</li>
+          <li><strong>Total pagado:</strong> S/ ${total}</li>
           <li><strong>Estado:</strong> ${pdfData.estado}</li>
-          ${pdfData.promocion ? `<li><strong>Promoción aplicada:</strong> ${pdfData.promocion.nombre} (-${moneda} ${Number(pdfData.promocion.monto_descuento).toFixed(2)})</li>` : ''}
+          ${pdfData.promocion
+            ? `<li><strong>Promoción aplicada:</strong> ${pdfData.promocion.nombre} (-S/ ${Number(pdfData.promocion.monto_descuento).toFixed(2)})</li>`
+            : ''}
         </ul>
         <p>Si tiene alguna consulta, no dude en contactarnos.</p>
         <br/>
         <p>Atentamente,<br/>
         <strong>${process.env.COMPANY_NAME ?? 'MKapu Import'}</strong><br/>
-        ${process.env.COMPANY_PHONE ? `Tel: ${process.env.COMPANY_PHONE}` : ''}<br/>
-        ${process.env.COMPANY_EMAIL ? `Email: ${process.env.COMPANY_EMAIL}` : ''}<br/>
-        ${process.env.COMPANY_WEB   ? `Web: ${process.env.COMPANY_WEB}`   : ''}</p>
+        ${process.env.COMPANY_PHONE ? `Tel: ${process.env.COMPANY_PHONE}<br/>` : ''}
+        ${process.env.COMPANY_EMAIL ? `Email: ${process.env.COMPANY_EMAIL}<br/>` : ''}
+        ${process.env.COMPANY_WEB   ? `Web: ${process.env.COMPANY_WEB}`         : ''}</p>
       `,
       attachments: [{
         filename:    `${tipoDoc}-${docRef}.pdf`,
@@ -235,9 +231,11 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  //  ESTADO WHATSAPP  (devuelve ready + QR para escanear)
+  //  ESTADO WHATSAPP
   // ─────────────────────────────────────────────────────────────────
   async whatsAppStatus(): Promise<{ ready: boolean; qr: string | null }> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getWhatsAppStatus } = require('libs/whatsapp.util');
     return getWhatsAppStatus();
   }
 
@@ -271,12 +269,9 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
       `Adjuntamos el comprobante en PDF. Ante cualquier consulta, contáctenos. ✅`,
     ].join('\n');
 
-    await sendWhatsApp(
-      telefono,
-      mensaje,
-      buffer,
-      `${tipoDoc}-${docRef}.pdf`,
-    );
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { sendWhatsApp } = require('libs/whatsapp.util');
+    await sendWhatsApp(telefono, mensaje, buffer, `${tipoDoc}-${docRef}.pdf`);
 
     return { message: 'WhatsApp enviado correctamente', sentTo: telefono };
   }
@@ -294,7 +289,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     }
     const [serie, numeroStr] = parts;
     const numero = parseInt(numeroStr, 10);
-    const sale = await this.receiptRepository.findByCorrelativo(serie, numero);
+    const sale   = await this.receiptRepository.findByCorrelativo(serie, numero);
     if (!sale) throw new NotFoundException(`No se encontró el comprobante ${correlativo}`);
 
     return {
@@ -304,10 +299,10 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
       cliente_direccion: (sale as any).direccion_entrega || 'Dirección no especificada',
       cliente_ubigeo:    (sale as any).ubigeo_destino || '150101',
       detalles: sale.details.map((d) => ({
-        id_producto:    d.id_prod_ref,
-        cod_prod:       d.cod_prod,
-        cantidad:       d.cantidad,
-        peso_unitario:  d.id_prod_ref,
+        id_producto:   d.id_prod_ref,
+        cod_prod:      d.cod_prod,
+        cantidad:      d.cantidad,
+        peso_unitario: d.id_prod_ref,
       })),
     };
   }
@@ -333,12 +328,12 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   async listReceipts(filters?: ListSalesReceiptFilterDto): Promise<SalesReceiptListResponse> {
     const repoFilters = filters
       ? {
-          estado:               filters.status,
-          id_cliente:           filters.customerId,
-          id_tipo_comprobante:  filters.receiptTypeId,
-          fec_desde:            filters.dateFrom,
-          fec_hasta:            filters.dateTo,
-          search:               filters.search,
+          estado:              filters.status,
+          id_cliente:          filters.customerId,
+          id_tipo_comprobante: filters.receiptTypeId,
+          fec_desde:           filters.dateFrom,
+          fec_hasta:           filters.dateTo,
+          search:              filters.search,
         }
       : undefined;
 
@@ -365,7 +360,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   async getKpiSemanal(sedeId?: number): Promise<SalesReceiptKpiDto> {
     const raw = await this.receiptRepository.getKpiSemanal(sedeId);
 
-    const ahora    = new Date();
+    const ahora     = new Date();
     const diaSemana = ahora.getDay();
     const diffLunes = diaSemana === 0 ? 6 : diaSemana - 1;
 
@@ -429,21 +424,21 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     const sedeMap    = new Map(sedes.map((s) => [s.id_sede, s.nombre]));
 
     const receipts: SalesReceiptSummaryItemDto[] = rows.map((r) => ({
-      idComprobante:    r.id_comprobante,
-      numeroCompleto:   `${r.serie}-${String(r.numero).padStart(8, '0')}`,
-      serie:            r.serie,
-      numero:           r.numero,
-      tipoComprobante:  r.tipo_comprobante,
-      fecEmision:       r.fec_emision,
-      clienteNombre:    r.cliente_nombre || '—',
-      clienteDocumento: r.cliente_doc,
-      idResponsable:    r.id_responsable,
+      idComprobante:     r.id_comprobante,
+      numeroCompleto:    `${r.serie}-${String(r.numero).padStart(8, '0')}`,
+      serie:             r.serie,
+      numero:            r.numero,
+      tipoComprobante:   r.tipo_comprobante,
+      fecEmision:        r.fec_emision,
+      clienteNombre:     r.cliente_nombre || '—',
+      clienteDocumento:  r.cliente_doc,
+      idResponsable:     r.id_responsable,
       responsableNombre: usuarioMap.get(Number(r.id_responsable)) ?? '—',
-      idSede:           r.id_sede,
-      sedeNombre:       sedeMap.get(r.id_sede) ?? '—',
-      metodoPago:       r.metodo_pago,
-      total:            r.total,
-      estado:           r.estado,
+      idSede:            r.id_sede,
+      sedeNombre:        sedeMap.get(r.id_sede) ?? '—',
+      metodoPago:        r.metodo_pago,
+      total:             r.total,
+      estado:            r.estado,
     }));
 
     return {
@@ -507,10 +502,10 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         : Promise.resolve(new Map<number, string>()),
     ]);
 
-    const usuarioMap      = new Map(usuarios.map((u) => [u.id_usuario, u.nombreCompleto]));
-    const nombreSede      = sedeInfo?.nombre ?? `Sede ${idSede}`;
+    const usuarioMap        = new Map(usuarios.map((u) => [u.id_usuario, u.nombreCompleto]));
+    const nombreSede        = sedeInfo?.nombre ?? `Sede ${idSede}`;
     const nombreResponsable = usuarioMap.get(idResponsablePrincipal) ?? `Usuario ${idResponsablePrincipal}`;
-    const nombreCliente   = comprobante.cliente_nombre?.trim() || comprobante.cliente_doc || '—';
+    const nombreCliente     = comprobante.cliente_nombre?.trim() || comprobante.cliente_doc || '—';
 
     const totalGastadoFinal =
       comprobante.estado !== 'ANULADO'
@@ -537,35 +532,35 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
       metodo_pago:      comprobante.metodo_pago,
 
       cliente: {
-        id_cliente:             comprobante.cliente_id,
-        nombre:                 nombreCliente,
-        documento:              comprobante.cliente_doc,
-        tipo_documento:         comprobante.cliente_tipo_doc ?? '—',
-        direccion:              comprobante.cliente_direccion ?? '',
-        email:                  comprobante.cliente_email    ?? '',
-        telefono:               comprobante.cliente_telefono ?? '',
-        total_gastado_cliente:  totalGastadoFinal,
-        cantidad_compras:       cantidadComprasFinal,
+        id_cliente:            comprobante.cliente_id,
+        nombre:                nombreCliente,
+        documento:             comprobante.cliente_doc,
+        tipo_documento:        comprobante.cliente_tipo_doc ?? '—',
+        direccion:             comprobante.cliente_direccion ?? '',
+        email:                 comprobante.cliente_email    ?? '',
+        telefono:              comprobante.cliente_telefono ?? '',
+        total_gastado_cliente: totalGastadoFinal,
+        cantidad_compras:      cantidadComprasFinal,
       },
 
       productos: (productos as any[]).map((p) => {
-        const codigoReal  = codigoMap.get(Number(p.id_prod_ref));
-        const montoPromo  = p.descuento_promo_monto != null ? Number(p.descuento_promo_monto) : null;
+        const codigoReal     = codigoMap.get(Number(p.id_prod_ref));
+        const montoPromo     = p.descuento_promo_monto != null ? Number(p.descuento_promo_monto) : null;
         const baseItemSinIgv = Number(
           (Number(p.cantidad) * Number(p.precio_unit)).toFixed(2),
         );
         return {
-          id_prod_ref:              p.id_prod_ref,
-          cod_prod:                 codigoReal ?? p.cod_prod ?? p.id_prod_ref,
-          descripcion:              p.descripcion,
-          cantidad:                 Number(p.cantidad),
-          precio_unit:              Number(p.precio_unit),
-          igv:                      Number(p.igv),
-          total:                    Number(p.total),
-          descuento_nombre:         p.descuento_nombre || null,
-          descuento_porcentaje:     Number(p.descuento_porcentaje) || null,
-          promocion_aplicada:       Boolean(p.promocion_aplicada),
-          descuento_promo_monto:    montoPromo,
+          id_prod_ref:                p.id_prod_ref,
+          cod_prod:                   codigoReal ?? p.cod_prod ?? p.id_prod_ref,
+          descripcion:                p.descripcion,
+          cantidad:                   Number(p.cantidad),
+          precio_unit:                Number(p.precio_unit),
+          igv:                        Number(p.igv),
+          total:                      Number(p.total),
+          descuento_nombre:           p.descuento_nombre || null,
+          descuento_porcentaje:       Number(p.descuento_porcentaje) || null,
+          promocion_aplicada:         Boolean(p.promocion_aplicada),
+          descuento_promo_monto:      montoPromo,
           descuento_promo_porcentaje:
             montoPromo != null && baseItemSinIgv > 0
               ? Number(((montoPromo / baseItemSinIgv) * 100).toFixed(2))
