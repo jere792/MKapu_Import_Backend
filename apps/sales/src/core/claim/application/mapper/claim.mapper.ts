@@ -17,23 +17,26 @@ export class ClaimMapper {
       id_reclamo: ormEntity.id_reclamo,
       id_comprobante: ormEntity.id_comprobante,
       id_vendedor_ref: ormEntity.id_vendedor_ref,
+      id_sede: ormEntity.id_sede,
       motivo: ormEntity.motivo,
       descripcion: ormEntity.descripcion,
       respuesta: ormEntity.respuesta,
       estado: ormEntity.estado as ClaimStatus,
       fecha_registro: ormEntity.fecha_registro,
       fecha_resolucion: ormEntity.fecha_resolucion,
-      // Mapeo seguro de detalles (puede ser undefined si no se cargó la relación)
+
       detalles:
         ormEntity.detalles?.map((d) =>
           ClaimDetail.create({
             tipo: d.tipo,
             descripcion: d.descripcion,
+            fecha: d.fecha || new Date(),
           }),
         ) || [],
     };
     return Claim.create(props);
   }
+
   static toOrm(domainEntity: Claim): ClaimOrmEntity {
     const orm = new ClaimOrmEntity();
     if (domainEntity.id_reclamo) {
@@ -41,21 +44,23 @@ export class ClaimMapper {
     }
     orm.id_comprobante = domainEntity.id_comprobante;
     orm.id_vendedor_ref = domainEntity.id_vendedor_ref;
+    orm.id_sede = domainEntity.id_sede;
     orm.motivo = domainEntity.motivo;
     orm.descripcion = domainEntity.descripcion;
     orm.respuesta = domainEntity.respuesta;
     orm.estado = domainEntity.estado;
-
     orm.fecha_registro = domainEntity.fecha_registro;
+
     if (domainEntity.fecha_resolucion) {
       orm.fecha_resolucion = domainEntity.fecha_resolucion;
     }
+
     if (domainEntity.detalles && domainEntity.detalles.length > 0) {
       orm.detalles = domainEntity.detalles.map((d) => {
         const detalleOrm = new ClaimDetailOrmEntity();
-
         detalleOrm.tipo = d.tipo;
         detalleOrm.descripcion = d.descripcion;
+        detalleOrm.fecha = d.fecha;
         return detalleOrm;
       });
     }
@@ -72,7 +77,15 @@ export class ClaimMapper {
       description: claim.descripcion,
       status: claim.estado,
       registeredAt: claim.fecha_registro,
-      resolvedAt: claim.fecha_resolucion,
+      resolvedAt: claim.fecha_resolucion || null,
+      detalles:
+        claim.detalles?.map((d) => ({
+          tipo: d.tipo,
+          descripcion: d.descripcion,
+          fecha: d.fecha,
+        })) || [],
+      respuesta: claim.respuesta,
+      sedeId: claim.id_sede,
     };
   }
 
@@ -86,11 +99,14 @@ export class ClaimMapper {
   }
 
   static fromRegisterDto(dto: RegisterClaimDto): Claim {
+    // Nota: Si usas 'createNew', asegúrate de actualizar ese método en la entidad Claim
+    // para que acepte el id_sede como 5to parámetro.
     return Claim.createNew(
       dto.id_comprobante,
       dto.id_vendedor_ref,
       dto.motivo,
       dto.descripcion,
+      dto.id_sede,
     );
   }
 
@@ -99,6 +115,7 @@ export class ClaimMapper {
       id_reclamo: claim.id_reclamo,
       id_comprobante: claim.id_comprobante,
       id_vendedor_ref: claim.id_vendedor_ref,
+      id_sede: claim.id_sede,
       motivo: dto.reason ?? claim.motivo,
       descripcion: dto.description ?? claim.descripcion,
       estado: claim.estado,
@@ -113,6 +130,7 @@ export class ClaimMapper {
       id_reclamo: claim.id_reclamo,
       id_comprobante: claim.id_comprobante,
       id_vendedor_ref: claim.id_vendedor_ref,
+      id_sede: claim.id_sede, // <-- NUEVO (Se mantiene la misma sede)
       motivo: claim.motivo,
       descripcion: claim.descripcion,
       estado: status,

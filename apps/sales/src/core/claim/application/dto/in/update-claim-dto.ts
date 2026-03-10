@@ -1,5 +1,5 @@
 export interface UpdateClaimDto {
-    claimId: number;
-    reason?: string;
-    description?: string;
+  claimId: number;
+  reason?: string;
+  description?: string;
 }

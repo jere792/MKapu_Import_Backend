@@ -10,6 +10,7 @@ export interface ICashboxCommandPort {
 }
 
 export interface ICashboxQueryPort {
-  getById(id_caja: string): Promise<CashboxResponseDto | null>;
-  findActiveBySede(id_sede_ref: number): Promise<CashboxResponseDto | null>;
+  findActiveBySede(idSede: number): Promise<CashboxResponseDto | null>;
+  getById(id: string): Promise<CashboxResponseDto | null>;
+  getResumenDia(idSede: number): Promise<{ totalVentas: number; totalMonto: number; ticketPromedio: number } | null>; // 👈
 }

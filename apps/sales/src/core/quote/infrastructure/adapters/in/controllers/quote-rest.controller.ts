@@ -1,21 +1,14 @@
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  Get, 
-  Param, 
-  Patch,
-  Delete,
-  Inject, 
-  ParseIntPipe, 
-  Query,
-  HttpCode,
-  HttpStatus
+import {
+  Controller, Post, Body, Get, Param, Patch,
+  Delete, Inject, ParseIntPipe, Query,
+  HttpCode, HttpStatus, Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { IQuoteCommandPort, IQuoteQueryPort } from '../../../../domain/ports/in/quote-ports-in';
 import { CreateQuoteDto } from '../../../../application/dto/in/create-quote.dto';
 import { QuoteResponseDto, QuotePagedResponseDto } from '../../../../application/dto/out/quote-response.dto';
 import { QuoteQueryFiltersDto } from '../../../../application/dto/in/quote-query-filters.dto';
+import { QuoteQueryService } from '../../../../application/service/quote-query.service';
 
 @Controller('quote')
 export class QuoteController {
@@ -24,6 +17,7 @@ export class QuoteController {
     private readonly commandPort: IQuoteCommandPort,
     @Inject('IQuoteQueryPort')
     private readonly queryPort: IQuoteQueryPort,
+    private readonly quoteQueryService: QuoteQueryService,
   ) {}
 
   @Post()
@@ -44,16 +38,10 @@ export class QuoteController {
     return await this.commandPort.changeStatus(id, body.estado);
   }
 
-  // ── Eliminar permanentemente ──────────────────────────────────────────────
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return await this.commandPort.delete(id);
-  }
-
-  @Get(':id')
-  async getById(@Param('id', ParseIntPipe) id: number): Promise<QuoteResponseDto | null> {
-    return await this.queryPort.getById(id);
   }
 
   @Get('customer/:valor_doc')
@@ -63,7 +51,31 @@ export class QuoteController {
 
   @Get()
   async listQuotes(@Query() filters: QuoteQueryFiltersDto): Promise<QuotePagedResponseDto> {
-    console.log('🔍 Controller filters:', JSON.stringify(filters));
     return this.queryPort.findAllPaged(filters);
+  }
+
+  @Get(':id/export/pdf')
+  async exportPdf(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    return await this.quoteQueryService.exportPdf(id, res);
+  }
+
+  @Post(':id/send-email')
+  async sendByEmail(@Param('id', ParseIntPipe) id: number) {
+    return await this.quoteQueryService.sendByEmail(id);
+  }
+
+  @Get('whatsapp/status')
+  async whatsAppStatus() {
+    return this.quoteQueryService.whatsAppStatus();
+  }
+
+  @Post(':id/send-whatsapp')
+  async sendByWhatsApp(@Param('id', ParseIntPipe) id: number) {
+    return this.quoteQueryService.sendByWhatsApp(id);
+  }
+
+  @Get(':id')
+  async getById(@Param('id', ParseIntPipe) id: number): Promise<QuoteResponseDto | null> {
+    return await this.queryPort.getById(id);
   }
 }

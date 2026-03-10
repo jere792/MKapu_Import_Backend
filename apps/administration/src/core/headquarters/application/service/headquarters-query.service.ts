@@ -1,8 +1,3 @@
-//application/service/headquarters-query.service.ts
-/* ============================================
-   administration/src/core/headquarters/application/service/headquarters-query.service.ts
-   ============================================ */
-
 import { Inject, Injectable } from "@nestjs/common";
 import { IHeadquartersQueryPort } from "../../domain/ports/in/headquarters-ports-in";
 import { IHeadquartersRepositoryPort } from "../../domain/ports/out/headquarters-ports-out";

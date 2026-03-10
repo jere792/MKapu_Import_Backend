@@ -1,8 +1,3 @@
-//infrastructure/adapters/out/repository/headquarters.repository.ts
-/* ============================================
-   administration/src/core/headquarters/infrastructure/adapters/out/repository/headquarters.repository.ts
-   ============================================ */
-
 import { Injectable } from "@nestjs/common";
 import { IHeadquartersRepositoryPort } from "../../../../domain/ports/out/headquarters-ports-out";
 import { InjectRepository } from "@nestjs/typeorm";

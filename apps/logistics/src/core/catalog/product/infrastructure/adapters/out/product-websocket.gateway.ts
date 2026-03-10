@@ -1,7 +1,3 @@
-/* ============================================
-   logistics/src/core/product/infrastructure/adapters/product-websocket.gateway.ts
-   ============================================ */
-
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -12,7 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { ProductResponseDto } from '../../../application/dto/out';
 
 @WebSocketGateway({
-  namespace: '/products', // Crucial para la ruta en el API Gateway
+  namespace: '/products', 
   cors: {
     origin: '*',
   },
@@ -25,7 +21,6 @@ export class ProductWebSocketGateway implements OnGatewayConnection {
   handleConnection(client: Socket) {
     console.log(`📦 Cliente conectado a Logistics (Products): ${client.id}`);
     
-    // Notificación de prueba inicial
     this.server.emit('product.created', {
       id_producto: 0,
       codigo: 'SYS-LOG',

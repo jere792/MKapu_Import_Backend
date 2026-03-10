@@ -4,6 +4,7 @@
 
 import {
   IsDateString,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -16,25 +17,37 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+
+export enum AccountReceivableStatusDto {
+  PENDIENTE = 'PENDIENTE',
+  PARCIAL   = 'PARCIAL',
+  PAGADO    = 'PAGADO',
+  VENCIDO   = 'VENCIDO',
+  CANCELADO = 'CANCELADO',
+}
+
 // ── Paginado ──────────────────────────────────────────────────────────────────
 export class PaginationDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  limit?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1)
-  limit?: number = 10;
+  sedeId?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  sedeId?: number;  
+  @IsEnum(AccountReceivableStatusDto)
+  status?: AccountReceivableStatusDto;   
 }
 
 // ── Crear cuenta por cobrar ───────────────────────────────────────────────────

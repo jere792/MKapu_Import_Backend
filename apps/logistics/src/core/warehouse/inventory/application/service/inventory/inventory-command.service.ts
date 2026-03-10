@@ -117,19 +117,30 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
       dto.quantity,
     );
     await this.dataSource.transaction(async (manager) => {
-      // 1. Buscar el stock actual
-      const stock = await manager.findOne(StockOrmEntity, {
+      let stock = await manager.findOne(StockOrmEntity, {
         where: {
           id_producto: dto.productId,
           id_almacen: dto.warehouseId,
         },
       });
 
-      if (!stock)
-        throw new Error(
-          'No existe registro de stock para este producto en el almacén seleccionado',
-        );
-
+      if (!stock) {
+        if (dto.quantity > 0) {
+          stock = manager.create(StockOrmEntity, {
+            id_producto: dto.productId,
+            id_almacen: dto.warehouseId,
+            id_sede: String(dto.idSede || dto.warehouseId),
+            cantidad: 0,
+            tipo_ubicacion: 'ALMACEN',
+            estado: '1',
+          });
+          stock = await manager.save(stock);
+        } else {
+          throw new Error(
+            'No existe registro de stock para este producto en el almacén seleccionado',
+          );
+        }
+      }
       const isPositive = dto.quantity > 0;
 
       const movimientoCabecera = manager.create(InventoryMovementOrmEntity, {
@@ -153,7 +164,6 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
       );
       await manager.save(movimientoDetalle);
 
-      // 4. Actualizar el Stock
       const nuevaCantidad = Number(stock.cantidad) + dto.quantity;
       if (nuevaCantidad < 0)
         throw new Error('El ajuste resultaría en un stock negativo');
@@ -169,7 +179,6 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
     }
 
     await this.dataSource.transaction(async (manager) => {
-      // 1. Crear la cabecera única
       const movimientoCabecera = manager.create(InventoryMovementOrmEntity, {
         originType: 'AJUSTE',
         refId: dto.userId || 0,
@@ -179,26 +188,35 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
       });
       const movimientoGuardado = await manager.save(movimientoCabecera);
 
-      // 2. Iterar sobre los detalles
       for (const item of dto.items) {
-        // A. Buscar el stock actual
-        const stock = await manager.findOne(StockOrmEntity, {
+        let stock = await manager.findOne(StockOrmEntity, {
           where: { id_producto: item.productId, id_almacen: item.warehouseId },
         });
 
         if (!stock) {
-          throw new Error(
-            `No existe stock para el producto ID: ${item.productId}`,
-          );
+          if (item.quantity > 0) {
+            stock = manager.create(StockOrmEntity, {
+              id_producto: item.productId,
+              id_almacen: item.warehouseId,
+              id_sede: String(item.idSede || item.warehouseId),
+              cantidad: 0,
+              tipo_ubicacion: 'ALMACEN',
+              estado: '1',
+            });
+            stock = await manager.save(stock);
+          } else {
+            throw new Error(
+              `No existe stock para restar del producto ID: ${item.productId} en este almacén`,
+            );
+          }
         }
 
         const isPositive = item.quantity > 0;
 
-        // B. Crear el detalle relacionándolo con la cabecera
         const movimientoDetalle = manager.create(
           InventoryMovementDetailOrmEntity,
           {
-            movementId: movimientoGuardado.id, // Relacionamos con la cabecera
+            movementId: movimientoGuardado.id,
             productId: item.productId,
             warehouseId: item.warehouseId,
             quantity: Math.abs(item.quantity),
@@ -207,7 +225,6 @@ export class InventoryCommandService implements IInventoryMovementCommandPort {
         );
         await manager.save(movimientoDetalle);
 
-        // C. Actualizar el stock
         const nuevaCantidad = Number(stock.cantidad) + item.quantity;
         if (nuevaCantidad < 0) {
           throw new Error(

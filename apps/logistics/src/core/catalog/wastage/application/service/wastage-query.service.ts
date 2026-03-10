@@ -1,4 +1,3 @@
-// wastage-query.service.ts
 import { Injectable, Inject } from '@nestjs/common';
 import { IWastageQueryPort } from '../../domain/ports/in/wastage.port.in';
 import { IWastageRepositoryPort } from '../../domain/ports/out/wastage.port.out';

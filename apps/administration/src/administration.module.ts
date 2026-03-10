@@ -34,7 +34,6 @@ import { RolePermissionModule } from './core/role-permission/role-permission.mod
       envFilePath: '.env', 
     }),
 
-    // Configuración dinámica de TypeORM
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

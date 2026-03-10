@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -60,7 +59,6 @@ export class InventoryQueryService {
 
   async listarConteosPorSede(filtros: ListInventoryCountFilterDto) {
     const sedeParam = filtros.id_sede ? filtros.id_sede.toString() : undefined;
-
     const data =
       await this.inventoryCountRepository.listAllHeadersBySede(sedeParam);
 
@@ -70,11 +68,17 @@ export class InventoryQueryService {
   async getMovementsHistory(
     filters: any,
   ): Promise<{ data: InventoryMovementResponseDto[]; total: number }> {
-    const [movements, total] = await this.repository.findAllMovements(filters);
+    const page  = Number(filters.page  ?? 1);
+    const limit = Number(filters.limit ?? 10);
 
+    const [movements, total] = await this.repository.findAllMovements({
+      ...filters,
+      page,
+      limit,
+    });
     const sedeIds = new Set<number>();
     movements.forEach((mov) => {
-      mov.details.forEach((det) => {
+      mov.details.forEach((det: { warehouseRelation: { sedeId: any } }) => {
         const rawId =
           det.warehouseRelation?.sedeId ??
           (det.warehouseRelation as any)?.id_sede;
@@ -86,7 +90,6 @@ export class InventoryQueryService {
 
     let sedeMap: Record<number, string> = {};
     if (sedeIds.size > 0) {
-      // 👇 Usar el proxy para obtener las sedes
       const result = await this.adminTcpProxy.getHeadquartersNames(
         Array.from(sedeIds),
       );
@@ -94,45 +97,79 @@ export class InventoryQueryService {
         sedeMap = result;
       }
     }
-
     const mappedData: InventoryMovementResponseDto[] = movements.map((mov) => {
-      const detalleSalida = mov.details.find((d) => d.type === 'SALIDA');
-      const detalleIngreso = mov.details.find((d) => d.type === 'INGRESO');
+      // 1. Ya no dependemos de buscar estrictamente 'SALIDA' e 'INGRESO' por separado para obtener nombres.
+      // Obtenemos el primer detalle válido que tenga relación de almacén (normalmente todos los detalles de un ajuste van al mismo almacén).
+      const detalleConAlmacen = mov.details.find(
+        (d: { warehouseRelation: null }) => d.warehouseRelation != null,
+      );
 
-      const whSalidaNombre =
-        detalleSalida?.warehouseRelation?.nombre ||
-        (detalleSalida?.warehouseRelation as any)?.descripcion;
-      const whIngresoNombre =
-        detalleIngreso?.warehouseRelation?.nombre ||
-        (detalleIngreso?.warehouseRelation as any)?.descripcion;
+      const warehouseName =
+        detalleConAlmacen?.warehouseRelation?.nombre ||
+        (detalleConAlmacen?.warehouseRelation as any)?.descripcion ||
+        'Almacén Desconocido';
 
       let origenNombre = 'N/A';
       let destinoNombre = 'N/A';
 
-      switch (mov.originType) {
-        case 'TRANSFERENCIA':
-          origenNombre = whSalidaNombre || 'Desconocido';
-          destinoNombre = whIngresoNombre || 'En Tránsito';
+      // 2. Simplificamos y aseguramos el Switch para soportar diferentes nombres de ajuste
+      const originType = mov.originType?.toUpperCase();
+
+      switch (originType) {
+        case 'TRANSFERENCIA': {
+          const dSalida = mov.details.find(
+            (d: { type: string }) => d.type === 'SALIDA',
+          );
+          const dIngreso = mov.details.find(
+            (d: { type: string }) => d.type === 'INGRESO',
+          );
+          origenNombre = dSalida?.warehouseRelation?.nombre || 'Desconocido';
+          destinoNombre = dIngreso?.warehouseRelation?.nombre || 'En Tránsito';
           break;
+        }
         case 'COMPRA':
           origenNombre = 'Proveedor (Externo)';
-          destinoNombre = whIngresoNombre || 'N/A';
+          destinoNombre = warehouseName;
           break;
         case 'VENTA':
-          origenNombre = whSalidaNombre || 'N/A';
+          origenNombre = warehouseName;
           destinoNombre = 'Cliente (Externo)';
           break;
         case 'AJUSTE':
-          origenNombre = whSalidaNombre ? whSalidaNombre : 'Ajuste Manual';
-          destinoNombre = whIngresoNombre ? whIngresoNombre : 'Ajuste Manual';
+        case 'CONTEO':
+        case 'INVENTARIO': {
+          const isSalida = mov.details.some(
+            (d: { type: string }) => d.type === 'SALIDA',
+          );
+          const isIngreso = mov.details.some(
+            (d: { type: string }) => d.type === 'INGRESO',
+          );
+
+          if (isSalida && isIngreso) {
+            origenNombre = warehouseName;
+            destinoNombre = warehouseName; // Ajuste mixto
+          } else if (isSalida) {
+            origenNombre = warehouseName;
+            destinoNombre = 'Ajuste Manual (Merma/Faltante)';
+          } else if (isIngreso) {
+            origenNombre = 'Ajuste Manual (Sobrante)';
+            destinoNombre = warehouseName;
+          } else {
+            origenNombre = 'Ajuste Manual';
+            destinoNombre = 'Ajuste Manual';
+          }
+          break;
+        }
+        default:
+          origenNombre = warehouseName;
+          destinoNombre = warehouseName;
           break;
       }
 
+      // 3. Extracción segura de la Sede
       const idSedeInvolucrada =
-        detalleSalida?.warehouseRelation?.sedeId ??
-        (detalleSalida?.warehouseRelation as any)?.id_sede ??
-        detalleIngreso?.warehouseRelation?.sedeId ??
-        (detalleIngreso?.warehouseRelation as any)?.id_sede;
+        detalleConAlmacen?.warehouseRelation?.sedeId ??
+        (detalleConAlmacen?.warehouseRelation as any)?.id_sede;
 
       const sedeNombre =
         idSedeInvolucrada !== undefined && idSedeInvolucrada !== null
@@ -141,31 +178,46 @@ export class InventoryQueryService {
             'Sede No Encontrada'
           : 'Sin Sede';
 
+      // 4. Mapeo de productos (Se mantiene igual, estaba bien)
       const detallesUnicos = [];
       const mapProductos = new Map();
 
-      mov.details.forEach((det) => {
-        const idDelProducto = det.productRelation?.id_producto || det.productId;
+      mov.details.forEach(
+        (det: {
+          productRelation: {
+            id_producto: any;
+            codigo: any;
+            descripcion: any;
+            uni_med: any;
+          };
+          productId: any;
+          id: any;
+          quantity: any;
+          type: any;
+        }) => {
+          const idDelProducto =
+            det.productRelation?.id_producto || det.productId;
 
-        if (idDelProducto && !mapProductos.has(idDelProducto)) {
-          mapProductos.set(idDelProducto, true);
+          if (idDelProducto && !mapProductos.has(idDelProducto)) {
+            mapProductos.set(idDelProducto, true);
 
-          detallesUnicos.push({
-            id: det.id,
-            productoId: idDelProducto,
-            codigo:
-              det.productRelation?.codigo ||
-              (det.productRelation ? 'S/C' : 'ERR_REL'),
-            productoNombre:
-              det.productRelation?.descripcion ||
-              det.productRelation?.codigo ||
-              `ID: ${idDelProducto}`,
-            cantidad: det.quantity,
-            unidadMedida: det.productRelation?.uni_med || 'UND',
-            tipoOperacionItem: det.type,
-          });
-        }
-      });
+            detallesUnicos.push({
+              id: det.id,
+              productoId: idDelProducto,
+              codigo:
+                det.productRelation?.codigo ||
+                (det.productRelation ? 'S/C' : 'ERR_REL'),
+              productoNombre:
+                det.productRelation?.descripcion ||
+                det.productRelation?.codigo ||
+                `ID: ${idDelProducto}`,
+              cantidad: det.quantity,
+              unidadMedida: det.productRelation?.uni_med || 'UND',
+              tipoOperacionItem: det.type,
+            });
+          }
+        },
+      );
 
       return {
         id: mov.id,

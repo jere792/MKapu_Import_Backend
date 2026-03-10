@@ -1,1 +1,0 @@
-//(ej. pagos a proveedores o abonos de créditos).

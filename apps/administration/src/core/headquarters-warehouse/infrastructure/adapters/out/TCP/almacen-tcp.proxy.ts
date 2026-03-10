@@ -34,7 +34,6 @@ export class AlmacenTcpProxy
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // No bloqueamos el arranque — intentamos conectar en background con reintentos
     this.connectWithRetry();
   }
 
@@ -42,11 +41,8 @@ export class AlmacenTcpProxy
     try {
       await this.client.close();
     } catch {
-      // noop
     }
   }
-
-  // ─── Conexión con reintentos en background ───────────────────────────────────
 
   private async connectWithRetry(attempt = 1): Promise<void> {
     try {
@@ -74,7 +70,6 @@ export class AlmacenTcpProxy
     }
   }
 
-  // ─── Métodos públicos ─────────────────────────────────────────────────────────
 
   async getWarehouseById(id_almacen: number): Promise<WarehouseInfo | null> {
     if (!id_almacen || Number.isNaN(id_almacen)) return null;
@@ -95,7 +90,6 @@ export class AlmacenTcpProxy
       return [];
     }
 
-    // Si aún no conectó, intentamos conectar una vez más antes de fallar
     if (!this.connected) {
       await this.tryReconnect();
       if (!this.connected) {
@@ -120,7 +114,6 @@ export class AlmacenTcpProxy
 
       return response.data ?? [];
     } catch (error: any) {
-      // Si falló la comunicación, marcamos como desconectado para reconectar en la próxima llamada
       this.connected = false;
       this.logger.warn(
         `Error consultando almacenes por TCP: ${error?.message ?? error}`,

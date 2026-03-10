@@ -43,6 +43,10 @@ export class RegisterClaimDto {
   @IsNotEmpty()
   motivo: string;
 
+  @IsInt()
+  @IsOptional()
+  id_sede?: number;
+
   @ApiProperty({ description: 'Descripción general del reclamo' })
   @IsString()
   @IsNotEmpty()

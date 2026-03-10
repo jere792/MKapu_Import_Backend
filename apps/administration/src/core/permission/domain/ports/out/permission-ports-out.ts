@@ -1,8 +1,3 @@
-
-/* ============================================
-   administration/src/core/permission/domain/ports/out/permission-port-out.ts
-   ============================================ */
-
 import { Permission } from '../../entity/permission-domain-entity';
 
 export interface IPermissionRepositoryPort {

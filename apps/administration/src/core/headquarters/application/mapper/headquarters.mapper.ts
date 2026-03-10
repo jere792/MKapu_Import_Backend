@@ -1,8 +1,3 @@
-//application/mapper/headquarters.mapper.ts
-/* ============================================
-   administration/src/core/headquarters/application/mapper/headquarters.mapper.ts
-   ============================================ */
-
 import { Headquarters } from "../../domain/entity/headquarters-domain-entity";
 import { HeadquartersOrmEntity } from "../../infrastructure/entity/headquarters-orm.entity";
 import { RegisterHeadquartersDto } from "../dto/in/register-headquarters-dto";

@@ -4,11 +4,6 @@
 
 import { AccountReceivable } from '../../entity/account-receivable-domain-entity';
 
-export interface PaginationOptions {
-  page:    number;
-  limit:   number;
-  sedeId?: number; 
-}
 export interface PaginatedResult<T> {
   data:       T[];
   total:      number;
@@ -17,6 +12,13 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
+// DESPUÉS:
+export interface PaginationOptions {
+  page:    number;
+  limit:   number;
+  sedeId?: number;
+  status?: string;   
+}
 export interface IAccountReceivableRepository {
   findById(id: number): Promise<AccountReceivable | null>;
   findBySalesReceiptId(salesReceiptId: number): Promise<AccountReceivable | null>;

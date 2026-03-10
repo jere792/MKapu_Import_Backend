@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-//infrastructure/adapters/out/headquarters-websocket.gateway.ts
-/* ============================================
-   administration/src/core/headquarters/infrastructure/adapters/out/headquarters-websocket.gateway.ts
-   ============================================ */
 import { Inject } from '@nestjs/common';
 import {
   OnGatewayConnection,

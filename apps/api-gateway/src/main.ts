@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { NestFactory } from '@nestjs/core';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import * as httpProxy from 'http-proxy';
@@ -19,16 +22,48 @@ async function bootstrap() {
     ],
   });
 
-  const authUrl      = process.env.AUTH_SERVICE_URL      ?? 'http://localhost:3001';
-  const adminUrl     = process.env.ADMIN_SERVICE_URL     ?? 'http://localhost:3002';
-  const salesUrl     = process.env.SALES_SERVICE_URL     ?? 'http://localhost:3003';
-  const logisticsUrl = process.env.LOGISTICS_SERVICE_URL ?? 'http://localhost:3005';
+  const authUrl = process.env.AUTH_SERVICE_URL ?? 'http://localhost:3001';
+  const adminUrl = process.env.ADMIN_SERVICE_URL ?? 'http://localhost:3002';
+  const salesUrl = process.env.SALES_SERVICE_URL ?? 'http://localhost:3003';
+  const logisticsUrl =
+    process.env.LOGISTICS_SERVICE_URL ?? 'http://localhost:3005';
 
   // ── HTTP proxies (sin ws:true para evitar conflicto) ──
-  app.use('/auth',      createProxyMiddleware({ target: authUrl,      changeOrigin: true, pathRewrite: { '^/auth': '' } }));
-  app.use('/sales',     createProxyMiddleware({ target: salesUrl,     changeOrigin: true, pathRewrite: { '^/sales': '' }, ws: true }));
-  app.use('/admin',     createProxyMiddleware({ target: adminUrl,     changeOrigin: true, pathRewrite: { '^/admin': '' }, ws: true }));
-  app.use('/logistics', createProxyMiddleware({ target: logisticsUrl, changeOrigin: true, pathRewrite: { '^/logistics': '' }, ws: true }));
+  app.use(
+    '/auth',
+    createProxyMiddleware({
+      target: authUrl,
+      changeOrigin: true,
+      pathRewrite: { '^/auth': '' },
+    }),
+  );
+  app.use(
+    '/sales',
+    createProxyMiddleware({
+      target: salesUrl,
+      changeOrigin: true,
+      pathRewrite: { '^/sales': '' },
+      ws: true,
+    }),
+  );
+  app.use(
+    '/admin',
+    createProxyMiddleware({
+      target: adminUrl,
+      changeOrigin: true,
+      pathRewrite: { '^/admin': '' },
+      ws: true,
+    }),
+  );
+  app.use(
+    '/logistics',
+    createProxyMiddleware({
+      target: logisticsUrl,
+      changeOrigin: true,
+      pathRewrite: { '^/logistics': '' },
+      ws: true,
+    }),
+  );
 
   const wsProxy = httpProxy.createProxyServer({ changeOrigin: true });
 
@@ -38,8 +73,8 @@ async function bootstrap() {
   });
 
   const wsRoutes: { prefix: string; target: string }[] = [
-    { prefix: '/sales',     target: salesUrl },
-    { prefix: '/admin',     target: adminUrl },
+    { prefix: '/sales', target: salesUrl },
+    { prefix: '/admin', target: adminUrl },
     { prefix: '/logistics', target: logisticsUrl },
   ];
 
@@ -47,7 +82,7 @@ async function bootstrap() {
     const url: string = req.url ?? '';
     console.log(`[WS Upgrade] ${url}`);
 
-    const route = wsRoutes.find(r => url.startsWith(r.prefix));
+    const route = wsRoutes.find((r) => url.startsWith(r.prefix));
     if (!route) {
       socket.destroy();
       return;

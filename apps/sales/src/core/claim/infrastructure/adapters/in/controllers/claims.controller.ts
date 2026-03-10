@@ -8,7 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   CLAIM_COMMAND_PORT,
   CLAIM_QUERY_PORT,
@@ -17,6 +17,7 @@ import {
 } from '../../../../domain/ports/in/claim-port-in';
 import { RegisterClaimDto } from '../../../../application/dto/in/register-claim-dto';
 import { ClaimResponseDto } from '../../../../application/dto/out/claim-response-dto';
+import { ClaimMapper } from '../../../../application/mapper/claim.mapper';
 
 @ApiTags('Reclamos')
 @Controller('claims')
@@ -34,7 +35,8 @@ export class ClaimRestController {
   @Get(':id')
   @ApiOperation({ summary: 'Obtener detalle de un reclamo' })
   async getById(@Param('id', ParseIntPipe) id: number) {
-    return await this.claimQuery.getById(id);
+    const claim = await this.claimQuery.getById(id);
+    return ClaimMapper.toResponseDto(claim);
   }
 
   @Get('receipt/:receiptId')
@@ -58,5 +60,15 @@ export class ClaimRestController {
     @Body() updateDto: { respuesta: string },
   ): Promise<ClaimResponseDto> {
     return await this.claimCommand.resolve(id, updateDto.respuesta);
+  }
+  @Get('sede/:sedeId')
+  @ApiOperation({ summary: 'Listar reclamos por sede' })
+  @ApiParam({
+    name: 'sedeId',
+    description: 'ID de la sede del usuario',
+    type: 'number',
+  })
+  async listBySede(@Param('sedeId', ParseIntPipe) sedeId: number) {
+    return await this.claimQuery.listBySede(sedeId);
   }
 }

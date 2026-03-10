@@ -31,7 +31,6 @@ export class HeadquartersOrmEntity {
   @Column({ name: 'activo', type: 'bit', default: true })
   activo: boolean; // 1 = activo = true, 0 = inactivo = false
 
-  // Relación inversa con usuarios
   @OneToMany(() => UserOrmEntity, (user) => user.sede)
   usuarios?: UserOrmEntity[];
 }

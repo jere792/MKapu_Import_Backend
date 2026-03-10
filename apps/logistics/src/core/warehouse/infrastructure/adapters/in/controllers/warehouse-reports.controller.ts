@@ -6,6 +6,7 @@ import { Repository }             from 'typeorm';
 import { StockOrmEntity }                   from '../../../../inventory/infrastructure/entity/stock-orm-entity';
 import { InventoryMovementOrmEntity }       from '../../../../inventory/infrastructure/entity/inventory-movement-orm.entity';
 import { InventoryMovementDetailOrmEntity } from '../../../../inventory/infrastructure/entity/inventory-movement-detail-orm.entity';
+import { console } from 'inspector/promises';
 
 export class WarehouseReportsFilterDto {
   periodo?: string;  // 'semana' | 'mes' | 'anio'
@@ -27,13 +28,18 @@ export class WarehouseReportsController {
     private readonly detRepo: Repository<InventoryMovementDetailOrmEntity>,
   ) {}
 
-  // ── GET /warehouse/reports/kpis ──────────────────────────────────
-  @Get('kpis')
-  async getKpis(@Query() filters: WarehouseReportsFilterDto) {
-    const { fechaDesde, fechaHasta } = this.getRangoFechas(filters.periodo ?? 'mes');
+// ── GET /warehouse/reports/kpis ──────────────────────────────────
+// warehouse-reports.controller.ts
+@Get('kpis')
+async getKpis(@Query() filters: WarehouseReportsFilterDto) {
+    console.log('🔍 RAW query completo:', filters);
+    console.log('🔍 sedeId tipo:', typeof filters.sedeId, 'valor:', filters.sedeId);
+    console.log('🔍 filters recibidos:', JSON.stringify(filters)); // ← agregar esto
     const sedeId = filters.sedeId ?? null;
+    console.log('🔍 sedeId usado:', sedeId);      
+    const { fechaDesde, fechaHasta } = this.getRangoFechas(filters.periodo ?? 'mes');
 
-    // ✅ Filtro de sede corregido — id_sede es VARCHAR en stock
+    //  Filtro de sede corregido — id_sede es VARCHAR en stock
     const stockStats: any[] = await this.stockRepo.query(`
       SELECT
         COALESCE(SUM(s.cantidad), 0)                          AS valor_inventario,
@@ -43,7 +49,7 @@ export class WarehouseReportsController {
       WHERE (? IS NULL OR s.id_sede = ?)
     `, [sedeId, sedeId]);
 
-    // ✅ JOIN con stock para filtrar movimientos por sede
+    // JOIN con stock para filtrar movimientos por sede
     const movStats: any[] = await this.movRepo.query(`
       SELECT
         COUNT(DISTINCT m.id_movimiento)                             AS total_movimientos,

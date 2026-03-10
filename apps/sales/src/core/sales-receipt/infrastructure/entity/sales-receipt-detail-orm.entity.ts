@@ -36,8 +36,8 @@ export class SalesReceiptDetailOrmEntity {
   @Column({ name: 'tipo_afectacion_igv', type: 'int' })
   tipo_afectacion_igv: number;
 
-  @Column({ name: 'id_descuento', type: 'int', default: 0 })
-  id_descuento: number;
+  @Column({ name: 'id_descuento', type: 'int', nullable: true, default: null })
+  id_descuento: number | null;
 
   @Column({ name: 'id_comprobante' })
   id_comprobante: number;

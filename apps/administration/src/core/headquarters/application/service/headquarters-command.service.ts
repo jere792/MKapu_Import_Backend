@@ -1,8 +1,3 @@
-//application/service/headquarters-command.service.ts
-/* ============================================
-   administration/src/core/headquarters/application/service/headquarters-command.service.ts
-   ============================================ */
-
 import { ConflictException, Inject, Injectable } from "@nestjs/common";
 import { IHeadquartersCommandPort } from "../../domain/ports/in/headquarters-ports-in";
 import { IHeadquartersRepositoryPort } from "../../domain/ports/out/headquarters-ports-out";

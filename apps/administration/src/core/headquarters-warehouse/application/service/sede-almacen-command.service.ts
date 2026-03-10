@@ -77,10 +77,7 @@ export class SedeAlmacenCommandService implements ISedeAlmacenCommandPort {
     );
   }
 
-  // ── NUEVO: reasigna aunque ya tenga sede ────────────────────────────────────
-  async reassignWarehouseToSede(
-    dto: AssignWarehouseToSedeDto,
-  ): Promise<SedeAlmacenResponseDto> {
+  async reassignWarehouseToSede(dto: AssignWarehouseToSedeDto): Promise<SedeAlmacenResponseDto> {
     const sedeId = Number(dto.id_sede);
     const almacenId = Number(dto.id_almacen);
 
@@ -104,7 +101,6 @@ export class SedeAlmacenCommandService implements ISedeAlmacenCommandPort {
     if (almacen.activo === false)
       throw new ConflictException('El almacen esta inactivo');
 
-    // Borra la asignación anterior sin importar a qué sede estaba
     await this.repository.deleteByWarehouseId(almacenId);
 
     const saved = await this.repository.save(
@@ -117,7 +113,6 @@ export class SedeAlmacenCommandService implements ISedeAlmacenCommandPort {
     );
   }
 
-  // ── NUEVO: desasigna el almacén de su sede ──────────────────────────────────
   async unassignWarehouse(id_almacen: number): Promise<void> {
     const existing = await this.repository.findByWarehouseId(id_almacen);
     if (!existing) {

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Controller,
   Post,
@@ -37,10 +39,6 @@ export class CustomerRestController {
     private readonly customerCommandService: ICustomerCommandPort,
   ) {}
 
-  // ===============================
-  // RUTAS ESPECÍFICAS PRIMERO
-  // ===============================
-
   @Get('document-types')
   @HttpCode(HttpStatus.OK)
   async getDocumentTypes(): Promise<DocumentTypeResponseDto[]> {
@@ -54,10 +52,6 @@ export class CustomerRestController {
   ): Promise<CustomerResponseDto | null> {
     return this.customerQueryService.getCustomerByDocument(documentValue);
   }
-
-  // ===============================
-  // SUGGEST (AUTOCOMPLETE) - debe estar antes de @Get(':id')
-  // ===============================
   @Get('suggest')
   @HttpCode(HttpStatus.OK)
   async suggest(
@@ -70,16 +64,13 @@ export class CustomerRestController {
       search: q ?? undefined,
     };
 
-    const list: CustomerListResponse = await this.customerQueryService.listCustomers(filters);
+    const list: CustomerListResponse =
+      await this.customerQueryService.listCustomers(filters);
 
     const items = (list as any).customers ?? [];
 
     return Array.isArray(items) ? items.slice(0, Number(limit)) : [];
   }
-
-  // ===============================
-  // COMMANDS
-  // ===============================
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -122,10 +113,6 @@ export class CustomerRestController {
   ): Promise<CustomerDeletedResponseDto> {
     return this.customerCommandService.deleteCustomer(id);
   }
-
-  // ===============================
-  // QUERIES
-  // ===============================
 
   @Get()
   async listCustomers(

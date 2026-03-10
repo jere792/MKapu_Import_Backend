@@ -40,7 +40,8 @@ import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
   providers: [
     ProductStockTcpClientProvider,
     ProductStockTcpProxy,
-    SedeTcpProxy, 
+    SedeTcpProxy,
+    QuoteQueryService,
     {
       provide: 'IQuoteCommandPort',
       useClass: QuoteCommandService,

@@ -24,6 +24,9 @@ export class ConteoDetalleInputDto {
   @IsNumber()
   @IsNotEmpty()
   stock_conteo: number;
+  @IsInt()
+  @IsOptional()
+  warehouseId?: number;
 }
 
 export class FinalizarConteoDto {
