@@ -1,7 +1,7 @@
 import { Controller, Inject, Logger } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { IHeadquartersQueryPort } from '../../../../../headquarters/domain/ports/in/headquarters-ports-in';
-import { ISedeAlmacenRepositoryPort } from '../../../../domain/ports/out/sede-almacen-ports-out';
+import { ISedeAlmacenRepositoryPort } from 'apps/administration/src/core/headquarters-warehouse/domain/ports/out/sede-almacen-ports-out';
 
 type GetWarehouseIdsBySedePayload = {
   id_sede: number | string;

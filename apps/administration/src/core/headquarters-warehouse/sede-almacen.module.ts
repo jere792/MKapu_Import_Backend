@@ -7,10 +7,10 @@ import { SedeAlmacenRepository } from './infrastructure/adapters/out/repository/
 import { SedeAlmacenCommandService } from './application/service/sede-almacen-command.service';
 import { SedeAlmacenQueryService } from './application/service/sede-almacen-query.service';
 import { SedeAlmacenRestController } from './infrastructure/adapters/in/controllers/sede-almacen-rest.controller';
-import { SedeAlmacenTcpController } from './infrastructure/adapters/in/TCP/sede-almacen-tcp.controller';
 import { AlmacenClientProvider } from './infrastructure/adapters/out/TCP/almacen-client.provider';
 import { AlmacenTcpProxy } from './infrastructure/adapters/out/TCP/almacen-tcp.proxy';
 import { HeadquartersOrmEntity } from '../headquarters/infrastructure/entity/headquarters-orm.entity';
+import { SedeAlmacenTcpController } from '../sede-almacen/infrastructure/adapters/in/TCP/sede-almacen-tcp.controller';
 
 @Module({
   imports: [
