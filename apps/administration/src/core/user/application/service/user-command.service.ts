@@ -49,39 +49,51 @@ export class UserCommandService implements IUserCommandPort {
     return response;
   }
 
-  async updateUser(dto: UpdateUserDto): Promise<UserResponseDto> {
-    const existingUser = await this.repository.findById(dto.id_usuario);
-    if (!existingUser)
-      throw new NotFoundException(
-        `Usuario con ID ${dto.id_usuario} no encontrado`,
-      );
 
-    if (dto.email && dto.email !== existingUser.email) {
-      const emailExists = await this.repository.existsByEmail(dto.email);
-      if (emailExists)
-        throw new ConflictException('El email ya está en uso por otro usuario');
+  async updateUser(dto: UpdateUserDto): Promise<UserResponseDto> {
+  const existingUser = await this.repository.findById(dto.id_usuario);
+  if (!existingUser)
+    throw new NotFoundException(`Usuario con ID ${dto.id_usuario} no encontrado`);
+
+  if (dto.email && dto.email !== existingUser.email) {
+    const emailExists = await this.repository.existsByEmail(dto.email);
+    if (emailExists)
+      throw new ConflictException('El email ya está en uso por otro usuario');
+  }
+
+  const updatedUser = UserMapper.fromUpdateDto(existingUser, dto);
+  await this.repository.update(updatedUser);
+
+  // Buscar cuenta del usuario
+  const cuenta = await this.cuentaUsuarioRepo.findOne({
+    where: { id_usuario: dto.id_usuario },
+  });
+
+  if (cuenta) {
+    // ← Sincronizar id_sede en cuenta_usuario
+    if (dto.id_sede) {
+      await this.cuentaUsuarioRepo.update(
+        { id_cuenta: cuenta.id_cuenta },
+        { id_sede: dto.id_sede },
+      );
     }
 
-    const updatedUser = UserMapper.fromUpdateDto(existingUser, dto);
-    const savedUser = await this.repository.update(updatedUser);
-
-    if (dto.rolNombre && dto.rolNombre !== existingUser.rolNombre) {
-      const role = await this.roleRepo.findOne({ where: { nombre: dto.rolNombre } });
+    // Actualizar rol si viene en el DTO
+    if (dto.rolNombre) {
+      const role = await this.roleRepo.findOne({
+        where: { nombre: dto.rolNombre },
+      });
       if (role) {
-        const cuenta = await this.cuentaUsuarioRepo.findOne({
-          where: { id_usuario: dto.id_usuario },
-        });
-        if (cuenta) {
-          await this.cuentaRolRepo.update(
-            { id_cuenta: cuenta.id_cuenta },
-            { id_rol: role.id_rol },
-          );
-        }
+        await this.cuentaRolRepo.update(
+          { id_cuenta: cuenta.id_cuenta },
+          { id_rol: role.id_rol },
+        );
       }
     }
+  }
 
-    const response = UserMapper.toResponseDto(
-      await this.repository.findById(dto.id_usuario)!,
+  const response = UserMapper.toResponseDto(
+      (await this.repository.findById(dto.id_usuario))!,
     );
     this.userGateway.notifyUserUpdated(response);
 

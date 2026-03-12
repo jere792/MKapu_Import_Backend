@@ -14,14 +14,15 @@ export class ReportsService implements IReportsUseCase {
     @Inject('IReportsRepositoryPort')
     private readonly reportsRepository: IReportsRepositoryPort,
   ) {}
+  
   async getRecentSales(filters: GetDashboardFilterDto) {
     const { startDate, endDate } = this.calculateDates(filters.periodo);
 
-    return await this.reportsRepository.getSalesDashboard({
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      idSede: filters.id_sede,
-    });
+    return await this.reportsRepository.getRecentSalesData(
+      startDate,
+      endDate,
+      filters.id_sede,
+    );
   }
 
   async generateSalesReport(

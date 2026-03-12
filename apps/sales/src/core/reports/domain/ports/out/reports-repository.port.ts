@@ -2,6 +2,12 @@ import { GetSalesReportDto } from '../../../application/dto/in/get-sales-report.
 import { SalesReportRow } from '../../entity/sales-report-row.entity';
 
 export interface IReportsRepositoryPort {
+    getRecentSalesData(
+      startDate: Date,
+      endDate: Date,
+      id_sede?: string,
+    ): Promise<any[]>;
+
   getSalesDashboard(
     filters: GetSalesReportDto,
     idSede?: string,

@@ -72,6 +72,53 @@ export class ReportsTypeOrmRepository implements IReportsRepositoryPort {
     });
   }
 
+async getRecentSalesData(
+  startDate: Date,
+  endDate: Date,
+  id_sede?: string,
+): Promise<any[]> {
+  const query = this.salesReceiptRepository
+    .createQueryBuilder('sr')
+    .leftJoin('sr.cliente', 'c')
+    .select([
+      'sr.id_comprobante as idComprobante',
+      'sr.serie as serie',
+      'sr.numero as numero',
+      'sr.fec_emision as fec_emision',
+      'sr.total as total',
+      'sr.estado as estado',
+      'c.nombres as cliente_nombres',
+      'c.apellidos as cliente_apellidos',
+      'c.razon_social as razon_social',
+    ])
+    .where('sr.fec_emision BETWEEN :startDate AND :endDate', { startDate, endDate })
+    .andWhere('sr.estado = :estado', { estado: ReceiptStatusOrm.EMITIDO });
+
+  if (id_sede && id_sede !== '' && id_sede !== 'null') {
+    query.andWhere('sr.id_sede_ref = :idSede', { idSede: id_sede });
+  }
+
+  query.orderBy('sr.fec_emision', 'DESC').limit(20);
+
+  const rawResults = await query.getRawMany();
+
+  return rawResults.map((row) => {
+    const clienteNombre = row.razon_social
+      ? row.razon_social
+      : `${row.cliente_nombres || ''} ${row.cliente_apellidos || ''}`.trim();
+
+    return {
+      idComprobante: row.idComprobante,
+      serie: row.serie,
+      numero: row.numero,
+      fechaEmision: row.fec_emision,
+      total: parseFloat(row.total),
+      clienteNombre: clienteNombre || 'Cliente General',
+      estado: row.estado,
+    };
+  });
+}
+
   async getPaymentMethodsData(
     startDate: Date,
     endDate: Date,
