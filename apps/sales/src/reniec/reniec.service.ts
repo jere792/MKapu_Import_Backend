@@ -1,4 +1,5 @@
-// apps/sales/src/reniec/reniec.service.ts
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -20,22 +21,17 @@ export class ReniecService {
   private readonly logger = new Logger(ReniecService.name);
 
   constructor(private readonly httpService: HttpService) {}
-
-  // ══════════════════════════════════════════════════════
-  // ENTRY POINT — detecta si es DNI (8) o RUC (11)
-  // ══════════════════════════════════════════════════════
   async consultar(numero: string): Promise<ReniecDniResponse> {
     if (/^\d{8}$/.test(numero)) return this.consultarDni(numero);
     if (/^\d{11}$/.test(numero)) return this.consultarRuc(numero);
     throw new HttpException(
-      { message: 'Número inválido. Debe ser DNI (8 dígitos) o RUC (11 dígitos).' },
+      {
+        message:
+          'Número inválido. Debe ser DNI (8 dígitos) o RUC (11 dígitos).',
+      },
       HttpStatus.BAD_REQUEST,
     );
   }
-
-  // ══════════════════════════════════════════════════════
-  // DNI
-  // ══════════════════════════════════════════════════════
   private async consultarDni(dni: string): Promise<ReniecDniResponse> {
     const token = process.env['APISPERU_TOKEN'];
     this.logger.log(`Consultando DNI: ${dni}`);
@@ -53,11 +49,12 @@ export class ReniecService {
         this.logger.log(`apisperu DNI response: ${JSON.stringify(data)}`);
         if (data?.nombres) {
           return {
-            tipoDocumento:   'DNI',
-            nombres:         data.nombres         ?? '',
-            apellidoPaterno: data.apellidoPaterno  ?? '',
-            apellidoMaterno: data.apellidoMaterno  ?? '',
-            nombreCompleto:  `${data.nombres} ${data.apellidoPaterno} ${data.apellidoMaterno}`.trim(),
+            tipoDocumento: 'DNI',
+            nombres: data.nombres ?? '',
+            apellidoPaterno: data.apellidoPaterno ?? '',
+            apellidoMaterno: data.apellidoMaterno ?? '',
+            nombreCompleto:
+              `${data.nombres} ${data.apellidoPaterno} ${data.apellidoMaterno}`.trim(),
           };
         }
       } catch (err: any) {
@@ -65,46 +62,46 @@ export class ReniecService {
       }
     }
 
-    // Intento 2: api.apis.pe
     try {
       this.logger.log('DNI — intentando api.apis.pe...');
       const { data } = await firstValueFrom(
-        this.httpService.get(
-          `https://api.apis.pe/reniec/dni?numero=${dni}`,
-          { timeout: 8000, headers: { Accept: 'application/json' } },
-        ),
+        this.httpService.get(`https://api.apis.pe/reniec/dni?numero=${dni}`, {
+          timeout: 8000,
+          headers: { Accept: 'application/json' },
+        }),
       );
       this.logger.log(`api.apis.pe DNI response: ${JSON.stringify(data)}`);
       if (data?.nombres) {
         return {
-          tipoDocumento:   'DNI',
-          nombres:         data.nombres         ?? '',
-          apellidoPaterno: data.apellidoPaterno  ?? '',
-          apellidoMaterno: data.apellidoMaterno  ?? '',
-          nombreCompleto:  `${data.nombres} ${data.apellidoPaterno} ${data.apellidoMaterno}`.trim(),
+          tipoDocumento: 'DNI',
+          nombres: data.nombres ?? '',
+          apellidoPaterno: data.apellidoPaterno ?? '',
+          apellidoMaterno: data.apellidoMaterno ?? '',
+          nombreCompleto:
+            `${data.nombres} ${data.apellidoPaterno} ${data.apellidoMaterno}`.trim(),
         };
       }
     } catch (err: any) {
       this.logger.warn(`api.apis.pe DNI falló: ${err?.message}`);
     }
 
-    // Intento 3: apiperu.dev
     try {
       this.logger.log('DNI — intentando apiperu.dev...');
       const { data } = await firstValueFrom(
-        this.httpService.get(
-          `https://apiperu.dev/api/dni/${dni}`,
-          { timeout: 8000, headers: { Accept: 'application/json' } },
-        ),
+        this.httpService.get(`https://apiperu.dev/api/dni/${dni}`, {
+          timeout: 8000,
+          headers: { Accept: 'application/json' },
+        }),
       );
       this.logger.log(`apiperu.dev DNI response: ${JSON.stringify(data)}`);
       if (data?.data?.nombres) {
         return {
-          tipoDocumento:   'DNI',
-          nombres:         data.data.nombres          ?? '',
-          apellidoPaterno: data.data.apellido_paterno  ?? '',
-          apellidoMaterno: data.data.apellido_materno  ?? '',
-          nombreCompleto:  `${data.data.nombres} ${data.data.apellido_paterno} ${data.data.apellido_materno}`.trim(),
+          tipoDocumento: 'DNI',
+          nombres: data.data.nombres ?? '',
+          apellidoPaterno: data.data.apellido_paterno ?? '',
+          apellidoMaterno: data.data.apellido_materno ?? '',
+          nombreCompleto:
+            `${data.data.nombres} ${data.data.apellido_paterno} ${data.data.apellido_materno}`.trim(),
         };
       }
     } catch (err: any) {
@@ -117,15 +114,10 @@ export class ReniecService {
       HttpStatus.NOT_FOUND,
     );
   }
-
-  // ══════════════════════════════════════════════════════
-  // RUC
-  // ══════════════════════════════════════════════════════
   private async consultarRuc(ruc: string): Promise<ReniecDniResponse> {
     const token = process.env['APISPERU_TOKEN'];
     this.logger.log(`Consultando RUC: ${ruc}`);
 
-    // Intento 1: apisperu.com con token
     if (token) {
       try {
         this.logger.log('RUC — intentando apisperu.com...');
@@ -138,15 +130,15 @@ export class ReniecService {
         this.logger.log(`apisperu RUC response: ${JSON.stringify(data)}`);
         if (data?.razonSocial) {
           return {
-            tipoDocumento:   'RUC',
-            nombres:         data.razonSocial ?? '',
+            tipoDocumento: 'RUC',
+            nombres: data.razonSocial ?? '',
             apellidoPaterno: '',
             apellidoMaterno: '',
-            nombreCompleto:  data.razonSocial ?? '',
-            razonSocial:     data.razonSocial ?? '',
-            estado:          data.estado      ?? '',
-            condicion:       data.condicion   ?? '',
-            direccion:       data.direccion   ?? '',
+            nombreCompleto: data.razonSocial ?? '',
+            razonSocial: data.razonSocial ?? '',
+            estado: data.estado ?? '',
+            condicion: data.condicion ?? '',
+            direccion: data.direccion ?? '',
           };
         }
       } catch (err: any) {
@@ -154,54 +146,52 @@ export class ReniecService {
       }
     }
 
-    // Intento 2: api.apis.pe
     try {
       this.logger.log('RUC — intentando api.apis.pe...');
       const { data } = await firstValueFrom(
-        this.httpService.get(
-          `https://api.apis.pe/sunat/ruc?numero=${ruc}`,
-          { timeout: 8000, headers: { Accept: 'application/json' } },
-        ),
+        this.httpService.get(`https://api.apis.pe/sunat/ruc?numero=${ruc}`, {
+          timeout: 8000,
+          headers: { Accept: 'application/json' },
+        }),
       );
       this.logger.log(`api.apis.pe RUC response: ${JSON.stringify(data)}`);
       if (data?.razonSocial) {
         return {
-          tipoDocumento:   'RUC',
-          nombres:         data.razonSocial ?? '',
+          tipoDocumento: 'RUC',
+          nombres: data.razonSocial ?? '',
           apellidoPaterno: '',
           apellidoMaterno: '',
-          nombreCompleto:  data.razonSocial ?? '',
-          razonSocial:     data.razonSocial ?? '',
-          estado:          data.estado      ?? '',
-          condicion:       data.condicion   ?? '',
-          direccion:       data.direccion   ?? '',
+          nombreCompleto: data.razonSocial ?? '',
+          razonSocial: data.razonSocial ?? '',
+          estado: data.estado ?? '',
+          condicion: data.condicion ?? '',
+          direccion: data.direccion ?? '',
         };
       }
     } catch (err: any) {
       this.logger.warn(`api.apis.pe RUC falló: ${err?.message}`);
     }
 
-    // Intento 3: apiperu.dev
     try {
       this.logger.log('RUC — intentando apiperu.dev...');
       const { data } = await firstValueFrom(
-        this.httpService.get(
-          `https://apiperu.dev/api/ruc/${ruc}`,
-          { timeout: 8000, headers: { Accept: 'application/json' } },
-        ),
+        this.httpService.get(`https://apiperu.dev/api/ruc/${ruc}`, {
+          timeout: 8000,
+          headers: { Accept: 'application/json' },
+        }),
       );
       this.logger.log(`apiperu.dev RUC response: ${JSON.stringify(data)}`);
       if (data?.data?.nombre_o_razon_social) {
         return {
-          tipoDocumento:   'RUC',
-          nombres:         data.data.nombre_o_razon_social ?? '',
+          tipoDocumento: 'RUC',
+          nombres: data.data.nombre_o_razon_social ?? '',
           apellidoPaterno: '',
           apellidoMaterno: '',
-          nombreCompleto:  data.data.nombre_o_razon_social ?? '',
-          razonSocial:     data.data.nombre_o_razon_social ?? '',
-          estado:          data.data.estado     ?? '',
-          condicion:       data.data.condicion  ?? '',
-          direccion:       data.data.direccion  ?? '',
+          nombreCompleto: data.data.nombre_o_razon_social ?? '',
+          razonSocial: data.data.nombre_o_razon_social ?? '',
+          estado: data.data.estado ?? '',
+          condicion: data.data.condicion ?? '',
+          direccion: data.data.direccion ?? '',
         };
       }
     } catch (err: any) {

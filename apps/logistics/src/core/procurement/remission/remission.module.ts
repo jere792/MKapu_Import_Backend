@@ -24,9 +24,13 @@ import { SalesRemissionHandler } from './application/events/sales-remission.hand
 import { InventoryModule } from '../../warehouse/inventory/inventory.module';
 import { ProductsGateway } from './infrastructure/adapters/out/products-gateway';
 import { RemissionQueryService } from './application/service/remission-query.service';
+import { HttpModule } from '@nestjs/axios';
+import { ReniecController } from 'apps/sales/src/reniec/reniec.controller';
+import { ReniecService } from 'apps/sales/src/reniec/reniec.service';
 
 @Module({
   imports: [
+    HttpModule,
     ClientsModule.register([
       {
         name: 'ADMIN_SERVICE',
@@ -64,10 +68,11 @@ import { RemissionQueryService } from './application/service/remission-query.ser
       },
     ]),
   ],
-  controllers: [RemissionController],
+  controllers: [RemissionController, ReniecController],
   providers: [
     RemissionCommandService,
     RemissionQueryService,
+    ReniecService,
     {
       provide: 'RemissionRepositoryPort',
       useClass: RemissionTypeormRepository,
@@ -92,6 +97,6 @@ import { RemissionQueryService } from './application/service/remission-query.ser
     SalesRemissionHandler,
     JwtStrategy,
   ],
-  exports: [],
+  exports: [ReniecService],
 })
 export class RemissionModule {}

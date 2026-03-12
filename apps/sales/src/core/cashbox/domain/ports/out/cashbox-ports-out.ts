@@ -1,5 +1,5 @@
 /* administration/src/core/cashbox/domain/ports/out/cashbox-ports-out.ts */
-import { Cashbox } from "../../entity/cashbox-domain-entity";
+import { Cashbox } from '../../entity/cashbox-domain-entity';
 
 export interface ICashboxRepositoryPort {
   save(cashbox: Cashbox): Promise<Cashbox>;
@@ -7,7 +7,12 @@ export interface ICashboxRepositoryPort {
   findById(id_caja: string): Promise<Cashbox | null>;
   findActiveBySede(id_sede_ref: number): Promise<Cashbox | null>;
   existsActiveInSede(id_sede_ref: number): Promise<boolean>;
+  getResumenDia(idSede: number): Promise<{
+    totalVentas: number;
+    totalMonto: number;
+    ticketPromedio: number;
+  } | null>;
   getResumenDia(idSede: number): Promise<any>;
-  getHistorialBySede(idSede: number): Promise<any[]>;      
-  getResumenDiaByCajaId(idCaja: string): Promise<any>;    
+  getHistorialBySede(idSede: number): Promise<any[]>;
+  getResumenDiaByCajaId(idCaja: string): Promise<any>;
 }
