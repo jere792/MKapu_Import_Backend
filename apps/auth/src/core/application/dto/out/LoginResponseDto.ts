@@ -19,7 +19,7 @@ export class LoginPermissionDto {
 
 export class LoginAccountDto {
   id_cuenta: number;
-  username: string; 
+  username: string;
   email_emp: string;
   activo: boolean;
 
@@ -35,4 +35,5 @@ export class LoginAccountDto {
 export class LoginResponseDto {
   access_token: string;
   account: LoginAccountDto;
+  permisos: string[];
 }

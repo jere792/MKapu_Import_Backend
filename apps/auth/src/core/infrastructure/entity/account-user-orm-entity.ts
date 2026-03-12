@@ -1,4 +1,3 @@
-/* auth/src/core/infrastructure/entity/account-user-orm-entity.ts */
 import {
   Entity,
   Column,

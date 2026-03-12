@@ -73,17 +73,19 @@ export class AccountUserMapper {
   }): LoginResponseDto {
     const { access_token, account, sedeNombre } = params;
 
-    // roles simples
     const roles = (account.roles ?? []).map((r) => ({
       id_rol: r.id_rol,
       nombre: r.nombre,
     }));
+    const permisosObjMap = new Map<number, { id_permiso: number; nombre: string }>();
+    const permisosStringSet = new Set<string>();
 
-    // permisos aplanados (únicos) desde roles.permisos
-    const permisosMap = new Map<number, { id_permiso: number; nombre: string }>();
     for (const r of account.roles ?? []) {
       for (const p of r.permisos ?? []) {
-        permisosMap.set(p.id_permiso, { id_permiso: p.id_permiso, nombre: p.nombre });
+        permisosObjMap.set(p.id_permiso, { id_permiso: p.id_permiso, nombre: p.nombre });
+        if (p.nombre) {
+          permisosStringSet.add(p.nombre); 
+        }
       }
     }
 
@@ -108,9 +110,9 @@ export class AccountUserMapper {
         },
 
         roles,
-        permisos: Array.from(permisosMap.values()),
+        permisos: Array.from(permisosObjMap.values()), 
       },
+      permisos: Array.from(permisosStringSet), 
     };
-
   }
 }

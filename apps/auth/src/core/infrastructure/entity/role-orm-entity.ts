@@ -1,4 +1,3 @@
-/* auth/src/core/infrastructure/entity/role-orm-entity.ts */
 import {
   Column,
   Entity,

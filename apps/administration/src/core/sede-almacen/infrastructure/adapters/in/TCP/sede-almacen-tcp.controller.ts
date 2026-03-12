@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Controller, Inject, Logger } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { IHeadquartersQueryPort } from '../../../../../headquarters/domain/ports/in/headquarters-ports-in';
@@ -23,7 +28,9 @@ export class SedeAlmacenTcpController {
   ) {}
 
   @MessagePattern('sede_almacen.findWarehouseIdsBySede')
-  async findWarehouseIdsBySede(@Payload() payload: GetWarehouseIdsBySedePayload) {
+  async findWarehouseIdsBySede(
+    @Payload() payload: GetWarehouseIdsBySedePayload,
+  ) {
     const idSede = Number(String(payload?.id_sede ?? '').trim());
     if (!Number.isInteger(idSede) || idSede <= 0) {
       return { ok: false, data: null, message: 'id_sede invalido' };
@@ -32,7 +39,9 @@ export class SedeAlmacenTcpController {
     const relations = await this.repository.findBySedeId(idSede);
     const warehouseIds = relations
       .map((relation) => Number(relation.id_almacen))
-      .filter((warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0);
+      .filter(
+        (warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0,
+      );
 
     this.logger.log(
       `TCP sede_almacen.findWarehouseIdsBySede -> sede=${idSede}, almacenes=${warehouseIds.length}`,
@@ -56,7 +65,10 @@ export class SedeAlmacenTcpController {
           new Set(
             payload.warehouseIds
               .map((value) => Number(String(value).trim()))
-              .filter((warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0),
+              .filter(
+                (warehouseId) =>
+                  Number.isInteger(warehouseId) && warehouseId > 0,
+              ),
           ),
         )
       : [];
@@ -72,15 +84,15 @@ export class SedeAlmacenTcpController {
 
     const headquarterEntries = await Promise.all(
       headquarterIds.map(async (id_sede) => {
-        const headquarter = await this.headquartersQueryPort.getHeadquarterById(id_sede);
-        return [
-          id_sede,
-          headquarter?.nombre ?? null,
-        ] as const;
+        const headquarter =
+          await this.headquartersQueryPort.getHeadquarterById(id_sede);
+        return [id_sede, headquarter?.nombre ?? null] as const;
       }),
     );
 
-    const headquartersNameMap = new Map<number, string | null>(headquarterEntries);
+    const headquartersNameMap = new Map<number, string | null>(
+      headquarterEntries,
+    );
     const data = relations.map((relation) => ({
       id_almacen: relation.id_almacen,
       id_sede: String(relation.id_sede),
@@ -97,4 +109,3 @@ export class SedeAlmacenTcpController {
     };
   }
 }
-

@@ -16,7 +16,11 @@ export class DispatchOrmEntity {
   @Column({ name: 'id_almacen_origen', type: 'int' })
   id_almacen_origen: number;
 
-  @Column({ name: 'fecha_creacion', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'fecha_creacion',
+    type: 'datetime',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   fecha_creacion: Date;
 
   @Column({ name: 'fecha_programada', type: 'datetime', nullable: true })
@@ -42,6 +46,8 @@ export class DispatchOrmEntity {
   })
   estado: DispatchStatus;
 
-  @OneToMany(() => DispatchDetailOrmEntity, detail => detail.despacho, { cascade: true }) 
+  @OneToMany(() => DispatchDetailOrmEntity, (detail) => detail.despacho, {
+    cascade: true,
+  })
   detalles: DispatchDetailOrmEntity[];
 }

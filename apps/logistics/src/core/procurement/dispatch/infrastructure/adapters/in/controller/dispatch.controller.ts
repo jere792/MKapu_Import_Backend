@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Inject, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { IDispatchInputPort } from '../../../../domain/ports/in/dispatch-input.port';
 import { IDispatchQueryPort } from '../../../../application/service/dispatch-query.service';
 import {
@@ -73,11 +82,16 @@ export class DispatchRestController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: MarcarDetallePreparadoDto,
   ) {
-    return this.commandService.marcarDetallePreparado({ ...dto, id_detalle_despacho: id });
+    return this.commandService.marcarDetallePreparado({
+      ...dto,
+      id_detalle_despacho: id,
+    });
   }
 
   @Patch('detalle/:id/despachado')
   marcarDetalleDespachado(@Param('id', ParseIntPipe) id: number) {
-    return this.commandService.marcarDetalleDespachado({ id_detalle_despacho: id });
+    return this.commandService.marcarDetalleDespachado({
+      id_detalle_despacho: id,
+    });
   }
 }

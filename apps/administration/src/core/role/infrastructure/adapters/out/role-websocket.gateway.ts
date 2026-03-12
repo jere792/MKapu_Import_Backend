@@ -1,9 +1,5 @@
-
-
-/* ============================================
-   administration/src/core/role/infrastructure/adapters/role-websocket.gateway.ts
-   ============================================ */
-
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   WebSocketGateway,
   SubscribeMessage,

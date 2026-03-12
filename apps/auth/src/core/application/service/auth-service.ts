@@ -40,7 +40,9 @@ export class AuthService implements AccountUserPortsIn {
     }
 
     if (!accountOrm.activo) {
-      throw new ForbiddenException('Cuenta desactivada. Comunícate con tu supervisor.');
+      throw new ForbiddenException(
+        'Cuenta desactivada. Comunícate con tu supervisor.',
+      );
     }
     const isPasswordValid = await this.passwordHasher.comparePassword(
       password,
@@ -82,13 +84,13 @@ export class AuthService implements AccountUserPortsIn {
     });
   }
 
-    async createAccountForUser(
-      userId: number,
-      username: string,
-      passwordRaw: string,
-      roleId: number,
-      idSede: number,
-    ): Promise<any> {
+  async createAccountForUser(
+    userId: number,
+    username: string,
+    passwordRaw: string,
+    roleId: number,
+    idSede: number,
+  ): Promise<any> {
     const hashedPassword = await this.passwordHasher.hashPassword(passwordRaw);
 
     const existingAccount = await this.repository.findByUsername(username);
@@ -100,7 +102,7 @@ export class AuthService implements AccountUserPortsIn {
       userId,
       username,
       password: hashedPassword,
-      id_sede: idSede,  
+      id_sede: idSede,
     });
 
     await this.repository.assignRole(account.id, roleId);
