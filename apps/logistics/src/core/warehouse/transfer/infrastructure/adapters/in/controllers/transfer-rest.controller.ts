@@ -2,6 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
   Inject,
   Param,
   ParseIntPipe,
@@ -11,7 +14,8 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { Transfer } from '../../../../domain/entity/transfer-domain-entity';
+import type { TransferResponseDto } from '../../../../application/dto/out/transfer-response.dto';
+import { TransferResponseMapper } from '../../../../application/mapper/transfer-response.mapper';
 import { TransferPortsIn } from '../../../../domain/ports/in/transfer-ports-in';
 import { ApproveTransferDto } from '../../../../application/dto/in/approve-transfer.dto';
 import { ConfirmReceiptTransferDto } from '../../../../application/dto/in/confirm-receipt-transfer.dto';
@@ -22,6 +26,7 @@ import {
   TransferByIdResponseDto,
   TransferListPaginatedResponseDto,
 } from '../../../../application/dto/out';
+import { TransferRequestMapper } from '../../../../application/mapper/transfer-request.mapper';
 
 @Controller('warehouse/transfer')
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
@@ -32,39 +37,54 @@ export class TransferRestController {
   ) {}
 
   @Post('request')
-  async requestTransfer(@Body() dto: RequestTransferDto): Promise<Transfer> {
-    return await this.transferService.requestTransfer(dto);
+  @HttpCode(HttpStatus.CREATED)
+  async requestTransfer(
+    @Body() dto: RequestTransferDto,
+    @Headers('x-transfer-mode') transferModeHeader?: string,
+  ): Promise<TransferResponseDto> {
+    const transfer = await this.transferService.requestTransfer(
+      TransferRequestMapper.withTransferMode(dto, transferModeHeader),
+    );
+
+    return TransferResponseMapper.toResponseDto(transfer);
   }
 
   @Patch(':id/approve')
   async approveTransfer(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ApproveTransferDto,
-  ): Promise<Transfer> {
-    return await this.transferService.approveTransfer(id, dto);
+  ): Promise<TransferResponseDto> {
+    const transfer = await this.transferService.approveTransfer(id, dto);
+    return TransferResponseMapper.toResponseDto(transfer);
   }
 
   @Patch(':id/reject')
   async rejectTransfer(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RejectTransferDto,
-  ): Promise<Transfer> {
-    return await this.transferService.rejectTransfer(id, dto);
+  ): Promise<TransferResponseDto> {
+    const transfer = await this.transferService.rejectTransfer(id, dto);
+    return TransferResponseMapper.toResponseDto(transfer);
   }
 
   @Patch(':id/confirm-receipt')
   async confirmReceipt(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ConfirmReceiptTransferDto,
-  ): Promise<Transfer> {
-    return await this.transferService.confirmReceipt(id, dto);
+  ): Promise<TransferResponseDto> {
+    const transfer = await this.transferService.confirmReceipt(id, dto);
+    return TransferResponseMapper.toResponseDto(transfer);
   }
 
   @Get('headquarters/:hqId')
   async getTransfersByHeadquarters(
     @Param('hqId') hqId: string,
-  ): Promise<Transfer[]> {
-    return await this.transferService.getTransfersByHeadquarters(hqId);
+  ): Promise<TransferResponseDto[]> {
+    const transfers =
+      await this.transferService.getTransfersByHeadquarters(hqId);
+    return transfers.map((transfer) =>
+      TransferResponseMapper.toResponseDto(transfer),
+    );
   }
 
   @Get()
