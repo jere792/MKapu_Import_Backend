@@ -26,10 +26,16 @@ export class AuthRepository implements AccountUserPortsOut {
   async findAccountByUsernameWithRelations(
     username: string,
   ): Promise<AccountUserOrmEntity | null> {
-    return await this.userRepo.findOne({
-      where: { nom_usu: username, activo: true },
+    const account = await this.userRepo.findOne({
+      where: { nom_usu: username },
       relations: ['usuario', 'roles', 'roles.permisos'],
     });
+
+    if (!account) return null;
+
+    account.activo = Boolean(account.activo);
+
+    return account;
   }
 
   async findByEmail(email: string): Promise<AccountUser | null> {

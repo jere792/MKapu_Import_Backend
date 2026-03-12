@@ -46,14 +46,18 @@ export class CategoryCommandService implements ICategoryCommandPort {
     }
 
     if (dto.nombre && dto.nombre !== existingCategory.nombre) {
-      const nameExists = await this.repository.existsByName(dto.nombre);
+      // ← Excluye el propio registro de la validación
+      const nameExists = await this.repository.existsByNameExcludingId(
+        dto.nombre,
+        dto.id_categoria,
+      );
       if (nameExists) {
         throw new ConflictException('El nombre ya está en uso por otra categoría');
       }
     }
 
     const updatedCategory = CategoryMapper.fromUpdateDto(existingCategory, dto);
-    const savedCategory = await this.repository.update(updatedCategory);
+    const savedCategory   = await this.repository.update(updatedCategory);
     return CategoryMapper.toResponseDto(savedCategory);
   }
 

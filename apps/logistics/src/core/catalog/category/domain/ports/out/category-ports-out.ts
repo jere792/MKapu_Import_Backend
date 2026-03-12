@@ -16,4 +16,5 @@
     findByName(nombre: string): Promise<Category | null>;
     findAll(filters?: ListCategoryFilterDto): Promise<CategoryFindAllResult>;
     existsByName(nombre: string): Promise<boolean>;
+    existsByNameExcludingId(nombre: string, id: number): Promise<boolean>;
   }

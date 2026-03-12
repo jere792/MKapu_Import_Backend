@@ -13,7 +13,6 @@ import { UserWebSocketGateway } from '../../infrastructure/adapters/out/user-web
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-// Importa las entidades infra necesarias
 import { CuentaUsuarioOrmEntity } from '../../infrastructure/entity/cuenta-usuario-orm.entity';
 import { CuentaRolOrmEntity } from '../../infrastructure/entity/cuenta-rol-orm.entity';
 import { RoleOrmEntity } from '../../../role/infrastructure/entity/role-orm.entity';
@@ -29,7 +28,7 @@ export class UserCommandService implements IUserCommandPort {
     @InjectRepository(CuentaRolOrmEntity)
     private readonly cuentaRolRepo: Repository<CuentaRolOrmEntity>,
     @InjectRepository(RoleOrmEntity)
-    private readonly roleRepo: Repository<RoleOrmEntity>
+    private readonly roleRepo: Repository<RoleOrmEntity>,
   ) {}
 
   async registerUser(dto: RegisterUserDto): Promise<UserResponseDto> {
@@ -69,21 +68,20 @@ export class UserCommandService implements IUserCommandPort {
     if (dto.rolNombre && dto.rolNombre !== existingUser.rolNombre) {
       const role = await this.roleRepo.findOne({ where: { nombre: dto.rolNombre } });
       if (role) {
-        // 2. Busca cuenta del usuario
-        const cuenta = await this.cuentaUsuarioRepo.findOne({ where: { id_usuario: dto.id_usuario } });
+        const cuenta = await this.cuentaUsuarioRepo.findOne({
+          where: { id_usuario: dto.id_usuario },
+        });
         if (cuenta) {
-          // 3. Actualiza el rol en cuenta_rol
           await this.cuentaRolRepo.update(
             { id_cuenta: cuenta.id_cuenta },
-            { id_rol: role.id_rol }
+            { id_rol: role.id_rol },
           );
         }
       }
     }
 
-    // Luego retorna el usuario actualizado
     const response = UserMapper.toResponseDto(
-      await this.repository.findById(dto.id_usuario)!
+      await this.repository.findById(dto.id_usuario)!,
     );
     this.userGateway.notifyUserUpdated(response);
 
@@ -97,10 +95,24 @@ export class UserCommandService implements IUserCommandPort {
         `Usuario con ID ${dto.id_usuario} no encontrado`,
       );
 
+    // 1. Actualiza tabla `usuario`
     const updatedUser = UserMapper.withStatus(existingUser, dto.activo);
     const savedUser = await this.repository.update(updatedUser);
-    const response = UserMapper.toResponseDto(savedUser);
 
+    // 2. Sincroniza el mismo estado en `cuenta_usuario`
+    //    Un usuario puede no tener cuenta aún, por eso usamos findOne sin lanzar error
+    const cuenta = await this.cuentaUsuarioRepo.findOne({
+      where: { id_usuario: dto.id_usuario },
+    });
+
+    if (cuenta) {
+      await this.cuentaUsuarioRepo.update(
+        { id_cuenta: cuenta.id_cuenta },
+        { activo: dto.activo },
+      );
+    }
+
+    const response = UserMapper.toResponseDto(savedUser);
     this.userGateway.notifyUserStatusChanged(response);
 
     return response;

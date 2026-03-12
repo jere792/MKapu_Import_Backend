@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
@@ -37,10 +38,10 @@ export class AuthService implements AccountUserPortsIn {
     if (!accountOrm) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    if (!accountOrm.activo) {
-      throw new UnauthorizedException('La cuenta está desactivada o bloqueada');
-    }
 
+    if (!accountOrm.activo) {
+      throw new ForbiddenException('Cuenta desactivada. Comunícate con tu supervisor.');
+    }
     const isPasswordValid = await this.passwordHasher.comparePassword(
       password,
       accountOrm.contraseña,

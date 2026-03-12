@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { CategoryFindAllResult, ICategoryRepositoryPort } from '../../../../domain/ports/out/category-ports-out';
 import { Category } from '../../../../domain/entity/category-domain-entity';
 import { CategoryOrmEntity } from '../../../entity/category-orm.entity';
@@ -77,4 +77,11 @@ export class CategoryRepository implements ICategoryRepositoryPort {
     const count = await this.categoryOrmRepository.count({ where: { nombre } });
     return count > 0;
   }
+
+  async existsByNameExcludingId(nombre: string, id: number): Promise<boolean> {
+  const count = await this.categoryOrmRepository.count({
+    where: { nombre, id_categoria: Not(id) },
+  });
+  return count > 0;
+}
 }
