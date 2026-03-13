@@ -1,11 +1,13 @@
 import { ApproveTransferDto } from '../../../application/dto/in/approve-transfer.dto';
 import { ConfirmReceiptTransferDto } from '../../../application/dto/in/confirm-receipt-transfer.dto';
+import { ListTransferNotificationQueryDto } from '../../../application/dto/in/list-transfer-notification-query.dto';
 import { ListTransferQueryDto } from '../../../application/dto/in/list-transfer-query.dto';
 import { RejectTransferDto } from '../../../application/dto/in/reject-transfer.dto';
 import { RequestTransferDto } from '../../../application/dto/in/request-transfer.dto';
 import {
   TransferByIdResponseDto,
   TransferListPaginatedResponseDto,
+  TransferNotificationResponseDto,
 } from '../../../application/dto/out';
 import { Transfer } from '../../entity/transfer-domain-entity';
 
@@ -31,4 +33,8 @@ export interface TransferPortsIn {
   getAllTransfers(
     query: ListTransferQueryDto,
   ): Promise<TransferListPaginatedResponseDto>;
+
+  getTransferNotifications(
+    query: ListTransferNotificationQueryDto,
+  ): Promise<TransferNotificationResponseDto[]>;
 }

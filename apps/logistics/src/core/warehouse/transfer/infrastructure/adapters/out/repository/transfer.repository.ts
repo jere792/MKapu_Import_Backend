@@ -146,6 +146,26 @@ export class TransferRepository implements TransferPortsOut {
     return this.mapEntitiesWithHeadquarters(entities);
   }
 
+  async findNotificationCandidatesByHeadquarters(
+    headquartersId: string,
+  ): Promise<Transfer[]> {
+    const warehouseIds =
+      await this.findWarehouseIdsByHeadquarters(headquartersId);
+    if (warehouseIds.length === 0) {
+      return [];
+    }
+
+    const entities = await this.transferRepo.find({
+      where: [
+        { originWarehouseId: In(warehouseIds) },
+        { destinationWarehouseId: In(warehouseIds) },
+      ],
+      order: { date: 'DESC' },
+    });
+
+    return this.mapEntitiesWithHeadquarters(entities);
+  }
+
   async findAll(): Promise<Transfer[]> {
     const entities = await this.transferRepo.find({
       relations: ['details'],

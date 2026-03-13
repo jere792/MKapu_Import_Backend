@@ -13,6 +13,7 @@ import { UnitStatus } from 'apps/logistics/src/core/catalog/unit/domain/entity/u
 import { StockOrmEntity } from '../../../inventory/infrastructure/entity/stock-orm-entity';
 import { InventoryCommandService } from '../../../inventory/application/service/inventory/inventory-command.service';
 import { StoreOrmEntity } from '../../../store/infrastructure/entity/store-orm.entity';
+import { ListTransferNotificationQueryDto } from '../dto/in/list-transfer-notification-query.dto';
 import { ListTransferQueryDto } from '../dto/in/list-transfer-query.dto';
 import { ApproveTransferDto } from '../dto/in/approve-transfer.dto';
 import { ConfirmReceiptTransferDto } from '../dto/in/confirm-receipt-transfer.dto';
@@ -24,12 +25,14 @@ import {
 import type { TransferByIdResponseDto } from '../dto/out/transfer-by-id-response.dto';
 import type { TransferListPaginatedResponseDto } from '../dto/out/transfer-list-paginated-response.dto';
 import type { TransferListResponseDto } from '../dto/out/transfer-list-response.dto';
+import type { TransferNotificationResponseDto } from '../dto/out/transfer-notification-response.dto';
 import {
   Transfer,
   TransferItem,
   TransferMode,
   TransferStatus,
 } from '../../domain/entity/transfer-domain-entity';
+import { TransferNotificationMapper } from '../mapper/transfer-notification.mapper';
 import { TransferPortsIn } from '../../domain/ports/in/transfer-ports-in';
 import { TransferPortsOut } from '../../domain/ports/out/transfer-ports-out';
 import { TransferWebsocketGateway } from '../../infrastructure/adapters/out/transfer-websocket.gateway';
@@ -463,6 +466,76 @@ export class TransferCommandService implements TransferPortsIn {
       items,
       creatorUser: creatorUserResponse,
     };
+  }
+
+  async getTransferNotifications(
+    query: ListTransferNotificationQueryDto,
+  ): Promise<TransferNotificationResponseDto[]> {
+    const headquartersId = String(query.headquartersId ?? '').trim();
+    if (!headquartersId) {
+      throw new BadRequestException(
+        'El parametro headquartersId es obligatorio para listar notificaciones de transferencias.',
+      );
+    }
+
+    if (!this.isAdministratorRole(query.role)) {
+      return [];
+    }
+
+    const transfers =
+      await this.transferRepo.findNotificationCandidatesByHeadquarters(
+        headquartersId,
+      );
+    if (transfers.length === 0) {
+      return [];
+    }
+
+    const relevantTransfers = transfers.filter((transfer) =>
+      this.shouldIncludeTransferNotification(transfer, headquartersId),
+    );
+    if (relevantTransfers.length === 0) {
+      return [];
+    }
+
+    const headquarterIds = Array.from(
+      new Set(
+        relevantTransfers.flatMap((transfer) => [
+          String(transfer.originHeadquartersId ?? '').trim(),
+          String(transfer.destinationHeadquartersId ?? '').trim(),
+        ]),
+      ),
+    ).filter((value) => Boolean(value));
+
+    const headquarterCache = new Map<
+      string,
+      TransferLookupHeadquarterDto | null
+    >();
+    await Promise.all(
+      headquarterIds.map(async (id) => {
+        headquarterCache.set(id, await this.getHeadquarterById(id));
+      }),
+    );
+
+    return relevantTransfers.map((transfer) => {
+      const originHeadquartersId = String(
+        transfer.originHeadquartersId ?? '',
+      ).trim();
+      const destinationHeadquartersId = String(
+        transfer.destinationHeadquartersId ?? '',
+      ).trim();
+
+      const originHeadquarter = headquarterCache.get(originHeadquartersId);
+      const destinationHeadquarter = headquarterCache.get(
+        destinationHeadquartersId,
+      );
+
+      return TransferNotificationMapper.toResponseDto(
+        transfer,
+        originHeadquarter?.nombre ?? `Sede ${originHeadquartersId || '-'}`,
+        destinationHeadquarter?.nombre ??
+          `Sede ${destinationHeadquartersId || '-'}`,
+      );
+    });
   }
 
   async getAllTransfers(
@@ -1388,6 +1461,44 @@ export class TransferCommandService implements TransferPortsIn {
       );
       return null;
     }
+  }
+
+  private isAdministratorRole(role: string): boolean {
+    return (
+      String(role ?? '')
+        .trim()
+        .toUpperCase() === 'ADMINISTRADOR'
+    );
+  }
+
+  private shouldIncludeTransferNotification(
+    transfer: Transfer,
+    headquartersId: string,
+  ): boolean {
+    const normalizedHeadquartersId = String(headquartersId ?? '').trim();
+    const originHeadquartersId = String(
+      transfer.originHeadquartersId ?? '',
+    ).trim();
+    const destinationHeadquartersId = String(
+      transfer.destinationHeadquartersId ?? '',
+    ).trim();
+
+    if (
+      transfer.status === TransferStatus.REQUESTED &&
+      destinationHeadquartersId === normalizedHeadquartersId
+    ) {
+      return true;
+    }
+
+    if (
+      (transfer.status === TransferStatus.APPROVED ||
+        transfer.status === TransferStatus.REJECTED) &&
+      originHeadquartersId === normalizedHeadquartersId
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   private async getHeadquarterById(

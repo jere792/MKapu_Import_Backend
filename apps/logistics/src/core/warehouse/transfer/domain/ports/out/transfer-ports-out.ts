@@ -10,6 +10,10 @@ export interface TransferPortsOut {
 
   findByHeadquarters(headquartersId: string): Promise<Transfer[]>;
 
+  findNotificationCandidatesByHeadquarters(
+    headquartersId: string,
+  ): Promise<Transfer[]>;
+
   findAll(): Promise<Transfer[]>;
 
   findAllPaginated(

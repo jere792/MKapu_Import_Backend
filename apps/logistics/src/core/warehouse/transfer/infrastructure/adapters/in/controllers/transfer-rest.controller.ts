@@ -19,12 +19,14 @@ import { TransferResponseMapper } from '../../../../application/mapper/transfer-
 import { TransferPortsIn } from '../../../../domain/ports/in/transfer-ports-in';
 import { ApproveTransferDto } from '../../../../application/dto/in/approve-transfer.dto';
 import { ConfirmReceiptTransferDto } from '../../../../application/dto/in/confirm-receipt-transfer.dto';
+import { ListTransferNotificationQueryDto } from '../../../../application/dto/in/list-transfer-notification-query.dto';
 import { ListTransferQueryDto } from '../../../../application/dto/in/list-transfer-query.dto';
 import { RejectTransferDto } from '../../../../application/dto/in/reject-transfer.dto';
 import { RequestTransferDto } from '../../../../application/dto/in/request-transfer.dto';
 import {
   TransferByIdResponseDto,
   TransferListPaginatedResponseDto,
+  TransferNotificationResponseDto,
 } from '../../../../application/dto/out';
 import { TransferRequestMapper } from '../../../../application/mapper/transfer-request.mapper';
 
@@ -92,6 +94,13 @@ export class TransferRestController {
     @Query() query: ListTransferQueryDto,
   ): Promise<TransferListPaginatedResponseDto> {
     return await this.transferService.getAllTransfers(query);
+  }
+
+  @Get('notifications')
+  async getTransferNotifications(
+    @Query() query: ListTransferNotificationQueryDto,
+  ): Promise<TransferNotificationResponseDto[]> {
+    return await this.transferService.getTransferNotifications(query);
   }
 
   @Get(':id')
