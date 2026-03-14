@@ -12,6 +12,7 @@ export class WarrantySalesAdapter implements IWarrantySalesPort {
   async generateCreditNote(data: {
     originalReceiptId: number;
     customerId: number;
+    customerName: string;
     amount: number;
     reason: string;
     items: any[];
@@ -24,6 +25,7 @@ export class WarrantySalesAdapter implements IWarrantySalesPort {
 
       const receiptDto: RegisterSalesReceiptDto = {
         customerId: String(data.customerId),
+        customerName: data.customerName,
         branchId: data.branchId,
          warehouseId: data.branchId, 
         receiptTypeId: 3,

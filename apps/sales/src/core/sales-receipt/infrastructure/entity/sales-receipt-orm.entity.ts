@@ -53,6 +53,9 @@ export class SalesReceiptOrmEntity {
   @Column({ type: 'int', name: 'numero' })
   numero: number;
 
+  @Column({ type: 'varchar', name: 'nombre_cliente' })
+  nombre_cliente: string;
+
   @Column({
     type: 'datetime',
     name: 'fec_emision',

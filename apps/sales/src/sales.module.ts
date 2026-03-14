@@ -56,7 +56,11 @@ import { AccountReceivableModule } from './core/account-receivable/account-recei
 
 import { ReniecModule } from './reniec/reniec.module';
 
-
+import { TypeCreditNoteOrmEntity } from './core/type-credit-note/infrastructure/entity/type-credit-note-orm.entity';
+import { TypeCreditNoteModule } from './core/type-credit-note/type-credit-note.module';
+import { CreditNoteOrmEntity } from './core/credit-note/infrastructure/persistence/entity/credit-note-orm.entity';
+import { CreditNoteItemOrmEntity } from './core/credit-note/infrastructure/persistence/entity/credit-note-item-orm.entity';
+import { CreditNoteModule } from './core/credit-note/credit-note.module';
 
 @Module({
   imports: [
@@ -112,6 +116,9 @@ import { ReniecModule } from './reniec/reniec.module';
           PromotionRuleOrmEntity,
           DiscountOrmEntity,
           AccountReceivableOrmEntity,
+          TypeCreditNoteOrmEntity,
+          CreditNoteOrmEntity,
+          CreditNoteItemOrmEntity
         ],
         synchronize: false,
         logging: true,
@@ -141,6 +148,8 @@ import { ReniecModule } from './reniec/reniec.module';
     DiscountModule,
     AccountReceivableModule,
     ReniecModule,
+    TypeCreditNoteModule,
+    CreditNoteModule,
   ],
   controllers: [SalesController, WarrantyRestController],
   providers: [

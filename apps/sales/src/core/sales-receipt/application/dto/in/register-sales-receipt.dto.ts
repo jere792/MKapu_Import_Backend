@@ -11,6 +11,7 @@ export interface SalesReceiptItemDto {
 
 export interface RegisterSalesReceiptDto {
   customerId: string;
+  customerName: string;
   saleTypeId: number;
   receiptTypeId: number;
   serie: string;

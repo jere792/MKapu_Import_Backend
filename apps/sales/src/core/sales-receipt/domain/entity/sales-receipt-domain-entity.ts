@@ -21,20 +21,21 @@ export interface SalesReceiptItem {
 }
 
 export interface SalesReceiptProps {
-  id_comprobante?:    number;
-  id_cliente:         string;
-  id_tipo_venta:      number;
-  id_tipo_comprobante:number;
-  serie:              string;
-  numero:             number;
-  fec_emision:        Date;
-  fec_venc:           Date;
-  tipo_operacion:     string;
-  subtotal:           number;
-  igv:                number;
-  isc:                number;
-  total:              number;
-  estado:             ReceiptStatus;
+  id_comprobante?: number;
+  id_cliente: string;
+  id_tipo_venta: number;
+  id_tipo_comprobante: number;
+  serie: string;
+  numero: number;
+  nombre_cliente: string;
+  fec_emision: Date;
+  fec_venc: Date;
+  tipo_operacion: string;
+  subtotal: number;
+  igv: number;
+  isc: number;
+  total: number;
+  estado: ReceiptStatus;
   id_responsable_ref: string;
   id_sede_ref:        number;
   cod_moneda:         string;
@@ -65,19 +66,20 @@ export class SalesReceipt {
     id_cliente:          string,
     id_tipo_venta:       number,
     id_tipo_comprobante: number,
-    serie:               string,
-    numero:              number,
-    fec_emision:         Date,
-    fec_venc:            Date,
-    tipo_operacion:      string,
-    subtotal:            number,
-    igv:                 number,
-    isc:                 number,
-    total:               number,
-    id_responsable_ref:  string,
-    id_sede_ref:         number,
-    cod_moneda:          string,
-    items:               SalesReceiptItem[] = [],
+    serie: string,
+    numero: number,
+    nombre_cliente: string,
+    fec_emision: Date,
+    fec_venc: Date,
+    tipo_operacion: string,
+    subtotal: number,
+    igv: number,
+    isc: number,
+    total: number,
+    id_responsable_ref: string,
+    id_sede_ref: number,
+    cod_moneda: string,
+    items: SalesReceiptItem[] = [],
     promotionId?:        number | null,   // ← nuevo
     descuento?:          number,          // ← nuevo
   ): SalesReceipt {
@@ -87,6 +89,7 @@ export class SalesReceipt {
       id_tipo_comprobante,
       serie,
       numero,
+      nombre_cliente,
       fec_emision,
       fec_venc,
       tipo_operacion,
@@ -125,9 +128,8 @@ export class SalesReceipt {
   get id_responsable_ref(): string              { return this.props.id_responsable_ref; }
   get id_sede_ref():        number              { return this.props.id_sede_ref; }
   get cod_moneda():         string              { return this.props.cod_moneda; }
-
   // ── Getters nuevos ────────────────────────────────────────────────────────
-
+  get nombre_cliente():     string              { return this.props.nombre_cliente; }
   get promotionId(): number | null | undefined  { return this.props.promotionId; }
   get descuento():   number                     { return this.props.descuento ?? 0; }
 
