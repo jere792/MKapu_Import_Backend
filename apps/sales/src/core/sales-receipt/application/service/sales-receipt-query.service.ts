@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { Response } from 'express';
 import {
   Injectable,
   Inject,
@@ -26,6 +27,8 @@ import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 import { UsersTcpProxy } from '../../infrastructure/adapters/out/TCP/users-tcp.proxy';
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { LogisticsTcpProxy } from '../../infrastructure/adapters/out/TCP/logistics-tcp.proxy';
+import { buildSalesReceiptThermalPdf } from '../../utils/sales-receipt-thermal.util';
+import { SalesReceiptPdfData } from '../../utils/sales-receipt-pdf.util';
 
 @Injectable()
 export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
@@ -413,5 +416,69 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   async getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]> {
     const types = await this.receiptRepository.findAllReceiptTypes();
     return types.map(SalesReceiptMapper.toReceiptTypeDto);
+  }
+
+  private async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
+    const detalle = await this.getDetalleCompleto(id);
+    if (!detalle) throw new NotFoundException(`Comprobante #${id} no encontrado`);
+
+    return {
+      id_comprobante:   detalle.id_comprobante,
+      serie:            detalle.serie,
+      numero:           detalle.numero,
+      tipo_comprobante: detalle.tipo_comprobante,
+      fec_emision:      detalle.fec_emision,
+      fec_venc:         detalle.fec_venc,
+      estado:           detalle.estado,
+      subtotal:         detalle.subtotal,
+      igv:              detalle.igv,
+      total:            detalle.total,
+      metodo_pago:      detalle.metodo_pago,
+
+      cliente: {
+        nombre:         detalle.cliente.nombre,
+        documento:      detalle.cliente.documento,
+        tipo_documento: detalle.cliente.tipo_documento,
+        direccion:      detalle.cliente.direccion,
+        email:          detalle.cliente.email,
+        telefono:       detalle.cliente.telefono,
+      },
+
+      responsable: {
+        nombre:     detalle.responsable.nombre,
+        nombreSede: detalle.responsable.nombreSede,
+      },
+
+      productos: detalle.productos.map((p) => ({
+        cod_prod:              String(p.cod_prod),
+        descripcion:           p.descripcion,
+        cantidad:              p.cantidad,
+        precio_unit:           p.precio_unit,
+        total:                 p.total,
+        descuento_nombre:      p.descuento_nombre,
+        descuento_porcentaje:  p.descuento_porcentaje,
+      })),
+
+      promocion: detalle.promocion
+        ? {
+            nombre:          detalle.promocion.nombre,
+            tipo:            detalle.promocion.tipo,
+            monto_descuento: detalle.promocion.monto_descuento,
+            productos_afectados: undefined,
+          }
+        : null,
+    };
+  }
+
+  async exportThermalVoucher(id: number, res: Response): Promise<void> {
+    const data   = await this.buildPdfData(id);
+    const buffer = await buildSalesReceiptThermalPdf(data);
+
+    res.set({
+      'Content-Type':        'application/pdf',
+      'Content-Disposition': `inline; filename=Ticket_${id}.pdf`,
+      'Content-Length':      buffer.length,
+    });
+    res.end(buffer);
   }
 }

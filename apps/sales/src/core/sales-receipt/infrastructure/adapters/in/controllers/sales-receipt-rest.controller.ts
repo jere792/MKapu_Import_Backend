@@ -43,6 +43,7 @@ import {
   buildSalesReceiptPdf,
   SalesReceiptPdfData,
 } from '../../../../utils/sales-receipt-pdf.util';
+import { buildSalesReceiptThermalPdf } from '../../../../utils/sales-receipt-thermal.util';
 
 @Controller('receipts')
 export class SalesReceiptRestController {
@@ -57,133 +58,10 @@ export class SalesReceiptRestController {
     private readonly currencyRepo: Repository<SunatCurrencyOrmEntity>,
   ) {}
 
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  async registerReceipt(
-    @Body() registerDto: RegisterSalesReceiptDto,
-  ): Promise<SalesReceiptResponseDto> {
-    return this.receiptCommandService.registerReceipt(registerDto);
-  }
+  // ── Helpers compartidos ────────────────────────────────────────────
 
-  @Put(':id/emit')
-  @HttpCode(HttpStatus.OK)
-  async emitReceipt(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: { paymentTypeId?: number },
-  ): Promise<SalesReceiptResponseDto> {
-    return this.receiptCommandService.emitReceipt(id, body.paymentTypeId);
-  }
-
-  @Put(':id/annul')
-  @HttpCode(HttpStatus.OK)
-  async annulReceipt(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('reason') reason: string,
-  ): Promise<SalesReceiptResponseDto> {
-    if (!reason) throw new BadRequestException('El motivo es obligatorio');
-
-    const annulDto: AnnulSalesReceiptDto = { receiptId: id, reason };
-    return this.receiptCommandService.annulReceipt(annulDto);
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.OK)
-  async deleteReceipt(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<SalesReceiptDeletedResponseDto> {
-    return this.receiptCommandService.deleteReceipt(id);
-  }
-
-  @Get('payment-types')
-  async getPaymentTypes() {
-    return this.paymentTypeRepo.find({ order: { id: 'ASC' } });
-  }
-
-  @Get('currencies')
-  async getCurrencies() {
-    return this.currencyRepo.find({ order: { codigo: 'ASC' } });
-  }
-
-  @Get('sale-types')
-  @HttpCode(HttpStatus.OK)
-  async getAllSaleTypes(): Promise<SaleTypeResponseDto[]> {
-    return this.receiptQueryService.getAllSaleTypes();
-  }
-
-  @Get('receipt-types')
-  @HttpCode(HttpStatus.OK)
-  async getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]> {
-    return this.receiptQueryService.getAllReceiptTypes();
-  }
-
-  @Get('kpi/semanal')
-  async getKpiSemanal(@Query('sedeId') sedeId?: string) {
-    return this.receiptQueryService.getKpiSemanal(
-      sedeId ? Number(sedeId) : undefined,
-    );
-  }
-
-  @Get('historial')
-  async listHistorial(
-    @Query('status') status?: string,
-    @Query('customerId') customerId?: string,
-    @Query('receiptTypeId') receiptTypeId?: string,
-    @Query('paymentMethodId') paymentMethodId?: string,
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
-    @Query('search') search?: string,
-    @Query('sedeId') sedeId?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const filters: ListSalesReceiptFilterDto = {
-      status: status as any,
-      customerId,
-      receiptTypeId: receiptTypeId ? Number(receiptTypeId) : undefined,
-      paymentMethodId: paymentMethodId ? Number(paymentMethodId) : undefined,
-      dateFrom,
-      dateTo,
-      search,
-      sedeId: sedeId ? Number(sedeId) : undefined,
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
-    };
-    return this.receiptQueryService.listReceiptsPaginated(filters);
-  }
-
-  @Get('serie/:serie')
-  async getReceiptsBySerie(
-    @Param('serie') serie: string,
-  ): Promise<SalesReceiptListResponse> {
-    return this.receiptQueryService.getReceiptsBySerie(serie);
-  }
-
-  @Get()
-  async listReceipts(
-    @Query() filters: ListSalesReceiptFilterDto,
-  ): Promise<SalesReceiptListResponse> {
-    return this.receiptQueryService.listReceipts(filters);
-  }
-
-  @Get(':id/detalle')
-  async getDetalleCompleto(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('historialPage') historialPage?: string,
-  ) {
-    const detalle = await this.receiptQueryService.getDetalleCompleto(
-      id,
-      historialPage ? Number(historialPage) : 1,
-    );
-    if (!detalle)
-      throw new NotFoundException(`Comprobante ${id} no encontrado`);
-    return detalle;
-  }
-
-  @Get(':id/pdf')
-  async downloadReceiptPdf(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: Response,
-  ): Promise<void> {
+  /** Construye SalesReceiptPdfData a partir del id del comprobante */
+  private async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
     const detalle = await this.receiptQueryService.getDetalleCompleto(id, 1);
     if (!detalle)
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
@@ -251,7 +129,6 @@ export class SalesReceiptRestController {
 
     const productos = (detalle.productos ?? []).map((p: any) => {
       const estaEnPromo = codigosPromo.includes(p.cod_prod);
-
       return {
         cod_prod: p.cod_prod,
         descripcion: p.descripcion,
@@ -267,46 +144,194 @@ export class SalesReceiptRestController {
       };
     });
 
-    const pdfData: SalesReceiptPdfData = {
-      id_comprobante: detalle.id_comprobante,
-      serie: detalle.serie,
-      numero: detalle.numero,
+    return {
+      id_comprobante:   detalle.id_comprobante,
+      serie:            detalle.serie,
+      numero:           detalle.numero,
       tipo_comprobante: detalle.tipo_comprobante,
-      fec_emision: detalle.fec_emision,
-      fec_venc: detalle.fec_venc ?? null,
-      estado: detalle.estado,
-      subtotal: Number(detalle.subtotal),
-      igv: Number(detalle.igv),
-      total: Number(detalle.total),
-      metodo_pago: detalle.metodo_pago ?? 'N/A',
-
+      fec_emision:      detalle.fec_emision,
+      fec_venc:         detalle.fec_venc ?? null,
+      estado:           detalle.estado,
+      subtotal:         Number(detalle.subtotal),
+      igv:              Number(detalle.igv),
+      total:            Number(detalle.total),
+      metodo_pago:      detalle.metodo_pago ?? 'N/A',
       cliente: {
-        nombre: detalle.cliente.nombre,
-        documento: detalle.cliente.documento,
+        nombre:         detalle.cliente.nombre,
+        documento:      detalle.cliente.documento,
         tipo_documento: detalle.cliente.tipo_documento,
-        direccion: detalle.cliente.direccion || undefined,
-        email: detalle.cliente.email || undefined,
-        telefono: detalle.cliente.telefono || undefined,
+        direccion:      detalle.cliente.direccion || undefined,
+        email:          detalle.cliente.email    || undefined,
+        telefono:       detalle.cliente.telefono || undefined,
       },
-
       responsable: {
-        nombre: detalle.responsable.nombre,
+        nombre:     detalle.responsable.nombre,
         nombreSede: detalle.responsable.nombreSede,
       },
-
       productos,
       promocion: promoData,
     };
+  }
 
-    const buffer = await buildSalesReceiptPdf(pdfData);
-    const filename = `comprobante-${detalle.serie}-${String(
-      detalle.numero,
-    ).padStart(8, '0')}.pdf`;
+  // ── Comandos ───────────────────────────────────────────────────────
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async registerReceipt(
+    @Body() registerDto: RegisterSalesReceiptDto,
+  ): Promise<SalesReceiptResponseDto> {
+    return this.receiptCommandService.registerReceipt(registerDto);
+  }
+
+  @Put(':id/emit')
+  @HttpCode(HttpStatus.OK)
+  async emitReceipt(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { paymentTypeId?: number },
+  ): Promise<SalesReceiptResponseDto> {
+    return this.receiptCommandService.emitReceipt(id, body.paymentTypeId);
+  }
+
+  @Put(':id/annul')
+  @HttpCode(HttpStatus.OK)
+  async annulReceipt(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('reason') reason: string,
+  ): Promise<SalesReceiptResponseDto> {
+    if (!reason) throw new BadRequestException('El motivo es obligatorio');
+    const annulDto: AnnulSalesReceiptDto = { receiptId: id, reason };
+    return this.receiptCommandService.annulReceipt(annulDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async deleteReceipt(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<SalesReceiptDeletedResponseDto> {
+    return this.receiptCommandService.deleteReceipt(id);
+  }
+
+  // ── Consultas estáticas ────────────────────────────────────────────
+
+  @Get('payment-types')
+  async getPaymentTypes() {
+    return this.paymentTypeRepo.find({ order: { id: 'ASC' } });
+  }
+
+  @Get('currencies')
+  async getCurrencies() {
+    return this.currencyRepo.find({ order: { codigo: 'ASC' } });
+  }
+
+  @Get('sale-types')
+  @HttpCode(HttpStatus.OK)
+  async getAllSaleTypes(): Promise<SaleTypeResponseDto[]> {
+    return this.receiptQueryService.getAllSaleTypes();
+  }
+
+  @Get('receipt-types')
+  @HttpCode(HttpStatus.OK)
+  async getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]> {
+    return this.receiptQueryService.getAllReceiptTypes();
+  }
+
+  @Get('kpi/semanal')
+  async getKpiSemanal(@Query('sedeId') sedeId?: string) {
+    return this.receiptQueryService.getKpiSemanal(
+      sedeId ? Number(sedeId) : undefined,
+    );
+  }
+
+  @Get('historial')
+  async listHistorial(
+    @Query('status') status?: string,
+    @Query('customerId') customerId?: string,
+    @Query('receiptTypeId') receiptTypeId?: string,
+    @Query('paymentMethodId') paymentMethodId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('search') search?: string,
+    @Query('sedeId') sedeId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const filters: ListSalesReceiptFilterDto = {
+      status: status as any,
+      customerId,
+      receiptTypeId:   receiptTypeId   ? Number(receiptTypeId)   : undefined,
+      paymentMethodId: paymentMethodId ? Number(paymentMethodId) : undefined,
+      dateFrom,
+      dateTo,
+      search,
+      sedeId: sedeId ? Number(sedeId) : undefined,
+      page:   page   ? Number(page)   : 1,
+      limit:  limit  ? Number(limit)  : 10,
+    };
+    return this.receiptQueryService.listReceiptsPaginated(filters);
+  }
+
+  @Get('serie/:serie')
+  async getReceiptsBySerie(
+    @Param('serie') serie: string,
+  ): Promise<SalesReceiptListResponse> {
+    return this.receiptQueryService.getReceiptsBySerie(serie);
+  }
+
+  @Get()
+  async listReceipts(
+    @Query() filters: ListSalesReceiptFilterDto,
+  ): Promise<SalesReceiptListResponse> {
+    return this.receiptQueryService.listReceipts(filters);
+  }
+
+  // ── PDFs ───────────────────────────────────────────────────────────
+
+  @Get(':id/detalle')
+  async getDetalleCompleto(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('historialPage') historialPage?: string,
+  ) {
+    const detalle = await this.receiptQueryService.getDetalleCompleto(
+      id,
+      historialPage ? Number(historialPage) : 1,
+    );
+    if (!detalle)
+      throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    return detalle;
+  }
+
+  @Get(':id/pdf')
+  async downloadReceiptPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    const pdfData  = await this.buildPdfData(id);
+    const buffer   = await buildSalesReceiptPdf(pdfData);
+    const filename = `comprobante-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
 
     res.set({
-      'Content-Type': 'application/pdf',
+      'Content-Type':        'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': buffer.length,
+      'Content-Length':      buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get(':id/thermal')
+  async downloadThermalVoucher(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('copia') copia: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const esCopia  = copia === 'true' || copia === '1';
+    const pdfData  = await this.buildPdfData(id);
+    const buffer   = await buildSalesReceiptThermalPdf(pdfData, esCopia);
+    const filename = `ticket-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
+
+    res.set({
+      'Content-Type':        'application/pdf',
+      'Content-Disposition': `inline; filename="${filename}"`,
+      'Content-Length':      buffer.length,
     });
     res.end(buffer);
   }
@@ -317,6 +342,8 @@ export class SalesReceiptRestController {
   ): Promise<SalesReceiptResponseDto | null> {
     return this.receiptQueryService.getReceiptById(id);
   }
+
+  // ── TCP ────────────────────────────────────────────────────────────
 
   @MessagePattern({ cmd: 'verify_sale' })
   async verifySaleForRemission(@Payload() id_comprobante: number) {
