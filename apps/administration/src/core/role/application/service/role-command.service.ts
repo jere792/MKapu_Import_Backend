@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/unbound-method */
 /* ============================================
    administration/src/core/role/application/service/role-command.service.ts
    ============================================ */
@@ -16,18 +14,23 @@ import { IRoleRepositoryPort } from '../../domain/ports/out/role-port-out';
 import { RegisterRoleDto, UpdateRoleDto, ChangeRoleStatusDto } from '../dto/in';
 import { RoleResponseDto, RoleDeletedResponseDto } from '../dto/out';
 import { RoleMapper } from '../mapper/role.mapper';
+// 👇 1. IMPORTA EL GATEWAY DE WEBSOCKETS
+import { RoleWebSocketGateway } from '../../infrastructure/adapters/out/role-websocket.gateway';
 
 @Injectable()
 export class RoleCommandService implements IRoleCommandPort {
   constructor(
     @Inject('IRoleRepositoryPort')
     private readonly repository: IRoleRepositoryPort,
+
+    // 👇 2. INYECTA EL GATEWAY AQUÍ
+    private readonly roleWsGateway: RoleWebSocketGateway,
   ) {}
 
   async getRoleById(id: number): Promise<RoleResponseDto> {
-  const role = await this.repository.findById(id);
-  if (!role) throw new NotFoundException(`Rol con ID ${id} no encontrado`);
-  return RoleMapper.toResponseDto(role);
+    const role = await this.repository.findById(id);
+    if (!role) throw new NotFoundException(`Rol con ID ${id} no encontrado`);
+    return RoleMapper.toResponseDto(role);
   }
 
   async registerRole(dto: RegisterRoleDto): Promise<RoleResponseDto> {
@@ -38,6 +41,10 @@ export class RoleCommandService implements IRoleCommandPort {
 
     const role = RoleMapper.fromRegisterDto(dto);
     const savedRole = await this.repository.save(role);
+
+    // Opcional: Avisar que se creó un nuevo rol
+    this.roleWsGateway.notifyRoleCreated(RoleMapper.toResponseDto(savedRole));
+
     return RoleMapper.toResponseDto(savedRole);
   }
 
@@ -56,6 +63,14 @@ export class RoleCommandService implements IRoleCommandPort {
 
     const updatedRole = RoleMapper.fromUpdateDto(existingRole, dto);
     const savedRole = await this.repository.update(updatedRole);
+
+    // 👇 3. AVISAR A TODOS LOS USUARIOS QUE LOS PERMISOS/ROL CAMBIARON
+    console.log(
+      `📢 Emitiendo WebSocket: El Rol ${dto.id_rol} fue actualizado.`,
+    );
+    this.roleWsGateway.notifyRolePermissionsChanged(dto.id_rol);
+    // (Opcional si usas el de updated) this.roleWsGateway.notifyRoleUpdated(RoleMapper.toResponseDto(savedRole));
+
     return RoleMapper.toResponseDto(savedRole);
   }
 
@@ -67,6 +82,10 @@ export class RoleCommandService implements IRoleCommandPort {
 
     const updatedRole = RoleMapper.withStatus(existingRole, dto.activo);
     const savedRole = await this.repository.update(updatedRole);
+
+    // 👇 También es buena idea avisar si se inactiva el rol
+    this.roleWsGateway.notifyRolePermissionsChanged(dto.id_rol);
+
     return RoleMapper.toResponseDto(savedRole);
   }
 
@@ -77,6 +96,7 @@ export class RoleCommandService implements IRoleCommandPort {
     }
 
     await this.repository.delete(id);
+    this.roleWsGateway.notifyRoleDeleted(id);
     return RoleMapper.toDeletedResponse(id);
   }
 

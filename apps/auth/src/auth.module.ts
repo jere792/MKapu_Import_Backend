@@ -13,6 +13,7 @@ import { AuthRepository } from './core/infrastructure/adapters/out/repository/au
 import { PermissionOrmEntity } from './core/infrastructure/entity/permission-orm-entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { SedeTcpProxy } from './core/infrastructure/adapters/out/TCP/sede-tcp.proxy';
+import { JwtStrategy } from '@app/common/infrastructure/strategies/jwt.strategy';
 
 @Module({
   imports: [
@@ -63,9 +64,8 @@ import { SedeTcpProxy } from './core/infrastructure/adapters/out/TCP/sede-tcp.pr
 
   providers: [
     AuthService,
-
     SedeTcpProxy,
-
+    JwtStrategy,
     {
       provide: 'PasswordHasherPort',
       useClass: BcryptHasherAdapter,

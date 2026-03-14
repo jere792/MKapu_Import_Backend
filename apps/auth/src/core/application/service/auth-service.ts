@@ -114,4 +114,14 @@ export class AuthService implements AccountUserPortsIn {
 
     return AccountUserMapper.toDto(fullAccountDomain);
   }
+  async refreshProfile(username: string) {
+    const accountOrm =
+      await this.repository.findAccountByUsernameWithRelations(username);
+
+    return AccountUserMapper.toLoginResponseDto({
+      access_token: '',
+      account: accountOrm,
+      sedeNombre: '',
+    });
+  }
 }

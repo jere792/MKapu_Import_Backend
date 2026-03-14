@@ -1,5 +1,4 @@
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { AccountUser } from '../../domain/entity/account-user';
 import { AccountUserOrmEntity } from '../../infrastructure/entity/account-user-orm-entity';
 import { AccountUserResponseDto } from '../dto/out/AccountUserResponseDto';

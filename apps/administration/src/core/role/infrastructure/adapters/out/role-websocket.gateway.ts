@@ -18,7 +18,7 @@ import {
 
 @WebSocketGateway({
   cors: { origin: '*' },
-  namespace: '/roles',
+  namespace: 'roles',
 })
 export class RoleWebSocketGateway {
   @WebSocketServer()
@@ -82,5 +82,8 @@ export class RoleWebSocketGateway {
 
   notifyRoleStatusChanged(role: RoleResponseDto): void {
     this.server.emit('roleStatusChanged', role);
+  }
+  notifyRolePermissionsChanged(roleId: number) {
+    this.server.emit('role_permissions_updated', { roleId });
   }
 }

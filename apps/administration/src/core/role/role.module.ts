@@ -14,43 +14,31 @@ import { RoleCommandService } from './application/service/role-command.service';
 import { RoleQueryService } from './application/service/role-query.service';
 import { RoleRestController } from './infrastructure/adapters/in/controllers/role-rest.controller';
 import { RoleRepository } from './infrastructure/adapters/out/repository/role.repository';
+import { RolePermissionModule } from '../role-permission/role-permission.module';
 
 @Module({
   imports: [
     // Registrar la entidad ORM
     TypeOrmModule.forFeature([RoleOrmEntity]),
   ],
-  controllers: [
-    // REST Controller para POST, PUT, DELETE
-    RoleRestController,
-  ],
+  controllers: [RoleRestController],
   providers: [
-    // WebSocket Gateway para GET
     RoleWebSocketGateway,
-
-    // Repository - Implementación del puerto OUT
     {
       provide: 'IRoleRepositoryPort',
       useClass: RoleRepository,
     },
 
-    // Command Service - Implementación del puerto IN (Comandos)
     {
       provide: 'IRoleCommandPort',
       useClass: RoleCommandService,
     },
 
-    // Query Service - Implementación del puerto IN (Consultas)
     {
       provide: 'IRoleQueryPort',
       useClass: RoleQueryService,
     },
   ],
-  exports: [
-    // Exportar servicios para que otros módulos puedan usarlos
-    'IRoleCommandPort',
-    'IRoleQueryPort',
-    RoleWebSocketGateway,
-  ],
+  exports: ['IRoleCommandPort', 'IRoleQueryPort', RoleWebSocketGateway],
 })
 export class RoleModule {}

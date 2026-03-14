@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import type { IncomingMessage } from 'http';
@@ -23,12 +24,14 @@ async function bootstrap() {
     ],
   });
 
-  const authUrl = process.env.AUTH_SERVICE_URL ?? 'http://localhost:3001';
-  const adminUrl = process.env.ADMIN_SERVICE_URL ?? 'http://localhost:3002';
-  const salesUrl = process.env.SALES_SERVICE_URL ?? 'http://localhost:3003';
+  // Usamos 127.0.0.1 para que resuelva localmente en IPv4 (Evita el ECONNREFUSED)
+  const authUrl = process.env.AUTH_SERVICE_URL ?? 'http://127.0.0.1:3001';
+  const adminUrl = process.env.ADMIN_SERVICE_URL ?? 'http://127.0.0.1:3002';
+  const salesUrl = process.env.SALES_SERVICE_URL ?? 'http://127.0.0.1:3003';
   const logisticsUrl =
-    process.env.LOGISTICS_SERVICE_URL ?? 'http://localhost:3005';
+    process.env.LOGISTICS_SERVICE_URL ?? 'http://127.0.0.1:3005';
 
+  // --- 1. PROXY HTTP (SIN WebSockets) ---
   app.use(
     '/auth',
     createProxyMiddleware({
@@ -62,14 +65,18 @@ async function bootstrap() {
     }),
   );
 
-  const wsProxy = httpProxy.createProxyServer({ changeOrigin: true });
+  // --- 2. PROXY DEDICADO PARA WEBSOCKETS ---
+  const wsProxy = httpProxy.createProxyServer({
+    ws: true,
+    changeOrigin: true,
+  });
 
   wsProxy.on('error', (err, _req: IncomingMessage, socket: Socket) => {
     console.error('[WS Error]', err.message);
     socket.destroy();
   });
 
-  const wsRoutes: { prefix: string; target: string }[] = [
+  const wsRoutes = [
     { prefix: '/sales', target: salesUrl },
     { prefix: '/admin', target: adminUrl },
     { prefix: '/logistics', target: logisticsUrl },
