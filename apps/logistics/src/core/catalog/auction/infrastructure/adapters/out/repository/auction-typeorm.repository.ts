@@ -1,4 +1,3 @@
-// infrastructure/adapters/out/repository/auction-typeorm.repository.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -18,6 +17,19 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
     private readonly dataSource: DataSource,
   ) {}
 
+
+  // ── Resuelve id_sede desde stock por almacén ──────────────────────────────
+  async resolveSedeByAlmacen(id_almacen: number): Promise<number> {  
+    if (!id_almacen) return 0;
+    const result = await this.dataSource.query(
+      `SELECT MIN(CAST(id_sede AS UNSIGNED)) AS id_sede
+      FROM mkp_logistica.stock
+      WHERE id_almacen = ?
+      LIMIT 1`,
+      [id_almacen],
+    );
+    return Number(result?.[0]?.id_sede ?? 0);
+  }
   // ── orm → domain ──────────────────────────────────────────────────────────
   private toDomain(orm: AuctionOrmEntity): Auction {
     const details = (orm.detalles || []).map((d: AuctionDetailOrmEntity) => ({
@@ -29,23 +41,28 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
       observacion:       (d as any).observacion ?? undefined,
     }));
 
-    // Constructor: (code, description, status?, id?, details?)
-    return new Auction(
+    const auction = new Auction(
       orm.cod_remate,
       orm.descripcion,
       orm.estado as AuctionStatus,
       orm.id_remate,
       details,
+      orm.id_almacen_ref ?? 0,
+      orm.id_sede_ref    ?? 0,
     );
+
+    return auction;
   }
 
   // ── domain → orm ──────────────────────────────────────────────────────────
   private mapDomainToOrm(domain: Auction, existing?: AuctionOrmEntity): AuctionOrmEntity {
     const orm = existing ?? new AuctionOrmEntity();
 
-    orm.cod_remate  = domain.code;
-    orm.descripcion = domain.description;
-    orm.estado      = domain.status as any;
+    orm.cod_remate     = domain.code;
+    orm.descripcion    = domain.description;
+    orm.estado         = domain.status as any;
+    orm.id_almacen_ref = domain.warehouseRefId ?? 0;
+    orm.id_sede_ref    = domain.sedeRefId      ?? 0;
 
     orm.detalles = (domain.details || []).map((d) => {
       const detOrm = new AuctionDetailOrmEntity();
@@ -106,7 +123,7 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
     return this.toDomain(orm);
   }
 
-  // ── findPaged ─────────────────────────────────────────────────────────────
+  // ── findPaged — agrega filtro por sede ────────────────────────────────────
   async findPaged(filters: ListAuctionFilterDto): Promise<{ items: Auction[]; total: number }> {
     const page  = filters.page  && filters.page  > 0 ? filters.page  : 1;
     const limit = filters.limit && filters.limit > 0 ? filters.limit : 10;
@@ -122,6 +139,11 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
     }
     if (filters.estado) {
       qb.andWhere('r.estado = :estado', { estado: filters.estado });
+    }
+    if ((filters as any).id_sede && Number((filters as any).id_sede) > 0) {
+      qb.andWhere('r.id_sede_ref = :id_sede', {
+        id_sede: Number((filters as any).id_sede),
+      });
     }
 
     qb.orderBy('r.id_remate', 'DESC').skip(skip).take(limit);

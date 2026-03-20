@@ -73,17 +73,23 @@ export class WastageTypeOrmRepository implements IWastageRepositoryPort {
     return domains;
   }
 
-  async findAndCount(skip: number, take: number): Promise<[Wastage[], number]> {
+  async findAndCount(
+    skip: number,
+    take: number,
+    id_sede?: number,
+  ): Promise<[Wastage[], number]> {
+    const where = id_sede ? { id_sede_ref: id_sede } : {};
+
     const [orms, total] = await this.typeOrmRepository.findAndCount({
+      where,                          
       relations: ['detalles', 'tipoMerma'],
       order: { fec_merma: 'DESC' },
       skip,
       take,
     });
 
-    const domains = orms.map((orm) => this.toDomainEntity(orm));
+    const domains = orms.map(orm => this.toDomainEntity(orm));
     await this.attachResponsablesBatch(domains);
-
     return [domains, total];
   }
 

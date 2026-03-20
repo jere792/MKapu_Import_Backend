@@ -1,4 +1,3 @@
-// application/dto/in/list-auction-filter.dto.ts
 import { Type } from 'class-transformer';
 import { IsOptional, IsInt, Min, IsString, IsEnum, IsDateString } from 'class-validator';
 import { AuctionStatus } from './create-auction.dto';
@@ -6,15 +5,15 @@ import { AuctionStatus } from './create-auction.dto';
 export class ListAuctionFilterDto {
   @IsOptional()
   @IsString()
-  search?: string; 
-  
+  search?: string;
+
   @IsOptional()
   @IsEnum(AuctionStatus)
   estado?: AuctionStatus;
 
   @IsOptional()
   @IsDateString()
-  startDate?: string; 
+  startDate?: string;
 
   @IsOptional()
   @IsDateString()
@@ -34,5 +33,11 @@ export class ListAuctionFilterDto {
 
   @IsOptional()
   @IsString()
-  sort?: string; 
+  sort?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  id_sede?: number;  
 }

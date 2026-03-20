@@ -38,6 +38,15 @@ export class AuctionCommandService implements IAuctionCommandPort {
       }
     }
 
+    // ── Resuelve id_sede_ref desde el almacén ─────────────────────────────
+    const id_sede_ref = await this.repository.resolveSedeByAlmacen(dto.id_almacen_ref);
+    if (!id_sede_ref) {
+      throw new BadRequestException(
+        `No se encontró sede asociada al almacén ID ${dto.id_almacen_ref}.`,
+      );
+    }
+    this.logger.log(`Sede resuelta para almacén ${dto.id_almacen_ref}: sede=${id_sede_ref}`);
+
     const shouldGenerateCode = !dto.cod_remate || dto.cod_remate.trim() === '';
     const temporaryCode = shouldGenerateCode ? 'TEMP-PENDING' : dto.cod_remate!;
     this.logger.log(`Creando remate con código: ${shouldGenerateCode ? 'AUTO-GENERADO' : temporaryCode}`);
@@ -54,6 +63,8 @@ export class AuctionCommandService implements IAuctionCommandPort {
         auctionStock:  d.stock_remate,
         observacion:   d.observacion,
       })),
+      dto.id_almacen_ref,  // warehouseRefId
+      id_sede_ref,         // sedeRefId ← nuevo
     );
 
     let saved = await this.repository.save(domain);
@@ -83,7 +94,7 @@ export class AuctionCommandService implements IAuctionCommandPort {
       items: dto.detalles.map((d) => ({
         productId:   d.id_producto,
         warehouseId: dto.id_almacen_ref,
-        sedeId:      0,
+        sedeId:      id_sede_ref,  // ← ya no es 0
         quantity:    d.stock_remate,
       })),
     };
@@ -101,7 +112,7 @@ export class AuctionCommandService implements IAuctionCommandPort {
     this.logger.log(`Remate ${finalCode} creado exitosamente`);
     return AuctionMapper.toResponseDto(final);
   }
-
+  
   async update(id: number, dto: any): Promise<AuctionResponseDto> {
     const existing = await this.repository.findById(id);
     if (!existing) throw new BadRequestException('Subasta no encontrada.');

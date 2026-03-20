@@ -21,6 +21,12 @@ export class AuctionOrmEntity {
   })
   estado!: 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
 
+  @Column({ name: 'id_almacen_ref', type: 'int', default: 0 })
+  id_almacen_ref!: number;   
+
+  @Column({ name: 'id_sede_ref', type: 'int', default: 0 })
+  id_sede_ref!: number;     
+  
   @OneToMany(() => AuctionDetailOrmEntity, (d) => d.remate, {
     cascade: true,
     eager: false,

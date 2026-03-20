@@ -20,19 +20,18 @@ export class WastageMapper {
   static toResponseDto(domain: Wastage): WastageResponseDto {
     const dto = new WastageResponseDto();
 
-    dto.id_merma = domain.id_merma!;
-    dto.fec_merma = domain.fec_merma;
-    dto.motivo = domain.motivo;
-    dto.total_items = (domain.detalles || []).reduce((acc, d) => acc + (d.cantidad || 0), 0);
-    dto.estado = !!domain.estado;
+    dto.id_merma       = domain.id_merma!;
+    dto.fec_merma      = domain.fec_merma;
+    dto.motivo         = domain.motivo;
+    dto.total_items    = (domain.detalles || []).reduce((acc, d) => acc + (d.cantidad || 0), 0);
+    dto.estado         = !!domain.estado;
+    dto.id_sede_ref    = domain.id_sede_ref ?? 0;   
+    dto.id_almacen_ref = domain.id_almacen_ref ?? 0; 
 
     dto.detalles = (domain.detalles || []).map((d: WastageDetail) => this.detailToResponseDto(d));
 
-
-    dto.responsable = (domain as any).responsable ?? undefined;
-
-
-    dto.tipo_merma_id = (domain as any).tipo_merma_id ?? null;
+    dto.responsable      = (domain as any).responsable ?? undefined;
+    dto.tipo_merma_id    = (domain as any).tipo_merma_id ?? null;
     dto.tipo_merma_label = (domain as any).tipo_merma_label ?? null;
 
     if (!dto.tipo_merma_id && dto.detalles && dto.detalles.length > 0) {

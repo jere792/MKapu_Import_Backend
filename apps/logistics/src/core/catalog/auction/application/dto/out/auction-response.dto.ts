@@ -6,7 +6,8 @@ export class AuctionResponseDto {
   cod_remate!:     string;
   descripcion!:    string;
   estado?:         string;
-  id_almacen_ref!: number;   
+  id_almacen_ref!: number;
+  id_sede_ref!:    number;   
   detalles?:       AuctionDetailResponseDto[];
   total_items?:    number;
 }

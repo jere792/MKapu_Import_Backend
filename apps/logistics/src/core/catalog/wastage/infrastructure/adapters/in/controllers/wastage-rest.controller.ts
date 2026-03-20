@@ -38,12 +38,12 @@ export class WastageRestController {
   // ── GET /catalog/wastage ──────────────────────────────────────────────────
   @Get()
   async findAll(
-    @Query('page',  new DefaultValuePipe(1),  ParseIntPipe) page:  number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('page',    new DefaultValuePipe(1),  ParseIntPipe) page:    number,
+    @Query('limit',   new DefaultValuePipe(10), ParseIntPipe) limit:   number,
+    @Query('id_sede', new DefaultValuePipe(0),  ParseIntPipe) id_sede: number,
   ): Promise<WastagePaginatedResponseDto> {
-    return await this.queryPort.findAllPaginated(page, limit);
+    return await this.queryPort.findAllPaginated(page, limit, id_sede || undefined);
   }
-
   // ── GET /catalog/wastage/:id ──────────────────────────────────────────────
   @Get(':id')
   async findById(@Param('id', ParseIntPipe) id: number): Promise<WastageResponseDto> {
