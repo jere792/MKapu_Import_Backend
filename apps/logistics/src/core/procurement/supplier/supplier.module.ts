@@ -13,6 +13,7 @@ import { SupplierRestController } from './infrastructure/adapters/in/controllers
 
 // Infrastructure - Adapters OUT
 import { SupplierRepository } from './infrastructure/adapters/out/repository/supplier.repository';
+import { SupplierTcpController } from './infrastructure/adapters/in/TCP/supplier.tcp.controller';
 
 // Application - Services
 import { SupplierCommandService } from './application/service/supplier-command.service';
@@ -26,6 +27,7 @@ import { SupplierQueryService } from './application/service/supplier-query.servi
   controllers: [
     // Adapter IN - REST Controller
     SupplierRestController,
+    SupplierTcpController,  
   ],
   providers: [
     // Adapter OUT - Repository

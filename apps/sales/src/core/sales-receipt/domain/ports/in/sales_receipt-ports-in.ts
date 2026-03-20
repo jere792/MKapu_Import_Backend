@@ -51,4 +51,3 @@ export interface ISalesReceiptQueryPort {
   getAllSaleTypes(): Promise<SaleTypeResponseDto[]>;
   getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]>;
 }
-  

@@ -10,6 +10,10 @@ import { QuoteMapper } from '../mapper/quote.mapper';
 import { Quote, QuoteStatus } from '../../domain/entity/quote-domain-entity';
 import { QuoteDetail } from '../../domain/entity/quote-datail-domain-entity';
 import { ProductStockTcpProxy } from '../../infrastructure/adapters/out/TCP/ProductStockTcpProxy';
+import { SupplierOrmEntity } from 'apps/logistics/src/core/procurement/supplier/infrastructure/entity/supplier-orm.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ISupplierProxy } from '../../domain/ports/out/supplier-proxy.port';
 
 const ESTADOS_VALIDOS = ['PENDIENTE', 'APROBADA', 'RECHAZADA'];
 
@@ -25,25 +29,36 @@ export class QuoteCommandService implements IQuoteCommandPort {
     @Inject('ISedeProxy')
     private readonly sedeProxy: ISedeProxy,
     private readonly eventEmitter: EventEmitter2,
+    @Inject('ISupplierProxy')
+    private readonly supplierProxy: ISupplierProxy,
   ) {}
-
   async create(dto: CreateQuoteDto): Promise<QuoteResponseDto> {
-    const customer = await this.customerRepository.findByDocument(dto.documento_cliente);
-    if (!customer) throw new NotFoundException(`Cliente ${dto.documento_cliente} no encontrado`);
+    const tipo = dto.tipo ?? 'VENTA';
+    let customer = null;
+    let proveedor = null;
+
+    if (tipo === 'VENTA') {
+      if (!dto.documento_cliente)
+        throw new BadRequestException('documento_cliente es requerido para cotizaciones de VENTA');
+      customer = await this.customerRepository.findByDocument(dto.documento_cliente);
+      if (!customer) throw new NotFoundException(`Cliente ${dto.documento_cliente} no encontrado`);
+    }
+
+  if (tipo === 'COMPRA') {
+    if (!dto.id_proveedor)
+      throw new BadRequestException('id_proveedor es requerido para cotizaciones de COMPRA');
+    
+    // ── Buscar proveedor real en lugar de construir uno falso ────
+    proveedor = await this.supplierProxy.getSupplierById(Number(dto.id_proveedor));
+    if (!proveedor)
+      throw new NotFoundException(`Proveedor ${dto.id_proveedor} no encontrado`);
+  }
 
     const sede = await this.sedeProxy.getSedeById(dto.id_sede);
     if (!sede) throw new NotFoundException(`Sede ${dto.id_sede} no encontrada`);
 
-    for (const det of dto.detalles) {
-      const stockInfo = await this.productStockProxy.getProductStockVentasItem(det.id_prod_ref, dto.id_sede);
-      if (!stockInfo || stockInfo.stock < det.cantidad) {
-        throw new BadRequestException(`Stock insuficiente para producto ${det.cod_prod}`);
-      }
-    }
-
-    if (dto.subtotal + dto.igv !== dto.total) {
+    if (dto.subtotal + dto.igv !== dto.total)
       throw new BadRequestException('subtotal + igv debe ser igual al total');
-    }
 
     const details = dto.detalles.map(det =>
       new QuoteDetail(null, 0, det.id_prod_ref, det.cod_prod, det.descripcion, det.cantidad, det.precio)
@@ -51,7 +66,8 @@ export class QuoteCommandService implements IQuoteCommandPort {
 
     const domain = new Quote(
       null,
-      customer.id_cliente,
+      customer?.id_cliente ?? null,
+      dto.id_proveedor     ?? null,
       dto.id_sede,
       dto.subtotal,
       dto.igv,
@@ -61,18 +77,20 @@ export class QuoteCommandService implements IQuoteCommandPort {
       new Date(dto.fec_venc),
       true,
       details,
-      dto.tipo ?? 'VENTA',
+      tipo,
     );
 
-    const saved = await this.repository.save(domain);
+  const saved = await this.repository.save(domain);
 
-    this.eventEmitter.emit('quote.created', {
-      id_cotizacion: saved.id_cotizacion,
-      id_cliente:    saved.id_cliente,
-    });
+  this.eventEmitter.emit('quote.created', {
+    id_cotizacion: saved.id_cotizacion,
+    id_cliente:    saved.id_cliente,
+    id_proveedor:  saved.id_proveedor,
+    tipo:          saved.tipo,
+  });
 
-    return QuoteMapper.toResponseDto(saved, customer, sede);
-  }
+  return QuoteMapper.toResponseDto(saved, customer, sede, proveedor);
+}
 
   async approve(id: number): Promise<QuoteResponseDto> {
     const domain = await this.repository.findById(id);

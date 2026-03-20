@@ -9,6 +9,7 @@ export class SalesReceiptResponseDto {
   tipoOperacion: string;
   subtotal: number;
   igv: number;
+  cliente?: any;
   isc: number;
   total: number;
   estado: string;

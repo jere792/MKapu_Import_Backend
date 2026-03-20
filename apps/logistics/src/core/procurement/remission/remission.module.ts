@@ -27,6 +27,8 @@ import { RemissionQueryService } from './application/service/remission-query.ser
 import { HttpModule } from '@nestjs/axios';
 import { ReniecController } from 'apps/sales/src/reniec/reniec.controller';
 import { ReniecService } from 'apps/sales/src/reniec/reniec.service';
+import { UsuarioTcpProxy } from '../../warehouse/transfer/infrastructure/adapters/out/TCP/usuario-tcp.proxy';
+import { SedeTcpProxy } from '../../catalog/product/infrastructure/adapters/out/TCP/sede-tcp.proxy';
 
 @Module({
   imports: [
@@ -36,8 +38,24 @@ import { ReniecService } from 'apps/sales/src/reniec/reniec.service';
         name: 'ADMIN_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: process.env.ADMIN_HOST || 'localhost',
-          port: Number(process.env.ADMIN_TCP_PORT) || 3004,
+          host: '127.0.0.1',
+          port: Number(process.env.USERS_TCP_PORT) || 3011,
+        },
+      },
+      {
+        name: 'USERS_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: '127.0.0.1',
+          port: Number(process.env.USERS_TCP_PORT) || 3011,
+        },
+      },
+      {
+        name: 'SEDE_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: '127.0.0.1',
+          port: Number(process.env.USERS_TCP_PORT) || 3011,
         },
       },
     ]),
@@ -61,7 +79,7 @@ import { ReniecService } from 'apps/sales/src/reniec/reniec.service';
         useFactory: (config: ConfigService) => ({
           transport: Transport.TCP,
           options: {
-            host: config.get('SALES_MICROSERVICE_HOST') || 'localhost',
+            host: config.get('SALES_MICROSERVICE_HOST') || '127.0.0.1',
             port: config.get('SALES_MICROSERVICE_PORT') || 3012,
           },
         }),
@@ -73,6 +91,16 @@ import { ReniecService } from 'apps/sales/src/reniec/reniec.service';
     RemissionCommandService,
     RemissionQueryService,
     ReniecService,
+    SedeTcpProxy,
+    UsuarioTcpProxy,
+    {
+      provide: 'RemissionQueryPortOut',
+      useClass: RemissionTypeormRepository,
+    },
+    {
+      provide: 'SalesGatewayPortOut',
+      useClass: SalesGateway,
+    },
     {
       provide: 'RemissionRepositoryPort',
       useClass: RemissionTypeormRepository,

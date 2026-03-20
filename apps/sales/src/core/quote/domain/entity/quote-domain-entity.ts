@@ -8,7 +8,8 @@ export class Quote {
 
   constructor(
     public readonly id_cotizacion: number | null,
-    public readonly id_cliente:    string,
+    public readonly id_cliente:    string | null,  // null cuando tipo = COMPRA
+    public readonly id_proveedor:  string | null,  // null cuando tipo = VENTA
     public readonly id_sede:       number,
     public subtotal:               number,
     public igv:                    number,
@@ -29,6 +30,7 @@ export class Quote {
     this.validarEstadoInicial();
     this.validarTipo();
     this.validarSede();
+    this.validarParticipante();   // ← nueva validación
   }
 
   public readonly fec_emision: Date;
@@ -99,6 +101,13 @@ export class Quote {
   private validarSede(): void {
     if (!this.id_sede || typeof this.id_sede !== 'number' || this.id_sede <= 0)
       throw new Error('La sede debe ser un número válido y mayor que cero');
+  }
+
+  private validarParticipante(): void {
+    if (this.tipo === 'VENTA' && !this.id_cliente)
+      throw new Error('Una cotización de VENTA debe tener un cliente');
+    if (this.tipo === 'COMPRA' && !this.id_proveedor)
+      throw new Error('Una cotización de COMPRA debe tener un proveedor');
   }
 
   // ── Activar / desactivar ──────────────────────────────────────────────────

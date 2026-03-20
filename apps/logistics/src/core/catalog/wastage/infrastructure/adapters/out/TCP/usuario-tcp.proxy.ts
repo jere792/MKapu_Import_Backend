@@ -1,9 +1,30 @@
-import { Injectable, Inject, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom, timeout as rxTimeout, catchError, retry, of } from 'rxjs';
+import {
+  firstValueFrom,
+  timeout as rxTimeout,
+  catchError,
+  retry,
+  of,
+} from 'rxjs';
 
 type FindUsersByIdsReply =
-  | { ok: true; data: Array<{ id_usuario: number; nombres: string; ape_pat?: string; ape_mat?: string; nombreCompleto?: string }> }
+  | {
+      ok: true;
+      data: Array<{
+        id_usuario: number;
+        nombres: string;
+        ape_pat?: string;
+        ape_mat?: string;
+        nombreCompleto?: string;
+      }>;
+    }
   | { ok: false; message?: string; data?: null };
 
 @Injectable()
@@ -14,7 +35,7 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
   private readonly HEALTH_CHECK_INTERVAL = 30000; // 30 segundos
 
   constructor(
-    @Inject('USERS_SERVICE') 
+    @Inject('USERS_SERVICE')
     private readonly client: ClientProxy,
   ) {}
 
@@ -24,7 +45,9 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
       await this.client.connect();
       this.logger.log('✅ Conexión establecida con USERS_SERVICE');
     } catch (error: any) {
-      this.logger.warn(`⚠️ No se pudo conectar con USERS_SERVICE al inicio: ${error?.message}`);
+      this.logger.warn(
+        `⚠️ No se pudo conectar con USERS_SERVICE al inicio: ${error?.message}`,
+      );
       this.isServiceHealthy = false;
     }
   }
@@ -43,7 +66,10 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
    */
   private shouldCheckHealth(): boolean {
     const now = Date.now();
-    if (!this.isServiceHealthy && (now - this.lastHealthCheck) > this.HEALTH_CHECK_INTERVAL) {
+    if (
+      !this.isServiceHealthy &&
+      now - this.lastHealthCheck > this.HEALTH_CHECK_INTERVAL
+    ) {
       this.lastHealthCheck = now;
       return true;
     }
@@ -56,7 +82,9 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
   private markUnhealthy() {
     this.isServiceHealthy = false;
     this.lastHealthCheck = Date.now();
-    this.logger.warn('⚠️ USERS_SERVICE marcado como no disponible. Se reintentará en 30 segundos.');
+    this.logger.warn(
+      '⚠️ USERS_SERVICE marcado como no disponible. Se reintentará en 30 segundos.',
+    );
   }
 
   /**
@@ -70,34 +98,40 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
     this.lastHealthCheck = Date.now();
   }
 
-  async getUsersByIds(ids: number[]): Promise<Array<{ id_usuario: number; nombreCompleto: string }>> {
+  async getUsersByIds(
+    ids: number[],
+  ): Promise<Array<{ id_usuario: number; nombreCompleto: string }>> {
     if (!ids || ids.length === 0) return [];
 
     // Circuit breaker: si el servicio está marcado como no saludable, no intentar
     if (!this.shouldCheckHealth()) {
-      this.logger.debug(`⏭️ Saltando llamada a USERS_SERVICE (servicio no disponible)`);
+      this.logger.debug(
+        `⏭️ Saltando llamada a USERS_SERVICE (servicio no disponible)`,
+      );
       return [];
     }
 
     try {
-      this.logger.log(`📡 Solicitando usuarios [${ids.join(', ')}] al USERS_SERVICE`);
+      this.logger.log(
+        `📡 Solicitando usuarios [${ids.join(', ')}] al USERS_SERVICE`,
+      );
 
       const payload = { ids, secret: process.env.INTERNAL_COMM_SECRET };
-      
+
       const response = await firstValueFrom(
-        this.client
-          .send<FindUsersByIdsReply>('users.findByIds', payload)
-          .pipe(
-            rxTimeout(5000), // Timeout de 5 segundos
-            retry({
-              count: 2, // Reintentar 2 veces
-              delay: 1000, // Esperar 1 segundo entre reintentos
-            }),
-            catchError((error) => {
-              this.logger.error(`❌ Error en llamada TCP: ${error?.message ?? error}`);
-              return of(null); // Retornar null en caso de error
-            })
-          ),
+        this.client.send<FindUsersByIdsReply>('users.findByIds', payload).pipe(
+          rxTimeout(5000), // Timeout de 5 segundos
+          retry({
+            count: 2, // Reintentar 2 veces
+            delay: 1000, // Esperar 1 segundo entre reintentos
+          }),
+          catchError((error) => {
+            this.logger.error(
+              `❌ Error en llamada TCP: ${error?.message ?? error}`,
+            );
+            return of(null); // Retornar null en caso de error
+          }),
+        ),
       );
 
       // Si la respuesta es null (por el catchError)
@@ -120,15 +154,18 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
       const users = (response as any).data || [];
       const mapped = users.map((u: any) => ({
         id_usuario: Number(u.id_usuario),
-        nombreCompleto: u.nombreCompleto ?? `${u.nombres ?? ''} ${u.ape_pat ?? ''} ${u.ape_mat ?? ''}`.trim(),
+        nombreCompleto:
+          u.nombreCompleto ??
+          `${u.nombres ?? ''} ${u.ape_pat ?? ''} ${u.ape_mat ?? ''}`.trim(),
       }));
-      
+
       this.logger.log(`✅ ${mapped.length} usuario(s) recibido(s)`);
       return mapped;
-
     } catch (error: any) {
       // Este catch solo debería ejecutarse en casos excepcionales
-      this.logger.error(`❌ Error inesperado al consultar USERS_SERVICE: ${error?.message ?? error}`);
+      this.logger.error(
+        `❌ Error inesperado al consultar USERS_SERVICE: ${error?.message ?? error}`,
+      );
       this.markUnhealthy();
       return [];
     }
@@ -137,7 +174,9 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
   /**
    * Obtener un solo usuario por id
    */
-  async getUserById(id: number): Promise<{ id_usuario: number; nombreCompleto: string } | null> {
+  async getUserById(
+    id: number,
+  ): Promise<{ id_usuario: number; nombreCompleto: string } | null> {
     const users = await this.getUsersByIds([id]);
     return users.length ? users[0] : null;
   }

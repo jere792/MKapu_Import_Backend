@@ -12,7 +12,6 @@ export class Stock {
 
   applyMovement(delta: number) {
     const newTotal = this.quantity + delta;
-
     if (newTotal < 0) {
       throw new Error(
         `Stock insuficiente. Actual: ${this.quantity}, intento: ${delta}`,

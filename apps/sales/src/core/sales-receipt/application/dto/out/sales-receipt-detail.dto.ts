@@ -27,7 +27,6 @@ export class SalesReceiptPromocionDto {
     valor_condicion: string;
   }[];
 
-  // opcional, por si luego quieres tener ids directos
   productosIds?: string[];
 }
 export class SalesReceiptHistorialItemDto {
@@ -47,7 +46,7 @@ export class SalesReceiptDetalleCompletoDto {
   numero: number;
   tipo_comprobante: string;
   fec_emision: Date;
-  fec_venc: Date | null; // ← nuevo
+  fec_venc: Date | null;
   estado: string;
   subtotal: number;
   igv: number;
@@ -75,7 +74,7 @@ export class SalesReceiptDetalleCompletoDto {
     nombreSede: string;
   };
 
-  promocion: SalesReceiptPromocionDto | null; // ← nuevo
+  promocion: SalesReceiptPromocionDto | null;
 
   historial_cliente: SalesReceiptHistorialItemDto[];
 
@@ -86,8 +85,6 @@ export class SalesReceiptDetalleCompletoDto {
     total_pages: number;
   };
 }
-
-// ─── Promociones activas (para generar nueva venta) ──────────────────────────
 
 export class ReglaPromocionDto {
   id_regla: number;

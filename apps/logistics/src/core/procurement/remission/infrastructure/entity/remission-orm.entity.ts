@@ -88,8 +88,13 @@ export class RemissionOrmEntity {
 
   @Column({ name: 'id_sede_ref', type: 'int' })
   id_sede_ref: string;
+
   @OneToMany(() => RemissionDetailOrmEntity, (detail) => detail.remission)
   details: RemissionDetailOrmEntity[];
-  @Column({ name: 'Razon social', type: 'varchar' })
+
+  @Column({ name: 'razon_social', type: 'varchar' })
   socialReason: string;
+
+  @Column({ type: 'boolean', default: false })
+  impreso: boolean;
 }

@@ -10,8 +10,9 @@ export class QuoteDetailResponseDto {
 
 export interface QuoteResponseDto {
   id_cotizacion: number;
-  id_cliente:    string;
-  tipo:          string; 
+  id_cliente:    string | null;
+  id_proveedor:  string | null;
+  tipo:          string;
   cliente: {
     nombre_cliente:    string;
     apellidos_cliente: string;
@@ -21,7 +22,15 @@ export interface QuoteResponseDto {
     telefono:          string;
     id_tipo_documento: string;
     valor_doc:         string;
-  };
+  } | null;
+  proveedor: {
+    id:           string;
+    razon_social: string;
+    ruc:          string;
+    contacto:     string;
+    email:        string;
+    telefono:     string;
+  } | null;
   id_sede: number;
   sede: {
     nombre_sede:  string;
@@ -42,17 +51,19 @@ export interface QuoteResponseDto {
 }
 
 export interface QuoteListItemDto {
-  id_cotizacion: number;
-  codigo:        string;
-  cliente_nombre: string;
-  fec_emision:   string;
-  fec_venc:      string;
-  id_sede:       number;
-  sede_nombre:   string;
-  tipo:          string; 
-  estado:        string;
-  total:         number;
-  activo:        boolean;
+  id_cotizacion:    number;
+  codigo:           string;
+  cliente_nombre:   string;
+  proveedor_nombre?: string;  
+  id_proveedor?:    number;   
+  fec_emision:      string;
+  fec_venc:         string;
+  id_sede:          number;
+  sede_nombre:      string;
+  tipo:             string;
+  estado:           string;
+  total:            number;
+  activo:           boolean;
 }
 
 export interface QuotePagedResponseDto {
@@ -61,4 +72,7 @@ export interface QuotePagedResponseDto {
   page:       number;
   limit:      number;
   totalPages: number;
+  kpiTotal:      number;
+  kpiAprobadas:  number;
+  kpiPendientes: number;
 }

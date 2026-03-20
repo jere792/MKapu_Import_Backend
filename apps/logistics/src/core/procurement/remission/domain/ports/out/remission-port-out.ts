@@ -8,4 +8,5 @@ export interface RemissionPortOut {
   findByRefId(idVenta: number): Promise<any>;
   getSummaryInfo(startDate: Date, endDate: Date): Promise<any>;
   obtenerGuiaParaReporte(id: string): Promise<any>;
+  markAsPrinted(id: string): Promise<void>;
 }
