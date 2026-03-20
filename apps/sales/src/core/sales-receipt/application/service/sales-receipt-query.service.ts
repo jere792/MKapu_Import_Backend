@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -28,7 +30,8 @@ import { UsersTcpProxy } from '../../infrastructure/adapters/out/TCP/users-tcp.p
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { LogisticsTcpProxy } from '../../infrastructure/adapters/out/TCP/logistics-tcp.proxy';
 import { buildSalesReceiptThermalPdf } from '../../utils/sales-receipt-thermal.util';
-import { SalesReceiptPdfData } from '../../utils/sales-receipt-pdf.util';
+import { ClientProxy } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
@@ -42,7 +45,24 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     private readonly usersTcpProxy: UsersTcpProxy,
     private readonly sedeTcpProxy: SedeTcpProxy,
     private readonly logisticsTcpProxy: LogisticsTcpProxy,
+    @Inject('ADMIN_SERVICE') private readonly adminClient: ClientProxy,
   ) {}
+
+  // ── OBTENER EMPRESA TCP ──────────────────────────────────────────────────
+  private async getEmpresaData(): Promise<any> {
+    try {
+      const response = await firstValueFrom(
+        this.adminClient.send('get_empresa_activa', {}),
+      );
+      return response?.data ? response.data : response;
+    } catch (error) {
+      console.warn(
+        '⚠️ No se pudo obtener la empresa por TCP en ventas:',
+        error.message,
+      );
+      return null;
+    }
+  }
 
   async findSaleByCorrelativo(correlativo: string): Promise<any> {
     const parts = correlativo.split('-');
@@ -418,66 +438,75 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     return types.map(SalesReceiptMapper.toReceiptTypeDto);
   }
 
-  private async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
+  // ── ACTUALIZADO: INCLUYE LA EMPRESA ──────────────────────────────────
+  private async buildPdfData(id: number): Promise<any> {
     const detalle = await this.getDetalleCompleto(id);
-    if (!detalle) throw new NotFoundException(`Comprobante #${id} no encontrado`);
+    if (!detalle)
+      throw new NotFoundException(`Comprobante #${id} no encontrado`);
 
+    const empresaData = await this.getEmpresaData(); // <--- TCP CALL
+
+    // Añadimos empresaData al payload para que el Utils lo lea
     return {
-      id_comprobante:   detalle.id_comprobante,
-      serie:            detalle.serie,
-      numero:           detalle.numero,
+      id_comprobante: detalle.id_comprobante,
+      serie: detalle.serie,
+      numero: detalle.numero,
       tipo_comprobante: detalle.tipo_comprobante,
-      fec_emision:      detalle.fec_emision,
-      fec_venc:         detalle.fec_venc,
-      estado:           detalle.estado,
-      subtotal:         detalle.subtotal,
-      igv:              detalle.igv,
-      total:            detalle.total,
-      metodo_pago:      detalle.metodo_pago,
+      fec_emision: detalle.fec_emision,
+      fec_venc: detalle.fec_venc,
+      estado: detalle.estado,
+      subtotal: detalle.subtotal,
+      igv: detalle.igv,
+      total: detalle.total,
+      metodo_pago: detalle.metodo_pago,
 
       cliente: {
-        nombre:         detalle.cliente.nombre,
-        documento:      detalle.cliente.documento,
+        nombre: detalle.cliente.nombre,
+        documento: detalle.cliente.documento,
         tipo_documento: detalle.cliente.tipo_documento,
-        direccion:      detalle.cliente.direccion,
-        email:          detalle.cliente.email,
-        telefono:       detalle.cliente.telefono,
+        direccion: detalle.cliente.direccion,
+        email: detalle.cliente.email,
+        telefono: detalle.cliente.telefono,
       },
 
       responsable: {
-        nombre:     detalle.responsable.nombre,
+        nombre: detalle.responsable.nombre,
         nombreSede: detalle.responsable.nombreSede,
       },
 
       productos: detalle.productos.map((p) => ({
-        cod_prod:              String(p.cod_prod),
-        descripcion:           p.descripcion,
-        cantidad:              p.cantidad,
-        precio_unit:           p.precio_unit,
-        total:                 p.total,
-        descuento_nombre:      p.descuento_nombre,
-        descuento_porcentaje:  p.descuento_porcentaje,
+        cod_prod: String(p.cod_prod),
+        descripcion: p.descripcion,
+        cantidad: p.cantidad,
+        precio_unit: p.precio_unit,
+        total: p.total,
+        descuento_nombre: p.descuento_nombre,
+        descuento_porcentaje: p.descuento_porcentaje,
       })),
 
       promocion: detalle.promocion
         ? {
-            nombre:          detalle.promocion.nombre,
-            tipo:            detalle.promocion.tipo,
+            nombre: detalle.promocion.nombre,
+            tipo: detalle.promocion.tipo,
             monto_descuento: detalle.promocion.monto_descuento,
             productos_afectados: undefined,
           }
         : null,
+
+      empresaData: empresaData, // <--- Inyectado aquí
     };
   }
 
+  // ── EXPORTACIÓN TÉRMICA ──────────────────────────────────────────────
   async exportThermalVoucher(id: number, res: Response): Promise<void> {
-    const data   = await this.buildPdfData(id);
-    const buffer = await buildSalesReceiptThermalPdf(data);
+    const data = await this.buildPdfData(id);
+    // Pasamos la data normal y la data de la empresa extraída al util
+    const buffer = await buildSalesReceiptThermalPdf(data, data.empresaData);
 
     res.set({
-      'Content-Type':        'application/pdf',
+      'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename=Ticket_${id}.pdf`,
-      'Content-Length':      buffer.length,
+      'Content-Length': buffer.length,
     });
     res.end(buffer);
   }

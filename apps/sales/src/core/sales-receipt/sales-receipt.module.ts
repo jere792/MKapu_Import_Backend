@@ -32,12 +32,13 @@ import { CustomerRepository } from '../customer/infrastructure/adapters/out/repo
 import { CustomerModule } from '../customer/customer.module';
 import { SalesReceiptRestController } from './infrastructure/adapters/in/controllers/sales-receipt-rest.controller';
 
-// ← Promociones viven en el mismo microservicio de sales, no necesitan TCP
+// Promociones viven en el mismo microservicio de sales, no necesitan TCP
 import { PromotionModule } from '../promotion/promotion.module';
 
 @Module({
   imports: [
     HttpModule,
+    ConfigModule, // <-- AGREGADO: Necesario para que el ConfigService esté disponible en el contexto
     ClientsModule.registerAsync([
       // ── Logistics ──────────────────────────────────────────────
       {
@@ -65,7 +66,7 @@ import { PromotionModule } from '../promotion/promotion.module';
         }),
         inject: [ConfigService],
       },
-      // ── Administration → SedeTcpProxy ──────────────────────────
+      // ── Administration → SedeTcpProxy / PDF Empresa ──────────
       {
         name: 'ADMIN_SERVICE',
         imports: [ConfigModule],
@@ -93,7 +94,6 @@ import { PromotionModule } from '../promotion/promotion.module';
       CashMovementOrmEntity,
     ]),
     CustomerModule,
-    // ← Importar PromotionModule para acceder a PromotionQueryService
     PromotionModule,
   ],
 
