@@ -70,6 +70,9 @@ export async function buildSalesReceiptThermalPdf(
   empresaData?: any, // <-- Inyectado aquí
   esCopia = false,
 ): Promise<Buffer> {
+  const empData =
+    empresaData || (data as any).empresaData || (data as any).empresa || {};
+  console.log('3️⃣ EMPDATA DENTRO DEL UTILITARIO:', empData);
   const qrDataUrl = await QRCode.toDataURL(buildQrContent(data, empresaData), {
     width: 120,
     margin: 1,
@@ -248,9 +251,9 @@ export async function buildSalesReceiptThermalPdf(
     y += LOGO_H + 4;
 
     dashedLine();
-    const empData = empresaData || (data as any).empresaData || {};
+    const empData =
+      empresaData || (data as any).empresaData || (data as any).empresa || {};
     const empresa = {
-      // Cambiar razon_social por razonSocial
       nombre:
         empData?.razonSocial ??
         empData?.nombreComercial ??
@@ -258,8 +261,8 @@ export async function buildSalesReceiptThermalPdf(
       ruc: empData?.ruc ?? '20000000000',
       direccion: empData?.direccion ?? 'Dirección no registrada',
       ciudad: empData?.ciudad ?? 'Lima - Perú',
+      email: empData?.email ?? 'correo@empresa.com',
       telefono: empData?.telefono ?? '000000000',
-      // Cambiar website por sitioWeb
       web: empData?.sitioWeb ?? 'https://fe.tumi-soft.com',
     };
 
@@ -511,7 +514,8 @@ export async function buildSalesReceiptThermalPdf(
 }
 
 function buildQrContent(data: SalesReceiptPdfData, empresaData?: any): string {
-  const empData = empresaData || (data as any).empresaData || {};
+  const empData =
+    empresaData || (data as any).empresaData || (data as any).empresa || {};
   const ruc = empData?.ruc ?? '20000000000';
   // Cambiar razon_social por razonSocial
   const nombreEmpresa =

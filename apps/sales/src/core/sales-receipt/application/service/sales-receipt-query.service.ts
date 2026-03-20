@@ -427,6 +427,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
   private async buildPdfData(id: number): Promise<any> {
     const detalle = await this.getDetalleCompleto(id);
+    console.log('2️⃣ DETALLE COMPLETO OBTENIDO:', detalle);
     if (!detalle)
       throw new NotFoundException(`Comprobante #${id} no encontrado`);
 
@@ -482,6 +483,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
   async exportThermalVoucher(id: number, res: Response): Promise<void> {
     const data = await this.buildPdfData(id);
+    console.log('1️⃣ DATA ANTES DE ENTRAR AL TÉRMICO:', data.empresaData);
     const buffer = await buildSalesReceiptThermalPdf(data, data.empresaData);
 
     res.set({

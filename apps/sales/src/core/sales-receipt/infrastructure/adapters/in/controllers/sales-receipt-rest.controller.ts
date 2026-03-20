@@ -170,6 +170,8 @@ export class SalesReceiptRestController {
       },
       productos,
       promocion: promoData,
+      // 👇 La clave mágica 👇
+      empresaData: detalle.empresa,
     };
   }
 
@@ -325,7 +327,11 @@ export class SalesReceiptRestController {
   ): Promise<void> {
     const esCopia = copia === 'true' || copia === '1';
     const pdfData = await this.buildPdfData(id);
-    const buffer = await buildSalesReceiptThermalPdf(pdfData, esCopia);
+    const buffer = await buildSalesReceiptThermalPdf(
+      pdfData,
+      pdfData.empresaData,
+      esCopia,
+    ); // <-- Se pasa el argumento solo por si acaso
     const filename = `ticket-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
 
     res.set({
