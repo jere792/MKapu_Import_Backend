@@ -169,11 +169,10 @@ export interface SalesReceiptPdfData {
 }
 
 // ── QR content ───────────────────────────────────────────────────────
+// 👇 1. Firma limpia de 1 argumento y abstracción directa 👇
 function buildQrContent(data: SalesReceiptPdfData): string {
-  const empData =
-    data || (data as any).empresaData || (data as any).empresa || {};
+  const empData = data.empresaData || (data as any).empresa || {};
   const ruc = empData.ruc ?? '20000000000';
-  // Actualizado para usar las propiedades camelCase de tu DTO
   const nombreEmpresa =
     empData.razonSocial ?? empData.nombreComercial ?? 'MKAPU IMPORT S.A.C.';
   const numero = String(data.numero).padStart(8, '0');
@@ -206,24 +205,24 @@ function estadoColor(estado: string): string {
 // ════════════════════════════════════════════════════════════════════
 //  FUNCIÓN PRINCIPAL
 // ════════════════════════════════════════════════════════════════════
+// 👇 2. Firma limpia de 1 argumento 👇
 export async function buildSalesReceiptPdf(
   data: SalesReceiptPdfData,
 ): Promise<Buffer> {
   const PDFDocument = require('pdfkit');
   const chunks: Buffer[] = [];
 
-  // Mapeamos los datos de la empresa desde data.empresaData asegurando las propiedades correctas
-  const empData =
-    data || (data as any).empresaData || (data as any).empresa || {};
+  // Mapeamos los datos de la empresa asegurando las propiedades correctas
+  const empData = data.empresaData || (data as any).empresa || {};
   const empresa = {
     nombre:
-      empData?.razonSocial ?? empData?.nombreComercial ?? 'MKAPU IMPORT S.A.C.',
-    ruc: empData?.ruc ?? '20000000000',
-    direccion: empData?.direccion ?? 'Dirección no registrada',
-    ciudad: empData?.ciudad ?? 'Lima - Perú',
-    email: empData?.email ?? 'correo@empresa.com',
-    telefono: empData?.telefono ?? '000000000',
-    web: empData?.sitioWeb ?? 'https://fe.tumi-soft.com',
+      empData.razonSocial ?? empData.nombreComercial ?? 'MKAPU IMPORT S.A.C.',
+    ruc: empData.ruc ?? '20000000000',
+    direccion: empData.direccion ?? 'Dirección no registrada',
+    ciudad: empData.ciudad ?? 'Lima - Perú',
+    email: empData.email ?? 'correo@empresa.com',
+    telefono: empData.telefono ?? '000000000',
+    web: empData.sitioWeb ?? 'https://fe.tumi-soft.com',
   };
 
   const docRef = `${data.serie}-${String(data.numero).padStart(8, '0')}`;

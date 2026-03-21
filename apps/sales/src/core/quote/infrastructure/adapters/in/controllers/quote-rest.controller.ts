@@ -1,12 +1,28 @@
 import {
-  Controller, Post, Body, Get, Param, Patch,
-  Delete, Inject, ParseIntPipe, Query,
-  HttpCode, HttpStatus, Res,
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  Delete,
+  Inject,
+  ParseIntPipe,
+  Query,
+  HttpCode,
+  HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { IQuoteCommandPort, IQuoteQueryPort } from '../../../../domain/ports/in/quote-ports-in';
+import {
+  IQuoteCommandPort,
+  IQuoteQueryPort,
+} from '../../../../domain/ports/in/quote-ports-in';
 import { CreateQuoteDto } from '../../../../application/dto/in/create-quote.dto';
-import { QuoteResponseDto, QuotePagedResponseDto } from '../../../../application/dto/out/quote-response.dto';
+import {
+  QuoteResponseDto,
+  QuotePagedResponseDto,
+} from '../../../../application/dto/out/quote-response.dto';
 import { QuoteQueryFiltersDto } from '../../../../application/dto/in/quote-query-filters.dto';
 import { QuoteQueryService } from '../../../../application/service/quote-query.service';
 
@@ -26,7 +42,9 @@ export class QuoteController {
   }
 
   @Patch(':id/approve')
-  async approve(@Param('id', ParseIntPipe) id: number): Promise<QuoteResponseDto> {
+  async approve(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<QuoteResponseDto> {
     return await this.commandPort.approve(id);
   }
 
@@ -45,12 +63,16 @@ export class QuoteController {
   }
 
   @Get('customer/:valor_doc')
-  async getByCustomer(@Param('valor_doc') valor_doc: string): Promise<QuoteResponseDto[]> {
+  async getByCustomer(
+    @Param('valor_doc') valor_doc: string,
+  ): Promise<QuoteResponseDto[]> {
     return await this.queryPort.getByCustomerDocument(valor_doc);
   }
 
   @Get()
-  async listQuotes(@Query() filters: QuoteQueryFiltersDto): Promise<QuotePagedResponseDto> {
+  async listQuotes(
+    @Query() filters: QuoteQueryFiltersDto,
+  ): Promise<QuotePagedResponseDto> {
     return this.queryPort.findAllPaged(filters);
   }
 
@@ -83,7 +105,9 @@ export class QuoteController {
   }
 
   @Get(':id')
-  async getById(@Param('id', ParseIntPipe) id: number): Promise<QuoteResponseDto | null> {
+  async getById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<QuoteResponseDto | null> {
     return await this.queryPort.getById(id);
   }
 }

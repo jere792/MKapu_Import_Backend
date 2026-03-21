@@ -297,8 +297,6 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         : Promise.resolve(new Map<number, string>()),
       this.empresaTcpProxy.getEmpresaActiva(),
     ]);
-    console.log('🔥🔥 DATA EMPRESA RECIBIDA POR TCP:', empresaData);
-
     const usuarioMap = new Map(
       usuarios.map((u) => [u.id_usuario, u.nombreCompleto]),
     );

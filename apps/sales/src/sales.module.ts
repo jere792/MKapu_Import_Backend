@@ -61,11 +61,9 @@ import { TypeCreditNoteModule } from './core/type-credit-note/type-credit-note.m
 import { CreditNoteOrmEntity } from './core/credit-note/infrastructure/persistence/entity/credit-note-orm.entity';
 import { CreditNoteItemOrmEntity } from './core/credit-note/infrastructure/persistence/entity/credit-note-item-orm.entity';
 import { CreditNoteModule } from './core/credit-note/credit-note.module';
-import { Bank } from './core/bank/domain/entity/bank-domain-entity';
 import { ServiceTypeOrmEntity } from './core/bank/infrastructure/entity/service-type-orm.entity';
 import { BankOrmEntity } from './core/bank/infrastructure/entity/bank-orm.entity';
 import { BankModule } from './core/bank/bank.module';
-
 
 @Module({
   imports: [

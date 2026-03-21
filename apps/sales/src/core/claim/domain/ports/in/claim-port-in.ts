@@ -15,4 +15,5 @@ export interface IClaimQueryPort {
   getById(id: number): Promise<Claim>;
   listBySalesReceipt(receiptId: number): Promise<Claim[]>;
   listBySede(sedeId: number): Promise<ClaimResponseDto[]>;
+  exportPdf(id: number): Promise<Buffer>;
 }

@@ -1,4 +1,12 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IQuoteCommandPort } from '../../domain/ports/in/quote-ports-in';
 import { IQuoteRepositoryPort } from '../../domain/ports/out/quote-ports-out';
@@ -10,10 +18,8 @@ import { QuoteMapper } from '../mapper/quote.mapper';
 import { Quote, QuoteStatus } from '../../domain/entity/quote-domain-entity';
 import { QuoteDetail } from '../../domain/entity/quote-datail-domain-entity';
 import { ProductStockTcpProxy } from '../../infrastructure/adapters/out/TCP/ProductStockTcpProxy';
-import { SupplierOrmEntity } from 'apps/logistics/src/core/procurement/supplier/infrastructure/entity/supplier-orm.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
 import { ISupplierProxy } from '../../domain/ports/out/supplier-proxy.port';
+import { EmpresaTcpProxy } from '../../../sales-receipt/infrastructure/adapters/out/TCP/empresa-tcp.proxy';
 
 const ESTADOS_VALIDOS = ['PENDIENTE', 'APROBADA', 'RECHAZADA'];
 
@@ -31,7 +37,11 @@ export class QuoteCommandService implements IQuoteCommandPort {
     private readonly eventEmitter: EventEmitter2,
     @Inject('ISupplierProxy')
     private readonly supplierProxy: ISupplierProxy,
+    // 👇 Inyectamos el proxy de empresa
+    @Inject('IEmpresaProxy')
+    private readonly empresaProxy: EmpresaTcpProxy,
   ) {}
+
   async create(dto: CreateQuoteDto): Promise<QuoteResponseDto> {
     const tipo = dto.tipo ?? 'VENTA';
     let customer = null;
@@ -39,35 +49,61 @@ export class QuoteCommandService implements IQuoteCommandPort {
 
     if (tipo === 'VENTA') {
       if (!dto.documento_cliente)
-        throw new BadRequestException('documento_cliente es requerido para cotizaciones de VENTA');
-      customer = await this.customerRepository.findByDocument(dto.documento_cliente);
-      if (!customer) throw new NotFoundException(`Cliente ${dto.documento_cliente} no encontrado`);
+        throw new BadRequestException(
+          'documento_cliente es requerido para cotizaciones de VENTA',
+        );
+      customer = await this.customerRepository.findByDocument(
+        dto.documento_cliente,
+      );
+      if (!customer)
+        throw new NotFoundException(
+          `Cliente ${dto.documento_cliente} no encontrado`,
+        );
     }
 
-  if (tipo === 'COMPRA') {
-    if (!dto.id_proveedor)
-      throw new BadRequestException('id_proveedor es requerido para cotizaciones de COMPRA');
-    
-    // ── Buscar proveedor real en lugar de construir uno falso ────
-    proveedor = await this.supplierProxy.getSupplierById(Number(dto.id_proveedor));
-    if (!proveedor)
-      throw new NotFoundException(`Proveedor ${dto.id_proveedor} no encontrado`);
-  }
+    if (tipo === 'COMPRA') {
+      if (!dto.id_proveedor)
+        throw new BadRequestException(
+          'id_proveedor es requerido para cotizaciones de COMPRA',
+        );
 
-    const sede = await this.sedeProxy.getSedeById(dto.id_sede);
+      proveedor = await this.supplierProxy.getSupplierById(
+        Number(dto.id_proveedor),
+      );
+      if (!proveedor)
+        throw new NotFoundException(
+          `Proveedor ${dto.id_proveedor} no encontrado`,
+        );
+    }
+
+    // 👇 Solicitamos la sede y la empresa en paralelo para optimizar tiempo
+    const [sede, empresa] = await Promise.all([
+      this.sedeProxy.getSedeById(dto.id_sede),
+      this.empresaProxy.getEmpresaActiva(),
+    ]);
+
     if (!sede) throw new NotFoundException(`Sede ${dto.id_sede} no encontrada`);
 
     if (dto.subtotal + dto.igv !== dto.total)
       throw new BadRequestException('subtotal + igv debe ser igual al total');
 
-    const details = dto.detalles.map(det =>
-      new QuoteDetail(null, 0, det.id_prod_ref, det.cod_prod, det.descripcion, det.cantidad, det.precio)
+    const details = dto.detalles.map(
+      (det) =>
+        new QuoteDetail(
+          null,
+          0,
+          det.id_prod_ref,
+          det.cod_prod,
+          det.descripcion,
+          det.cantidad,
+          det.precio,
+        ),
     );
 
     const domain = new Quote(
       null,
       customer?.id_cliente ?? null,
-      dto.id_proveedor     ?? null,
+      dto.id_proveedor ?? null,
       dto.id_sede,
       dto.subtotal,
       dto.igv,
@@ -80,34 +116,51 @@ export class QuoteCommandService implements IQuoteCommandPort {
       tipo,
     );
 
-  const saved = await this.repository.save(domain);
+    const saved = await this.repository.save(domain);
 
-  this.eventEmitter.emit('quote.created', {
-    id_cotizacion: saved.id_cotizacion,
-    id_cliente:    saved.id_cliente,
-    id_proveedor:  saved.id_proveedor,
-    tipo:          saved.tipo,
-  });
+    this.eventEmitter.emit('quote.created', {
+      id_cotizacion: saved.id_cotizacion,
+      id_cliente: saved.id_cliente,
+      id_proveedor: saved.id_proveedor,
+      tipo: saved.tipo,
+    });
 
-  return QuoteMapper.toResponseDto(saved, customer, sede, proveedor);
-}
+    // 👇 Pasamos los 5 argumentos requeridos por el mapper actual
+    return QuoteMapper.toResponseDto(saved, customer, sede, proveedor, empresa);
+  }
 
   async approve(id: number): Promise<QuoteResponseDto> {
     const domain = await this.repository.findById(id);
     if (!domain) throw new NotFoundException(`Cotización ${id} no encontrada`);
 
-    const customer = await this.customerRepository.findById(domain.id_cliente);
-    const sede     = await this.sedeProxy.getSedeById(domain.id_sede);
+    // 👇 Consulta concurrente de las entidades relacionadas
+    const [customer, sede, empresa, proveedor] = await Promise.all([
+      domain.id_cliente
+        ? this.customerRepository.findById(domain.id_cliente)
+        : Promise.resolve(null),
+      this.sedeProxy.getSedeById(domain.id_sede),
+      this.empresaProxy.getEmpresaActiva(),
+      domain.id_proveedor
+        ? this.supplierProxy.getSupplierById(Number(domain.id_proveedor))
+        : Promise.resolve(null),
+    ]);
 
     domain.aprobar();
     const updated = await this.repository.update(domain);
 
     this.eventEmitter.emit('quote.approved', {
       id_cotizacion: updated.id_cotizacion,
-      total:         updated.total,
+      total: updated.total,
     });
 
-    return QuoteMapper.toResponseDto(updated, customer, sede);
+    // 👇 Pasamos los 5 argumentos requeridos por el mapper actual
+    return QuoteMapper.toResponseDto(
+      updated,
+      customer,
+      sede,
+      proveedor,
+      empresa,
+    );
   }
 
   // ── Cambiar estado (RECHAZADA | APROBADA | PENDIENTE) ────────────────────
@@ -115,26 +168,43 @@ export class QuoteCommandService implements IQuoteCommandPort {
     const estadoUpper = estado?.toUpperCase();
 
     if (!ESTADOS_VALIDOS.includes(estadoUpper)) {
-      throw new BadRequestException(`Estado inválido: ${estado}. Valores permitidos: ${ESTADOS_VALIDOS.join(', ')}`);
+      throw new BadRequestException(
+        `Estado inválido: ${estado}. Valores permitidos: ${ESTADOS_VALIDOS.join(', ')}`,
+      );
     }
 
     const domain = await this.repository.findById(id);
     if (!domain) throw new NotFoundException(`Cotización ${id} no encontrada`);
 
-    const customer = await this.customerRepository.findById(domain.id_cliente);
-    const sede     = await this.sedeProxy.getSedeById(domain.id_sede);
+    // 👇 Consulta concurrente de las entidades relacionadas
+    const [customer, sede, empresa, proveedor] = await Promise.all([
+      domain.id_cliente
+        ? this.customerRepository.findById(domain.id_cliente)
+        : Promise.resolve(null),
+      this.sedeProxy.getSedeById(domain.id_sede),
+      this.empresaProxy.getEmpresaActiva(),
+      domain.id_proveedor
+        ? this.supplierProxy.getSupplierById(Number(domain.id_proveedor))
+        : Promise.resolve(null),
+    ]);
 
     domain.cambiarEstado(estadoUpper as QuoteStatus);
     const updated = await this.repository.update(domain);
 
     this.eventEmitter.emit('quote.status_changed', {
       id_cotizacion: updated.id_cotizacion,
-      estado:        updated.estado,
+      estado: updated.estado,
     });
 
-    return QuoteMapper.toResponseDto(updated, customer, sede);
+    // 👇 Pasamos los 5 argumentos requeridos por el mapper actual
+    return QuoteMapper.toResponseDto(
+      updated,
+      customer,
+      sede,
+      proveedor,
+      empresa,
+    );
   }
-
 
   // ── Eliminar permanentemente ──────────────────────────────────────────────
   async delete(id: number): Promise<void> {

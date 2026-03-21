@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Body,
   Controller,
@@ -18,6 +21,8 @@ import {
 import { RegisterClaimDto } from '../../../../application/dto/in/register-claim-dto';
 import { ClaimResponseDto } from '../../../../application/dto/out/claim-response-dto';
 import { ClaimMapper } from '../../../../application/mapper/claim.mapper';
+import { Res } from '@nestjs/common';
+import { Response } from 'express';
 
 @ApiTags('Reclamos')
 @Controller('claims')
@@ -70,5 +75,17 @@ export class ClaimRestController {
   })
   async listBySede(@Param('sedeId', ParseIntPipe) sedeId: number) {
     return await this.claimQuery.listBySede(sedeId);
+  }
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'Exportar reclamo a PDF' })
+  async exportPdf(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    const buffer = await this.claimQuery.exportPdf(id);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=Reclamo_REC-${id}.pdf`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 }

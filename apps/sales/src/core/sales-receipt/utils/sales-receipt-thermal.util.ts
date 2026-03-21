@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -23,7 +22,7 @@ const PAGE_W = 226;
 const MARGIN = 8;
 const W = PAGE_W - MARGIN * 2;
 
-function calcHeight(data: SalesReceiptPdfData, empresaData?: any): number {
+function calcHeight(data: SalesReceiptPdfData): number {
   const esBoleta =
     data.tipo_comprobante.toUpperCase().includes('BOLETA') ||
     data.tipo_comprobante === '03';
@@ -65,15 +64,15 @@ function calcHeight(data: SalesReceiptPdfData, empresaData?: any): number {
   return h;
 }
 
+// 👇 1. Firma limpia de 2 argumentos 👇
 export async function buildSalesReceiptThermalPdf(
   data: SalesReceiptPdfData,
-  empresaData?: any, // <-- Inyectado aquí
   esCopia = false,
 ): Promise<Buffer> {
-  const empData =
-    empresaData || (data as any).empresaData || (data as any).empresa || {};
+  const empData = data.empresaData || (data as any).empresa || {};
   console.log('3️⃣ EMPDATA DENTRO DEL UTILITARIO:', empData);
-  const qrDataUrl = await QRCode.toDataURL(buildQrContent(data, empresaData), {
+
+  const qrDataUrl = await QRCode.toDataURL(buildQrContent(data), {
     width: 120,
     margin: 1,
   });
@@ -115,7 +114,7 @@ export async function buildSalesReceiptThermalPdf(
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     const doc = new PDFDocument({
-      size: [PAGE_W, calcHeight(data, empresaData)],
+      size: [PAGE_W, calcHeight(data)], // calcHeight ajustado
       margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
       autoFirstPage: true,
       bufferPages: false,
@@ -251,8 +250,8 @@ export async function buildSalesReceiptThermalPdf(
     y += LOGO_H + 4;
 
     dashedLine();
-    const empData =
-      empresaData || (data as any).empresaData || (data as any).empresa || {};
+
+    // 👇 EXTRACCIÓN BLINDADA DIRECTA DEL OBJETO
     const empresa = {
       nombre:
         empData?.razonSocial ??
@@ -513,9 +512,9 @@ export async function buildSalesReceiptThermalPdf(
   });
 }
 
-function buildQrContent(data: SalesReceiptPdfData, empresaData?: any): string {
-  const empData =
-    empresaData || (data as any).empresaData || (data as any).empresa || {};
+// 👇 2. Firma limpia de 1 argumento 👇
+function buildQrContent(data: SalesReceiptPdfData): string {
+  const empData = data.empresaData || (data as any).empresa || {};
   const ruc = empData?.ruc ?? '20000000000';
   // Cambiar razon_social por razonSocial
   const nombreEmpresa =
