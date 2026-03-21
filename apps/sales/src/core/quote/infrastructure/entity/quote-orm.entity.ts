@@ -14,8 +14,11 @@ export class QuoteOrmEntity {
   @PrimaryGeneratedColumn()
   id_cotizacion: number;
 
-  @Column({ length: 255 })
-  id_cliente: string;
+  @Column({ length: 255, nullable: true })
+  id_cliente: string | null;
+
+  @Column({ length: 255, nullable: true })
+  id_proveedor: string | null;
 
   @Column({ type: 'int', nullable: false })
   id_sede: number;
@@ -44,7 +47,7 @@ export class QuoteOrmEntity {
 
   @Column({
     type: 'enum',
-    enum: ['PENDIENTE', 'APROBADA', 'VENCIDA', 'RECHAZADA'], 
+    enum: ['PENDIENTE', 'APROBADA', 'VENCIDA', 'RECHAZADA'],
     default: 'PENDIENTE',
   })
   estado: string;
@@ -52,9 +55,9 @@ export class QuoteOrmEntity {
   @Column({ type: 'bit', transformer: { to: (v) => v, from: (v) => !!v[0] } })
   activo: boolean;
 
-  @ManyToOne(() => CustomerOrmEntity)
+  @ManyToOne(() => CustomerOrmEntity, { nullable: true })
   @JoinColumn({ name: 'id_cliente' })
-  customer: CustomerOrmEntity;
+  customer: CustomerOrmEntity | null;
 
   @OneToMany(() => QuoteDetailOrmEntity, detalle => detalle.cotizacion, { cascade: true })
   detalles: QuoteDetailOrmEntity[];

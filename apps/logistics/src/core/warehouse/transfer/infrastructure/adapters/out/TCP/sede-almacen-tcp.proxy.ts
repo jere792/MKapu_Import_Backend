@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
 
@@ -138,7 +144,11 @@ export class SedeAlmacenTcpProxy implements OnModuleInit, OnModuleDestroy {
           .map((assignment) => {
             const warehouseId = Number(assignment.id_almacen);
             const headquarterId = String(assignment.id_sede ?? '').trim();
-            if (!Number.isInteger(warehouseId) || warehouseId <= 0 || !headquarterId) {
+            if (
+              !Number.isInteger(warehouseId) ||
+              warehouseId <= 0 ||
+              !headquarterId
+            ) {
               return null;
             }
 
@@ -150,7 +160,12 @@ export class SedeAlmacenTcpProxy implements OnModuleInit, OnModuleDestroy {
               },
             ] as const;
           })
-          .filter((entry): entry is readonly [number, HeadquartersWarehouseAssignment] => entry !== null),
+          .filter(
+            (
+              entry,
+            ): entry is readonly [number, HeadquartersWarehouseAssignment] =>
+              entry !== null,
+          ),
       );
     } catch (error) {
       this.logger.warn(
@@ -163,7 +178,9 @@ export class SedeAlmacenTcpProxy implements OnModuleInit, OnModuleDestroy {
   async findHeadquarterByWarehouseId(
     warehouseId: number,
   ): Promise<HeadquartersWarehouseAssignment | null> {
-    const assignments = await this.findHeadquartersByWarehouseIds([warehouseId]);
+    const assignments = await this.findHeadquartersByWarehouseIds([
+      warehouseId,
+    ]);
     return assignments.get(warehouseId) ?? null;
   }
 }

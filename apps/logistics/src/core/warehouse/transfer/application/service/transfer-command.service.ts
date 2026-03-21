@@ -73,6 +73,7 @@ type TransferLookupUserDto = {
 
 type TransferLookupHeadquarterDto = {
   id_sede: string;
+  codigo: string;
   nombre: string;
 };
 
@@ -187,7 +188,7 @@ export class TransferCommandService implements TransferPortsIn {
     const realtimePayload =
       await this.buildRealtimeTransferPayload(savedTransfer);
     this.transferGateway.notifyNewRequest(
-      dto.destinationHeadquartersId,
+      dto.originHeadquartersId,
       realtimePayload,
     );
 
@@ -436,6 +437,7 @@ export class TransferCommandService implements TransferPortsIn {
       approveUser: approveUserResponse,
       origin: {
         id_sede: originHeadquartersId,
+        codigo: originHeadquarter?.codigo ?? '',
         nomSede:
           originHeadquarter?.nombre ?? `Sede ${originHeadquartersId || '-'}`,
       },
@@ -447,6 +449,7 @@ export class TransferCommandService implements TransferPortsIn {
       },
       destination: {
         id_sede: destinationHeadquartersId,
+        codigo: destinationHeadquarter?.codigo ?? '',
         nomSede:
           destinationHeadquarter?.nombre ??
           `Sede ${destinationHeadquartersId || '-'}`,
@@ -1275,11 +1278,13 @@ export class TransferCommandService implements TransferPortsIn {
       requestDate: this.normalizeTransferDate(transfer.requestDate) ?? '',
       origin: {
         id_sede: originHeadquartersId,
+        codigo: originHeadquarter?.codigo ?? '',
         nomSede:
           originHeadquarter?.nombre ?? `Sede ${originHeadquartersId || '-'}`,
       },
       destination: {
         id_sede: destinationHeadquartersId,
+        codigo: destinationHeadquarter?.codigo ?? '',
         nomSede:
           destinationHeadquarter?.nombre ??
           `Sede ${destinationHeadquartersId || '-'}`,
@@ -1485,7 +1490,7 @@ export class TransferCommandService implements TransferPortsIn {
 
     if (
       transfer.status === TransferStatus.REQUESTED &&
-      destinationHeadquartersId === normalizedHeadquartersId
+      originHeadquartersId === normalizedHeadquartersId
     ) {
       return true;
     }
@@ -1493,7 +1498,7 @@ export class TransferCommandService implements TransferPortsIn {
     if (
       (transfer.status === TransferStatus.APPROVED ||
         transfer.status === TransferStatus.REJECTED) &&
-      originHeadquartersId === normalizedHeadquartersId
+      destinationHeadquartersId === normalizedHeadquartersId
     ) {
       return true;
     }
@@ -1518,6 +1523,7 @@ export class TransferCommandService implements TransferPortsIn {
       const rowsUnknown: unknown = await this.stockRepo.query(
         `SELECT
            s.id_sede AS id_sede,
+           s.codigo AS codigo,
            s.nombre AS nombre
          FROM \`${adminDb}\`.\`sede\` s
          WHERE s.id_sede = ?
@@ -1535,6 +1541,7 @@ export class TransferCommandService implements TransferPortsIn {
 
       return {
         id_sede: resolvedHeadquarterId,
+        codigo: this.toSafeString(row['codigo']),
         nombre: this.toSafeString(row['nombre']),
       };
     } catch (error) {

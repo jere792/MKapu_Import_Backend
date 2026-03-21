@@ -99,7 +99,6 @@ export class InventoryQueryService {
       }
     }
 
-    // Diccionario para transformar nombres técnicos a nombres amigables
     const labelMap: Record<string, string> = {
       conteo_inventario: 'Conteo de Inventario',
       venta: 'Venta',
@@ -108,7 +107,9 @@ export class InventoryQueryService {
       ajuste_manual: 'Ajuste Manual',
       guia_remision: 'Guía de Remisión',
       orden_compra: 'Orden de Compra',
-      // Agrega aquí cualquier otro mapeo que necesites
+      venta_tcp: 'Comprobante de Venta',
+      compra_tcp: 'Ingreso por Compra',
+      remision_tcp: 'Guía de Remisión (Externa)',
     };
 
     const mappedData: InventoryMovementResponseDto[] = movements.map((mov) => {
@@ -228,19 +229,25 @@ export class InventoryQueryService {
         },
       );
 
-      // Lógica de transformación del nombre de la tabla
       const rawTableName = mov.refTable?.toLowerCase().trim() || '';
       const friendlyTableLabel =
         labelMap[rawTableName] || mov.refTable || 'Documento';
+
+      let docReferenciaFormateado = 'N/A';
+      if (mov.refTable) {
+        docReferenciaFormateado = `${friendlyTableLabel} #${mov.refId}`;
+
+        if (rawTableName.includes('tcp') && mov.observation) {
+          docReferenciaFormateado += ` (${mov.observation})`;
+        }
+      }
 
       return {
         id: mov.id,
         tipoMovimiento: mov.originType,
         fechaMovimiento: mov.date,
         motivo: mov.observation || 'Sin observación',
-        documentoReferencia: mov.refTable
-          ? `${friendlyTableLabel} #${mov.refId}`
-          : 'N/A',
+        documentoReferencia: docReferenciaFormateado,
         usuario: 'Sistema',
         almacenOrigenNombre: origenNombre,
         almacenDestinoNombre: destinoNombre,

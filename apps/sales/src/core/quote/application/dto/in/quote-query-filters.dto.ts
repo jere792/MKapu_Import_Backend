@@ -9,12 +9,7 @@ export class QuoteQueryFiltersDto {
 
   @IsOptional()
   @IsEnum(['VENTA', 'COMPRA'])
-  tipo?: 'VENTA' | 'COMPRA'; 
-
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => value?.trim())
-  familia?: string;
+  tipo?: 'VENTA' | 'COMPRA';
 
   @IsOptional()
   @IsString()

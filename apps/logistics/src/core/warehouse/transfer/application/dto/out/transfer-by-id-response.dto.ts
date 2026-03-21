@@ -36,6 +36,7 @@ export interface TransferByIdResponseDto {
   approveUser: TransferByIdUserResponseDto | null;
   origin: {
     id_sede: string;
+    codigo: string;
     nomSede: string;
   };
   originWarehouse: {
@@ -44,6 +45,7 @@ export interface TransferByIdResponseDto {
   };
   destination: {
     id_sede: string;
+    codigo: string;
     nomSede: string;
   };
   destinationWarehouse: {

@@ -58,7 +58,7 @@ export class QuoteTypeOrmRepository implements IQuoteRepositoryPort {
     return this.findByCustomerId(customer.id_cliente);
   }
 
-  async findAllPaged(filters: QuoteQueryFiltersDto): Promise<{ data: Quote[]; total: number }> {
+  async findAllPaged(filters: QuoteQueryFiltersDto): Promise<{ data: any[]; total: number }> {
     const { estado, id_sede, search, page = 1, limit = 10 } = filters;
     const tipo = (filters as any).tipo;
 
@@ -69,9 +69,9 @@ export class QuoteTypeOrmRepository implements IQuoteRepositoryPort {
     let query = this.repository.createQueryBuilder('quote')
       .leftJoinAndSelect('quote.detalles', 'detalles');
 
-    if (estado)     query = query.andWhere('quote.estado = :estado', { estado });
-    if (idSedeNum)  query = query.andWhere('quote.id_sede = :id_sede', { id_sede: idSedeNum });
-    if (tipo)       query = query.andWhere('quote.tipo = :tipo', { tipo }); // ← agrega esto
+    if (estado)    query = query.andWhere('quote.estado = :estado', { estado });
+    if (idSedeNum) query = query.andWhere('quote.id_sede = :id_sede', { id_sede: idSedeNum });
+    if (tipo)      query = query.andWhere('quote.tipo = :tipo', { tipo });
     if (search) {
       query = query.andWhere(
         `(CAST(quote.id_cotizacion AS CHAR) LIKE :search 
@@ -87,7 +87,33 @@ export class QuoteTypeOrmRepository implements IQuoteRepositoryPort {
       .take(limitNum)
       .getManyAndCount();
 
-    return { data: result.map(QuoteMapper.toDomain), total };
+    // ── Resolver nombres cross-schema ─────────────────────────────────────
+    const idsProveedores = [
+      ...new Set(result.filter(q => q.id_proveedor).map(q => Number(q.id_proveedor)))
+    ];
+
+    const proveedoresMap = new Map<number, string>();
+
+    if (idsProveedores.length > 0) {
+      const rows: { id_proveedor: number; razon_social: string }[] =
+        await this.repository.manager.query(
+          `SELECT id_proveedor, razon_social 
+          FROM mkp_logistica.proveedor 
+          WHERE id_proveedor IN (${idsProveedores.join(',')})`
+        );
+      rows.forEach(p => proveedoresMap.set(Number(p.id_proveedor), p.razon_social));
+    }
+
+    const dataConNombre = result.map(q => {
+      const domain = QuoteMapper.toDomain(q);
+      // Adjuntar proveedor_nombre directamente al objeto domain
+      (domain as any).proveedor_nombre = q.id_proveedor
+        ? proveedoresMap.get(Number(q.id_proveedor)) ?? null
+        : null;
+      return domain;
+    });
+
+    return { data: dataConNombre, total };
   }
   
   async delete(id: number): Promise<void> {

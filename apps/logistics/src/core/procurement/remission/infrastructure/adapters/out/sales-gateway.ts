@@ -26,8 +26,6 @@ export class SalesGateway implements SalesGatewayPortOut {
     if (!saleResponse || !saleResponse.success) {
       throw new NotFoundException('Venta no encontrada o inválida');
     }
-    console.log('Respuesta cruda de Sales:', JSON.stringify(saleResponse.data));
-
     const rawDetails =
       saleResponse.data.details ||
       saleResponse.data.detalles ||
@@ -53,7 +51,6 @@ export class SalesGateway implements SalesGatewayPortOut {
   }
   async findSaleByCorrelativo(correlativo: string): Promise<any> {
     try {
-      // Enviamos el comando al microservicio de VENTAS
       const sale = await firstValueFrom(
         this.salesClient.send({ cmd: 'find_sale_by_correlativo' }, correlativo),
       );
@@ -68,6 +65,29 @@ export class SalesGateway implements SalesGatewayPortOut {
     } catch (error) {
       throw new NotFoundException(
         'Venta no encontrada en el sistema de ventas',
+      );
+    }
+  }
+  async findSaleById(idVenta: string): Promise<any> {
+    try {
+      const saleData = await firstValueFrom(
+        this.salesClient.send('get_sale_by_id', idVenta),
+      );
+
+      if (!saleData) {
+        throw new NotFoundException(
+          `La venta con ID ${idVenta} no fue encontrada en el microservicio.`,
+        );
+      }
+
+      return saleData;
+    } catch (error) {
+      console.error(
+        `Error al obtener la venta ${idVenta} desde SalesGateway:`,
+        error,
+      );
+      throw new Error(
+        `No se pudo conectar con el servicio de ventas para el ID ${idVenta}`,
       );
     }
   }

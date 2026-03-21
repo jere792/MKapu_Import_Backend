@@ -5,8 +5,9 @@ import { AuctionResponseDto } from '../../../application/dto/out/auction-respons
 
 export interface IAuctionCommandPort {
   create(dto: CreateAuctionDto): Promise<AuctionResponseDto>;
-  update(id: number, dto: CreateAuctionDto): Promise<AuctionResponseDto>;
+  update(id: number, dto: any): Promise<AuctionResponseDto>;
   finalize(id: number): Promise<AuctionResponseDto>;
+  cancel(id: number): Promise<AuctionResponseDto>;   
   delete(id: number): Promise<void>;
 }
 

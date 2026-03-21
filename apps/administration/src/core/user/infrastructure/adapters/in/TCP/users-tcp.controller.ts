@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import { Controller, Inject, Logger, UseGuards } from '@nestjs/common';
 import { MessagePattern, Payload, RpcException } from '@nestjs/microservices';
 import { IUserQueryPort } from '../../../../domain/ports/in/user-port-in';
@@ -29,14 +32,20 @@ export class UsersTcpController {
   ) {}
 
   @MessagePattern('users.findByIds')
-  async findByIds(@Payload() payload: FindUsersByIdsPayload): Promise<FindUsersByIdsResponse> {
+  async findByIds(
+    @Payload() payload: FindUsersByIdsPayload,
+  ): Promise<FindUsersByIdsResponse> {
     try {
-      this.logger.log(`📡 [TCP] users.findByIds recibido con ${payload?.ids?.length ?? 0} ID(s)`);
+      this.logger.log(
+        `📡 [TCP] users.findByIds recibido con ${payload?.ids?.length ?? 0} ID(s)`,
+      );
 
       // Validar y normalizar IDs
       const idsRaw = payload?.ids ?? [];
       const ids = Array.isArray(idsRaw)
-        ? idsRaw.map((v) => Number(String(v).trim())).filter((n) => !Number.isNaN(n) && n > 0)
+        ? idsRaw
+            .map((v) => Number(String(v).trim()))
+            .filter((n) => !Number.isNaN(n) && n > 0)
         : [];
 
       if (ids.length === 0) {
@@ -46,11 +55,13 @@ export class UsersTcpController {
 
       // Validar límite de IDs (prevenir consultas masivas)
       if (ids.length > 100) {
-        this.logger.warn(`⚠️ Solicitud excede límite: ${ids.length} IDs (máx: 100)`);
-        return { 
-          ok: false, 
+        this.logger.warn(
+          `⚠️ Solicitud excede límite: ${ids.length} IDs (máx: 100)`,
+        );
+        return {
+          ok: false,
           message: 'Demasiados IDs solicitados. Máximo: 100',
-          data: null 
+          data: null,
         };
       }
 
@@ -59,10 +70,10 @@ export class UsersTcpController {
 
       if (!users) {
         this.logger.error('❌ userQueryPort.findByIds retornó null/undefined');
-        return { 
-          ok: false, 
+        return {
+          ok: false,
           message: 'Error interno al consultar usuarios',
-          data: null 
+          data: null,
         };
       }
 
@@ -72,20 +83,23 @@ export class UsersTcpController {
         nombres: u.nombres,
         ape_pat: u.ape_pat,
         ape_mat: u.ape_mat,
-        nombreCompleto: `${u.nombres ?? ''} ${u.ape_pat ?? ''} ${u.ape_mat ?? ''}`.trim(),
+        nombreCompleto:
+          `${u.nombres ?? ''} ${u.ape_pat ?? ''} ${u.ape_mat ?? ''}`.trim(),
       }));
 
       this.logger.log(`✅ Retornando ${data.length} usuario(s)`);
       return { ok: true, data };
-
     } catch (error: any) {
-      this.logger.error(`❌ Error en users.findByIds: ${error?.message}`, error?.stack);
-      
+      this.logger.error(
+        `❌ Error en users.findByIds: ${error?.message}`,
+        error?.stack,
+      );
+
       // En TCP, es mejor retornar una respuesta controlada que lanzar excepción
-      return { 
-        ok: false, 
+      return {
+        ok: false,
         message: `Error al procesar solicitud: ${error?.message ?? 'Error desconocido'}`,
-        data: null 
+        data: null,
       };
     }
   }

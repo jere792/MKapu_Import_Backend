@@ -10,10 +10,12 @@ export interface TransferListResponseDto {
   requestDate: string;
   origin: {
     id_sede: string;
+    codigo: string;
     nomSede: string;
   };
   destination: {
     id_sede: string;
+    codigo: string;
     nomSede: string;
   };
   totalQuantity: number;

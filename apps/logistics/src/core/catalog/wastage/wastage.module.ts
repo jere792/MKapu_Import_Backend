@@ -10,6 +10,7 @@ import { WastageTypeOrmRepository } from './infrastructure/adapters/out/reposito
 import { UsersClientProvider } from './infrastructure/adapters/out/providers/users-client.provider';
 import { UsuarioTcpProxy } from './infrastructure/adapters/out/TCP/usuario-tcp.proxy';
 import { InventoryModule } from '../../warehouse/inventory/inventory.module';
+import { WastageTypeService } from './application/service/wastage-type.service';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { InventoryModule } from '../../warehouse/inventory/inventory.module';
     UsuarioTcpProxy,       
     WastageCommandService,
     WastageQueryService,
+    WastageTypeService,
     { provide: 'IWastageCommandPort', useClass: WastageCommandService },
     { provide: 'IWastageQueryPort', useClass: WastageQueryService },
     { provide: 'IWastageRepositoryPort', useClass: WastageTypeOrmRepository },

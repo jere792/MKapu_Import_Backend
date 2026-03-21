@@ -24,8 +24,8 @@ import { CuentaRolOrmEntity } from './core/user/infrastructure/entity/cuenta-rol
 import { CuentaUsuarioOrmEntity } from './core/user/infrastructure/entity/cuenta-usuario-orm.entity';
 import { RolePermissionOrmEntity } from './core/role-permission/infrastructure/entity/role-permission-orm.entity';
 import { RolePermissionModule } from './core/role-permission/role-permission.module';
-import { CompanyModule } from './core/company/componay.module';
 import { EmpresaOrmEntity } from './core/company/infrastructure/entity/empresa.orm-entity';
+import { CompanyModule } from './core/company/company.module';
 
 @Module({
   imports: [

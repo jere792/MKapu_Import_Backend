@@ -3,4 +3,5 @@ import { SaleValidatedDto } from '../../../infrastructure/adapters/out/sales-gat
 export interface SalesGatewayPortOut {
   getValidSaleForDispatch(saleId: number): Promise<SaleValidatedDto>;
   markAsDispatched(saleId: number): Promise<void>;
+  findSaleById(idVenta: string): Promise<any>;
 }

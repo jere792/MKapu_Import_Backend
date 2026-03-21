@@ -19,12 +19,17 @@ export class CreateQuoteDetailDto {
 
   @IsOptional()
   @IsNumber()
-  id_almacen?: number; 
+  id_almacen?: number;
 }
 
 export class CreateQuoteDto {
+  @IsOptional()
   @IsString()
-  documento_cliente: string;
+  documento_cliente?: string;       // obligatorio si tipo = VENTA
+
+  @IsOptional()
+  @IsString()
+  id_proveedor?: string;            // obligatorio si tipo = COMPRA
 
   @IsDateString()
   fec_venc: string;
@@ -42,8 +47,12 @@ export class CreateQuoteDto {
   id_sede: number;
 
   @IsOptional()
+  @IsNumber()
+  id_almacen?: number;
+
+  @IsOptional()
   @IsEnum(['VENTA', 'COMPRA'])
-  tipo?: 'VENTA' | 'COMPRA'; 
+  tipo?: 'VENTA' | 'COMPRA';
 
   @IsArray()
   @ValidateNested({ each: true })

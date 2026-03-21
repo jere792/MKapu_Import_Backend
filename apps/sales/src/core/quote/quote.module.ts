@@ -1,7 +1,6 @@
-/* quote.module.ts */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ClientsModule, Transport } from '@nestjs/microservices'; 
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { CustomerModule } from '../customer/customer.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
@@ -15,6 +14,7 @@ import { QuoteQueryService } from './application/service/quote-query.service';
 import { ProductStockTcpClientProvider } from './infrastructure/providers/product-stock-tcp-client.provider';
 import { ProductStockTcpProxy } from './infrastructure/adapters/out/TCP/ProductStockTcpProxy';
 import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
+import { SupplierTcpProxy } from './infrastructure/adapters/out/TCP/SupplierTcpProxy';
 
 @Module({
   imports: [
@@ -25,13 +25,21 @@ import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
       QuoteDetailOrmEntity,
     ]),
     CustomerModule,
-    ClientsModule.register([   
+    ClientsModule.register([
       {
         name: 'SEDE_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: process.env.ADMIN_HOST || 'localhost',
-          port: Number(process.env.ADMIN_PORT) || 3011, 
+          host: process.env.ADMIN_HOST   || 'localhost',
+          port: Number(process.env.ADMIN_PORT) || 3011,
+        },
+      },
+      {
+        name: 'LOGISTICS_SERVICE',       
+        transport: Transport.TCP,
+        options: {
+          host: process.env.LOGISTICS_TCP_HOST || 'localhost',
+          port: Number(process.env.LOGISTICS_TCP_PORT) || 5005,
         },
       },
     ]),
@@ -41,6 +49,7 @@ import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
     ProductStockTcpClientProvider,
     ProductStockTcpProxy,
     SedeTcpProxy,
+    SupplierTcpProxy,                    
     QuoteQueryService,
     {
       provide: 'IQuoteCommandPort',
@@ -58,11 +67,16 @@ import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
       provide: 'ISedeProxy',
       useClass: SedeTcpProxy,
     },
+    {
+      provide: 'ISupplierProxy',           
+      useClass: SupplierTcpProxy,
+    },
   ],
   exports: [
     'IQuoteCommandPort',
     'IQuoteQueryPort',
     'ISedeProxy',
+    'ISupplierProxy',                     
   ],
 })
 export class QuoteModule {}

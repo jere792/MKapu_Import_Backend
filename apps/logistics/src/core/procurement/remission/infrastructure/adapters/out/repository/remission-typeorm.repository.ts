@@ -231,4 +231,7 @@ export class RemissionTypeormRepository implements RemissionPortOut {
       .where('guia.id_guia = :id', { id })
       .getOne();
   }
+  async markAsPrinted(id: string): Promise<void> {
+    await this.repository.update(id, { impreso: true });
+  }
 }

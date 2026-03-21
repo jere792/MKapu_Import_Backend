@@ -28,6 +28,10 @@ export class RemissionResponseDto {
   driverName?: string;
   vehiclePlate?: string;
   items?: RemissionItemResponseDto[];
+  sede?: any;
+  cliente?: any;
+  venta?: any;
+  usuario?: any;
 }
 export class RemissionListResponseDto {
   data: RemissionResponseDto[];

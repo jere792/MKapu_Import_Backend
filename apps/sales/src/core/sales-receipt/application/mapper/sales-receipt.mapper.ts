@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* sales/src/core/sales-receipt/application/mapper/sales-receipt.mapper.ts */
+
 import {
   SalesReceipt,
   ReceiptStatus,
@@ -22,7 +27,6 @@ import { SalesType } from '../../domain/entity/sale-type-domain-entity';
 import { ReceiptType } from '../../domain/entity/receipt-type-domain-entity';
 
 export class SalesReceiptMapper {
-
   static fromRegisterDto(
     dto: RegisterSalesReceiptDto,
     nextNumber: number,
@@ -36,7 +40,7 @@ export class SalesReceiptMapper {
     const currencyCode = dto.currencyCode ?? 'PEN';
     const descuento = dto.descuento ?? 0;
 
-    const totalFinal = Number(dto.total.toFixed(2));
+    const totalFinal = Number((dto.total - descuento).toFixed(2));
     const subtotalFinal = Number((totalFinal / 1.18).toFixed(2));
     const igvFinal = Number((totalFinal - subtotalFinal).toFixed(2));
 
@@ -75,7 +79,7 @@ export class SalesReceiptMapper {
   }
 
   static toDomain(orm: SalesReceiptOrmEntity): SalesReceipt {
-    return SalesReceipt.create({
+    const domain = SalesReceipt.create({
       id_comprobante: orm.id_comprobante,
       id_cliente: orm.cliente?.id_cliente,
       id_tipo_venta: orm.tipoVenta?.id_tipo_venta,
@@ -104,6 +108,10 @@ export class SalesReceiptMapper {
           igv: Number(d.igv),
         })) || [],
     });
+    if (orm.cliente) {
+      (domain as any).clienteOriginal = orm.cliente;
+    }
+    return domain;
   }
 
   static toOrm(domain: SalesReceipt): SalesReceiptOrmEntity {
@@ -148,9 +156,22 @@ export class SalesReceiptMapper {
   }
 
   static toResponseDto(domain: SalesReceipt): SalesReceiptResponseDto {
+    const clienteOrm = (domain as any).clienteOriginal;
     return {
       idComprobante: domain.id_comprobante,
       idCliente: domain.id_cliente,
+
+      cliente: clienteOrm
+        ? {
+            numero_documento:
+              clienteOrm.valor_doc || clienteOrm.numero_documento,
+            nombres: clienteOrm.nombres,
+            apellidos: clienteOrm.apellidos,
+            razon_social: clienteOrm.razon_social,
+            direccion: clienteOrm.direccion || 'Sin dirección',
+          }
+        : null,
+
       numeroCompleto: domain.getFullNumber(),
       serie: domain.serie,
       numero: domain.numero,

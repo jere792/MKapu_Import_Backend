@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
@@ -136,36 +138,34 @@ export class SalesReceiptRestController {
         precio_unit: Number(p.pre_uni ?? p.precio_unit),
         total: Number(p.total),
         descuento_nombre:
-          estaEnPromo && porcentajePromo != null
-            ? `${porcentajePromo}%`
-            : null,
+          estaEnPromo && porcentajePromo != null ? `${porcentajePromo}%` : null,
         descuento_porcentaje:
           estaEnPromo && porcentajePromo != null ? porcentajePromo : null,
       };
     });
 
     return {
-      id_comprobante:   detalle.id_comprobante,
-      serie:            detalle.serie,
-      numero:           detalle.numero,
+      id_comprobante: detalle.id_comprobante,
+      serie: detalle.serie,
+      numero: detalle.numero,
       tipo_comprobante: detalle.tipo_comprobante,
-      fec_emision:      detalle.fec_emision,
-      fec_venc:         detalle.fec_venc ?? null,
-      estado:           detalle.estado,
-      subtotal:         Number(detalle.subtotal),
-      igv:              Number(detalle.igv),
-      total:            Number(detalle.total),
-      metodo_pago:      detalle.metodo_pago ?? 'N/A',
+      fec_emision: detalle.fec_emision,
+      fec_venc: detalle.fec_venc ?? null,
+      estado: detalle.estado,
+      subtotal: Number(detalle.subtotal),
+      igv: Number(detalle.igv),
+      total: Number(detalle.total),
+      metodo_pago: detalle.metodo_pago ?? 'N/A',
       cliente: {
-        nombre:         detalle.cliente.nombre,
-        documento:      detalle.cliente.documento,
+        nombre: detalle.cliente.nombre,
+        documento: detalle.cliente.documento,
         tipo_documento: detalle.cliente.tipo_documento,
-        direccion:      detalle.cliente.direccion || undefined,
-        email:          detalle.cliente.email    || undefined,
-        telefono:       detalle.cliente.telefono || undefined,
+        direccion: detalle.cliente.direccion || undefined,
+        email: detalle.cliente.email || undefined,
+        telefono: detalle.cliente.telefono || undefined,
       },
       responsable: {
-        nombre:     detalle.responsable.nombre,
+        nombre: detalle.responsable.nombre,
         nombreSede: detalle.responsable.nombreSede,
       },
       productos,
@@ -258,14 +258,14 @@ export class SalesReceiptRestController {
     const filters: ListSalesReceiptFilterDto = {
       status: status as any,
       customerId,
-      receiptTypeId:   receiptTypeId   ? Number(receiptTypeId)   : undefined,
+      receiptTypeId: receiptTypeId ? Number(receiptTypeId) : undefined,
       paymentMethodId: paymentMethodId ? Number(paymentMethodId) : undefined,
       dateFrom,
       dateTo,
       search,
       sedeId: sedeId ? Number(sedeId) : undefined,
-      page:   page   ? Number(page)   : 1,
-      limit:  limit  ? Number(limit)  : 10,
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 10,
     };
     return this.receiptQueryService.listReceiptsPaginated(filters);
   }
@@ -305,14 +305,14 @@ export class SalesReceiptRestController {
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ): Promise<void> {
-    const pdfData  = await this.buildPdfData(id);
-    const buffer   = await buildSalesReceiptPdf(pdfData);
+    const pdfData = await this.buildPdfData(id);
+    const buffer = await buildSalesReceiptPdf(pdfData);
     const filename = `comprobante-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
 
     res.set({
-      'Content-Type':        'application/pdf',
+      'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length':      buffer.length,
+      'Content-Length': buffer.length,
     });
     res.end(buffer);
   }
@@ -323,15 +323,15 @@ export class SalesReceiptRestController {
     @Query('copia') copia: string,
     @Res() res: Response,
   ): Promise<void> {
-    const esCopia  = copia === 'true' || copia === '1';
-    const pdfData  = await this.buildPdfData(id);
-    const buffer   = await buildSalesReceiptThermalPdf(pdfData, esCopia);
+    const esCopia = copia === 'true' || copia === '1';
+    const pdfData = await this.buildPdfData(id);
+    const buffer = await buildSalesReceiptThermalPdf(pdfData, esCopia);
     const filename = `ticket-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
 
     res.set({
-      'Content-Type':        'application/pdf',
+      'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="${filename}"`,
-      'Content-Length':      buffer.length,
+      'Content-Length': buffer.length,
     });
     res.end(buffer);
   }
@@ -344,6 +344,14 @@ export class SalesReceiptRestController {
   }
 
   // ── TCP ────────────────────────────────────────────────────────────
+  @MessagePattern('get_sale_by_id')
+  async getSaleByIdTcp(@Payload() id_comprobante: string | number) {
+    const id = Number(id_comprobante);
+
+    const sale = await this.receiptQueryService.getReceiptById(id);
+
+    return sale;
+  }
 
   @MessagePattern({ cmd: 'verify_sale' })
   async verifySaleForRemission(@Payload() id_comprobante: number) {
