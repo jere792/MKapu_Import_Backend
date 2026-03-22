@@ -51,7 +51,7 @@ export class CreditNoteController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  //@UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   async create(@Body() dto: CreateCreditNoteRequestDto, @Req() req: any) {
     dto.userRefId = req.user?.id || req.user?.id_usuario || 1;
     return this.registerCreditNote.execute(dto);

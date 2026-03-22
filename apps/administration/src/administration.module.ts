@@ -26,6 +26,7 @@ import { RolePermissionOrmEntity } from './core/role-permission/infrastructure/e
 import { RolePermissionModule } from './core/role-permission/role-permission.module';
 import { EmpresaOrmEntity } from './core/company/infrastructure/entity/empresa.orm-entity';
 import { CompanyModule } from './core/company/company.module';
+import { CommonModule } from '@app/common';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { CompanyModule } from './core/company/company.module';
     SedeAlmacenModule,
     RolePermissionModule,
     CompanyModule,
+    CommonModule,
   ],
   controllers: [
     AdministrationController,

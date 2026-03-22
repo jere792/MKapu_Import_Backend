@@ -53,7 +53,7 @@ export class RoleGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    if (!requiredRoles) {
+    if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
 
@@ -65,12 +65,21 @@ export class RoleGuard implements CanActivate {
       );
     }
 
-    const hasRole = () =>
-      user.roles.some((role: string) => requiredRoles.includes(role));
+    const hasRole = () => {
+      return user.roles.some((userRole: string) => {
+        if (requiredRoles.includes(userRole)) return true;
+
+        const permissions = this.rolePermissions[userRole] || [];
+
+        if (permissions.includes('*')) return true;
+
+        return requiredRoles.some((reqRole) => permissions.includes(reqRole));
+      });
+    };
 
     if (!hasRole()) {
       throw new ForbiddenException(
-        `Se requiere uno de estos roles: ${requiredRoles.join(', ')}`,
+        `Acceso denegado. Se requiere uno de estos roles/permisos: ${requiredRoles.join(', ')}`,
       );
     }
 

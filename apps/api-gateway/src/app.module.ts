@@ -1,12 +1,16 @@
-/*  api-gateway/src/app.module.ts */
+/* api-gateway/src/app.module.ts */
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtStrategy } from 'libs/common/src/infrastructure/strategies/jwt.strategy';
-import { RoleGuard } from 'libs/common/src';
+import { CommonModule, RoleGuard } from '@app/common';
+
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -16,10 +20,10 @@ import { RoleGuard } from 'libs/common/src';
         signOptions: { expiresIn: '1h' },
       }),
     }),
+    CommonModule,
   ],
   controllers: [],
   providers: [
-    JwtStrategy,
     {
       provide: 'APP_GUARD',
       useClass: RoleGuard,
