@@ -115,8 +115,12 @@ function valueCell(
 }
 
 // ── QR content ───────────────────────────────────────────────────────
-function buildQrContent(entity: AccountReceivableOrmEntity): string {
-  const ruc = process.env.COMPANY_RUC ?? '20000000000';
+function buildQrContent(
+  entity: AccountReceivableOrmEntity,
+  empresaData?: any,
+): string {
+  const ruc = empresaData?.ruc ?? '20000000000';
+  const nombreEmpresa = empresaData?.razon_social ?? 'MKAPU IMPORT S.A.C.';
   const comp = entity.salesReceipt;
   const moneda = entity.currency?.codigo ?? entity.currencyCode ?? 'PEN';
   const tipo = comp?.tipoComprobante?.descripcion ?? 'CUENTA POR COBRAR';
@@ -125,7 +129,7 @@ function buildQrContent(entity: AccountReceivableOrmEntity): string {
     ? String(comp.numero).padStart(8, '0')
     : String(entity.id).padStart(8, '0');
   return [
-    `EMPRESA: ${process.env.COMPANY_NAME ?? 'MKAPU IMPORT S.A.C.'}`,
+    `EMPRESA: ${nombreEmpresa}`,
     `RUC: ${ruc}`,
     `DOCUMENTO: ${tipo} ${serie}-${numero}`,
     `FECHA: ${new Date(entity.issueDate).toLocaleDateString('es-PE')}`,
@@ -141,6 +145,7 @@ function buildQrContent(entity: AccountReceivableOrmEntity): string {
 // ════════════════════════════════════════════════════════════════════
 export async function buildAccountReceivablePdf(
   entity: AccountReceivableOrmEntity,
+  empresaData?: any, // Se añade el parámetro
 ): Promise<Buffer> {
   const PDFDocument = require('pdfkit');
   const chunks: Buffer[] = [];
@@ -161,22 +166,25 @@ export async function buildAccountReceivablePdf(
     : String(entity.id).padStart(8, '0');
   const docRef = `${serie}-${numero}`;
 
+  // Rellenamos los datos de la empresa desde el parámetro inyectado
   const empresa = {
-    nombre: process.env.COMPANY_NAME ?? 'MKAPU IMPORT S.A.C.',
-    ruc: process.env.COMPANY_RUC ?? '20613016946',
-    direccion:
-      process.env.COMPANY_ADDRESS ?? 'AV. LAS FLORES DE LA PRIMAVERA 1836',
-    ciudad: process.env.COMPANY_CITY ?? 'San Juan de Lurigancho - Lima - Perú',
-    email: process.env.COMPANY_EMAIL ?? 'mkapu@gmail.com',
-    web: process.env.COMPANY_WEB ?? 'www.mkapu.com',
-    telefono: process.env.COMPANY_PHONE ?? '903019610',
+    nombre: empresaData?.razon_social ?? 'MKAPU IMPORT S.A.C.',
+    ruc: empresaData?.ruc ?? '20613016946',
+    direccion: empresaData?.direccion ?? 'AV. LAS FLORES DE LA PRIMAVERA 1836',
+    ciudad: empresaData?.ciudad ?? 'San Juan de Lurigancho - Lima - Perú',
+    email: empresaData?.email ?? 'mkapu@gmail.com',
+    web: empresaData?.website ?? 'www.mkapu.com',
+    telefono: empresaData?.telefono ?? '903019610',
   };
 
-  const qrDataUrl = await QRCode.toDataURL(buildQrContent(entity), {
-    width: 120,
-    margin: 1,
-    color: { dark: C.black, light: C.white },
-  });
+  const qrDataUrl = await QRCode.toDataURL(
+    buildQrContent(entity, empresaData),
+    {
+      width: 120,
+      margin: 1,
+      color: { dark: C.black, light: C.white },
+    },
+  );
   const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
 
   const details = comp?.details ?? [];
@@ -188,16 +196,13 @@ export async function buildAccountReceivablePdf(
     doc.on('error', reject);
 
     // ══════════════════════════════════════════════════════════════
-    //  BLOQUE 1 – CABECERA  (igual a guía: logo izq | caja doc der)
-    //  Left col: logo grande
-    //  Right col: pill con tipo doc, luego RUC en caja separada, luego N°
+    //  BLOQUE 1 – CABECERA
     // ══════════════════════════════════════════════════════════════
     const HDR_H = 88;
-    const LW = 180; // ancho columna logo
+    const LW = 180;
     const RW = INNER - LW - 8;
     const xRight = MAR + LW + 8;
 
-    // Logo
     try {
       doc.image(LOGO_PATH, MAR + 6, 10, {
         fit: [LW - 12, HDR_H - 20],
@@ -217,7 +222,6 @@ export async function buildAccountReceivablePdf(
         .text('import', MAR + 10, 48);
     }
 
-    // Caja tipo documento (naranja, con radius)
     const pillY = 10;
     box(doc, xRight, pillY, RW, 26, { fill: C.yellow, radius: 4 });
     doc
@@ -229,7 +233,6 @@ export async function buildAccountReceivablePdf(
         align: 'center',
       });
 
-    // Caja RUC
     const rucY = pillY + 32;
     box(doc, xRight, rucY, RW, 20, { stroke: C.yellow, radius: 3 });
     doc
@@ -241,7 +244,6 @@ export async function buildAccountReceivablePdf(
         align: 'center',
       });
 
-    // Caja N° documento
     const numY = rucY + 26;
     box(doc, xRight, numY, RW, 20, { stroke: C.yellow, radius: 3 });
     doc
@@ -251,7 +253,7 @@ export async function buildAccountReceivablePdf(
       .text(docRef, xRight, numY + 6, { width: RW, align: 'center' });
 
     // ══════════════════════════════════════════════════════════════
-    //  BLOQUE 2 – DATOS EMPRESA  (franja debajo de cabecera)
+    //  BLOQUE 2 – DATOS EMPRESA
     // ══════════════════════════════════════════════════════════════
     let y = HDR_H + 4;
     const EH = 66;
@@ -263,7 +265,6 @@ export async function buildAccountReceivablePdf(
       .font('Helvetica-Bold')
       .fontSize(9.5)
       .text(empresa.nombre, MAR + 10, y + 7, { width: INNER - 20 });
-    // Dirección en dos líneas con lineBreak automático
     doc
       .fillColor(C.gray)
       .font('Helvetica')
@@ -273,7 +274,6 @@ export async function buildAccountReceivablePdf(
         lineBreak: true,
         lineGap: 1,
       });
-    // Ciudad debajo (posición dinámica según texto anterior)
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const afterDir = (doc as any).y;
     doc.text(`${empresa.ciudad}`, MAR + 10, afterDir + 1, {
@@ -288,7 +288,7 @@ export async function buildAccountReceivablePdf(
     );
 
     // ══════════════════════════════════════════════════════════════
-    //  BLOQUE 3 – CLIENTE (izq, 60%) | FECHAS (der, 40%)
+    //  BLOQUE 3 – CLIENTE Y FECHAS
     // ══════════════════════════════════════════════════════════════
     y += EH + 6;
     const B3H = 70;
@@ -296,11 +296,8 @@ export async function buildAccountReceivablePdf(
     const FEW = INNER - CLW - 6;
     const xFec = MAR + CLW + 6;
 
-    // Caja cliente
     box(doc, MAR, y, CLW, B3H, { stroke: C.border, radius: 3 });
-    // Header "CLIENTE"
     box(doc, MAR, y, CLW, 16, { fill: C.yellow, radius: 3 });
-    // Fix: redraw bottom of pill as square so it merges with content
     doc.rect(MAR, y + 8, CLW, 8).fill(C.yellow);
     doc
       .fillColor(C.white)
@@ -329,7 +326,6 @@ export async function buildAccountReceivablePdf(
           ellipsis: true,
         });
 
-    // Caja fechas
     box(doc, xFec, y, FEW, B3H, { stroke: C.border, radius: 3 });
     box(doc, xFec, y, FEW, 16, { fill: C.yellow, radius: 3 });
     doc.rect(xFec, y + 8, FEW, 8).fill(C.yellow);
@@ -376,14 +372,13 @@ export async function buildAccountReceivablePdf(
       );
 
     // ══════════════════════════════════════════════════════════════
-    //  BLOQUE 4 – COMPROBANTE (izq) | ESTADO & PAGO (der)
+    //  BLOQUE 4 – COMPROBANTE Y ESTADO
     // ══════════════════════════════════════════════════════════════
     y += B3H + 6;
     const B4H = 72;
     const HW = (INNER - 6) / 2;
     const xB4R = MAR + HW + 6;
 
-    // Caja izq: datos comprobante
     box(doc, MAR, y, HW, B4H, { stroke: C.border, radius: 3 });
     box(doc, MAR, y, HW, 16, { fill: C.darkBg, radius: 3 });
     doc.rect(MAR, y + 8, HW, 8).fill(C.darkBg);
@@ -405,7 +400,6 @@ export async function buildAccountReceivablePdf(
       if (i < rows4L.length - 1) hline(doc, MAR + 6, ry + 12, HW - 12);
     });
 
-    // Caja der: estado y pago
     box(doc, xB4R, y, HW, B4H, { stroke: C.border, radius: 3 });
     box(doc, xB4R, y, HW, 16, { fill: C.darkBg, radius: 3 });
     doc.rect(xB4R, y + 8, HW, 8).fill(C.darkBg);
@@ -432,7 +426,6 @@ export async function buildAccountReceivablePdf(
     // ══════════════════════════════════════════════════════════════
     y += B4H + 8;
 
-    // Widths: N°, Código, Descripción, U.M., Cant, P.Unit, Total
     const COLS = [28, 60, 168, 38, 48, 66, 66];
     const HEADS = [
       'N°',
@@ -446,7 +439,7 @@ export async function buildAccountReceivablePdf(
     const TH = 18;
 
     box(doc, MAR, y, INNER, TH, { fill: C.darkBg, radius: 3 });
-    doc.rect(MAR, y + 6, INNER, 12).fill(C.darkBg); // flatten bottom corners
+    doc.rect(MAR, y + 6, INNER, 12).fill(C.darkBg);
 
     let xc = MAR + 4;
     HEADS.forEach((h, i) => {
@@ -482,7 +475,6 @@ export async function buildAccountReceivablePdf(
       box(doc, MAR, y, INNER, rh, { fill: bgColor });
       hline(doc, MAR, y + rh, INNER, C.border, 0.4);
 
-      // column separators
       let xs = MAR;
       COLS.forEach((cw, ci) => {
         xs += cw;
@@ -512,14 +504,13 @@ export async function buildAccountReceivablePdf(
       y += rh;
     });
 
-    // Borde exterior tabla
     box(doc, MAR, y - rows.length * 20 - TH, INNER, rows.length * 20 + TH, {
       stroke: C.border,
       radius: 3,
     });
 
     // ══════════════════════════════════════════════════════════════
-    //  BLOQUE 6 – TOTALES (columna derecha)
+    //  BLOQUE 6 – TOTALES
     // ══════════════════════════════════════════════════════════════
     y += 10;
     const totW = 220;
@@ -572,14 +563,13 @@ export async function buildAccountReceivablePdf(
       y += rh;
     });
 
-    // Borde caja totales
     box(doc, totX, startTotY, totW, y - startTotY, {
       stroke: C.border,
       radius: 3,
     });
 
     // ══════════════════════════════════════════════════════════════
-    //  BLOQUE 7 – PIE: QR (izq) | Representación impresa (der)
+    //  BLOQUE 7 – PIE: QR Y REPRESENTACIÓN
     // ══════════════════════════════════════════════════════════════
     y = Math.max(y, startTotY + 10) + 14;
     const pieH = 90;
@@ -589,7 +579,6 @@ export async function buildAccountReceivablePdf(
     box(doc, MAR, y, PQW, pieH, { fill: C.lgray, stroke: C.border, radius: 3 });
     box(doc, xPR, y, PQW, pieH, { fill: C.lgray, stroke: C.border, radius: 3 });
 
-    // QR
     doc.image(qrBuffer, MAR + 8, y + 10, { width: 70, height: 70 });
     doc
       .fillColor(C.black)
@@ -607,7 +596,6 @@ export async function buildAccountReceivablePdf(
         { width: PQW - 92 },
       );
 
-    // Representación impresa
     doc
       .fillColor(C.gray)
       .font('Helvetica')
@@ -647,7 +635,6 @@ export async function buildAccountReceivablePdf(
         align: 'center',
       });
 
-    // Línea final naranja
     y += pieH + 10;
     doc.rect(MAR, y, INNER, 3).fill(C.yellow);
 

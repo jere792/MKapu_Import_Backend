@@ -15,6 +15,7 @@ import { ProductStockTcpClientProvider } from './infrastructure/providers/produc
 import { ProductStockTcpProxy } from './infrastructure/adapters/out/TCP/ProductStockTcpProxy';
 import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { SupplierTcpProxy } from './infrastructure/adapters/out/TCP/SupplierTcpProxy';
+import { EmpresaTcpProxy } from '../sales-receipt/infrastructure/adapters/out/TCP/empresa-tcp.proxy';
 
 @Module({
   imports: [
@@ -30,12 +31,20 @@ import { SupplierTcpProxy } from './infrastructure/adapters/out/TCP/SupplierTcpP
         name: 'SEDE_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: process.env.ADMIN_HOST   || 'localhost',
+          host: process.env.ADMIN_HOST || 'localhost',
           port: Number(process.env.ADMIN_PORT) || 3011,
         },
       },
       {
-        name: 'LOGISTICS_SERVICE',       
+        name: 'ADMIN_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.ADMIN_HOST || 'localhost',
+          port: Number(process.env.ADMIN_PORT) || 3011,
+        },
+      },
+      {
+        name: 'LOGISTICS_SERVICE',
         transport: Transport.TCP,
         options: {
           host: process.env.LOGISTICS_TCP_HOST || 'localhost',
@@ -49,7 +58,7 @@ import { SupplierTcpProxy } from './infrastructure/adapters/out/TCP/SupplierTcpP
     ProductStockTcpClientProvider,
     ProductStockTcpProxy,
     SedeTcpProxy,
-    SupplierTcpProxy,                    
+    SupplierTcpProxy,
     QuoteQueryService,
     {
       provide: 'IQuoteCommandPort',
@@ -68,15 +77,21 @@ import { SupplierTcpProxy } from './infrastructure/adapters/out/TCP/SupplierTcpP
       useClass: SedeTcpProxy,
     },
     {
-      provide: 'ISupplierProxy',           
+      provide: 'ISupplierProxy',
       useClass: SupplierTcpProxy,
+    },
+    // 👇 AGREGAMOS EL PROVIDER CORRECTAMENTE MAPEADO
+    {
+      provide: 'IEmpresaProxy',
+      useClass: EmpresaTcpProxy,
     },
   ],
   exports: [
     'IQuoteCommandPort',
     'IQuoteQueryPort',
     'ISedeProxy',
-    'ISupplierProxy',                     
+    'ISupplierProxy',
+    'IEmpresaProxy',
   ],
 })
 export class QuoteModule {}

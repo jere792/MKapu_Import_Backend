@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 export class SalesReceiptDetailProductoDto {
   id_prod_ref: string;
   cod_prod: string;
@@ -29,6 +30,7 @@ export class SalesReceiptPromocionDto {
 
   productosIds?: string[];
 }
+
 export class SalesReceiptHistorialItemDto {
   id_comprobante: number;
   numero_completo: string;
@@ -37,6 +39,22 @@ export class SalesReceiptHistorialItemDto {
   estado: string;
   metodo_pago: string;
   responsable: string;
+}
+
+// ── DTO de la Empresa inyectada por TCP ───────────────────────────
+export class EmpresaDetalleDto {
+  id?: number;
+  nombreComercial?: string;
+  razonSocial?: string;
+  ruc?: string;
+  sitioWeb?: string;
+  direccion?: string;
+  ciudad?: string;
+  departamento?: string;
+  telefono?: string;
+  email?: string;
+  logoUrl?: string;
+  updatedAt?: string | Date;
 }
 
 export class SalesReceiptDetalleCompletoDto {
@@ -84,6 +102,8 @@ export class SalesReceiptDetalleCompletoDto {
     limit: number;
     total_pages: number;
   };
+
+  empresa?: EmpresaDetalleDto | any;
 }
 
 export class ReglaPromocionDto {

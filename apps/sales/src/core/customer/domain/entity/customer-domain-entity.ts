@@ -33,11 +33,12 @@ export class Customer {
     const esRUC = this.props.tipoDocumentoCodSunat === '06';
 
     if (esRUC) {
-      if (!this.props.razon_social?.trim()) {
+      const tieneNombre =
+        this.props.razon_social?.trim() || this.props.nombres?.trim();
+      if (!tieneNombre) {
         throw new Error('Business name is required for RUC');
       }
-    } else {
-      // ← este ELSE es clave
+    } else if (this.props.tipoDocumentoCodSunat) {
       if (!this.props.nombres?.trim()) {
         throw new Error('Name is required');
       }

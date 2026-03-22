@@ -6,15 +6,17 @@ import { firstValueFrom } from 'rxjs';
 export class LogisticsStockProxy {
   private readonly logger = new Logger(LogisticsStockProxy.name);
 
-  constructor(@Inject('LOGISTICS_SERVICE') private readonly client: ClientProxy) {}
+  constructor(
+    @Inject('LOGISTICS_SERVICE') private readonly client: ClientProxy,
+  ) {}
 
   async registerMovement(data: any): Promise<void> {
     try {
-      await firstValueFrom(
-        this.client.send('register_movement', data)
+      await firstValueFrom(this.client.send('register_movement', data));
+
+      this.logger.log(
+        `📤 Evento de stock procesado para producto: ${data.productId}`,
       );
-      
-      this.logger.log(`📤 Evento de stock procesado para producto: ${data.productId}`);
     } catch (error) {
       this.logger.error(`❌ Error al registrar movimiento: ${error.message}`);
       throw new Error('Error de comunicación con Logística');

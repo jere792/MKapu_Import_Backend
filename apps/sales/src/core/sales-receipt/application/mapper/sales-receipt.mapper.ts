@@ -51,8 +51,8 @@ export class SalesReceiptMapper {
       productName: item.description,
       total: item.total || item.quantity * item.unitPrice,
       igv: item.igv || 0,
-      codigo: item.codigo, // ← regla PRODUCTO
-      categoriaId: item.categoriaId, // ← regla CATEGORIA
+      codigo: item.codigo,
+      categoriaId: item.categoriaId,
     }));
 
     return SalesReceipt.createNew(
@@ -119,12 +119,8 @@ export class SalesReceiptMapper {
     if (domain.id_comprobante !== undefined)
       orm.id_comprobante = domain.id_comprobante;
     orm.cliente = { id_cliente: domain.id_cliente } as CustomerOrmEntity;
-    orm.tipoVenta = {
-      id_tipo_venta: domain.id_tipo_venta,
-    } as SalesTypeOrmEntity;
-    orm.tipoComprobante = {
-      id_tipo_comprobante: domain.id_tipo_comprobante,
-    } as ReceiptTypeOrmEntity;
+    orm.tipoVenta = { id_tipo_venta: domain.id_tipo_venta } as SalesTypeOrmEntity;
+    orm.tipoComprobante = { id_tipo_comprobante: domain.id_tipo_comprobante } as ReceiptTypeOrmEntity;
     orm.moneda = { codigo: domain.cod_moneda } as SunatCurrencyOrmEntity;
 
     orm.serie = domain.serie;
@@ -149,11 +145,7 @@ export class SalesReceiptMapper {
         detail.pre_uni = item.unitPrice;
         detail.valor_uni = item.unitPrice;
         detail.igv = item.igv || 0;
-        detail.descripcion = (
-          item.productName ||
-          item.description ||
-          ''
-        ).substring(0, 45);
+        detail.descripcion = (item.productName || item.description || '').substring(0, 45);
         (detail as any).tipo_afectacion_igv = 1;
         (detail as any).id_descuento = item.discountId ?? null;
         return detail;

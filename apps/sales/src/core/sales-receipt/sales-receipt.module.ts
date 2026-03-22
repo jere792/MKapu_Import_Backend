@@ -1,6 +1,6 @@
 /* sales/src/core/sales-receipt/sales-receipt.module.ts */
 
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 import { ClientsModule, Transport } from '@nestjs/microservices';
@@ -32,12 +32,16 @@ import { CustomerRepository } from '../customer/infrastructure/adapters/out/repo
 import { CustomerModule } from '../customer/customer.module';
 import { SalesReceiptRestController } from './infrastructure/adapters/in/controllers/sales-receipt-rest.controller';
 
-// ← Promociones viven en el mismo microservicio de sales, no necesitan TCP
+// Promociones viven en el mismo microservicio de sales, no necesitan TCP
 import { PromotionModule } from '../promotion/promotion.module';
+import { EmpresaTcpProxy } from './infrastructure/adapters/out/TCP/empresa-tcp.proxy';
+import { CommissionModule } from '../commission/commission.module';
 
 @Module({
   imports: [
+    forwardRef(() => CommissionModule),
     HttpModule,
+    ConfigModule, 
     ClientsModule.registerAsync([
       // ── Logistics ──────────────────────────────────────────────
       {
@@ -65,7 +69,7 @@ import { PromotionModule } from '../promotion/promotion.module';
         }),
         inject: [ConfigService],
       },
-      // ── Administration → SedeTcpProxy ──────────────────────────
+      // ── Administration → SedeTcpProxy / PDF Empresa ──────────
       {
         name: 'ADMIN_SERVICE',
         imports: [ConfigModule],
@@ -93,7 +97,6 @@ import { PromotionModule } from '../promotion/promotion.module';
       CashMovementOrmEntity,
     ]),
     CustomerModule,
-    // ← Importar PromotionModule para acceder a PromotionQueryService
     PromotionModule,
   ],
 
@@ -108,6 +111,7 @@ import { PromotionModule } from '../promotion/promotion.module';
     UsersTcpProxy,
     SedeTcpProxy,
     LogisticsTcpProxy,
+    EmpresaTcpProxy,
 
     {
       provide: 'ISalesReceiptCommandPort',

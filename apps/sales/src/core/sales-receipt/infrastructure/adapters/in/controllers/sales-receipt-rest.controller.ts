@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -170,6 +171,8 @@ export class SalesReceiptRestController {
       },
       productos,
       promocion: promoData,
+      // 👇 La clave mágica 👇
+      empresaData: detalle.empresa,
     };
   }
 
@@ -306,9 +309,9 @@ export class SalesReceiptRestController {
     @Res() res: Response,
   ): Promise<void> {
     const pdfData = await this.buildPdfData(id);
-    const buffer = await buildSalesReceiptPdf(pdfData);
-    const filename = `comprobante-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
+    const buffer = await buildSalesReceiptPdf(pdfData); // Solo 1 parámetro
 
+    const filename = `comprobante-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
@@ -325,15 +328,34 @@ export class SalesReceiptRestController {
   ): Promise<void> {
     const esCopia = copia === 'true' || copia === '1';
     const pdfData = await this.buildPdfData(id);
-    const buffer = await buildSalesReceiptThermalPdf(pdfData, esCopia);
-    const filename = `ticket-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
+    const buffer = await buildSalesReceiptThermalPdf(pdfData, esCopia); // Solo 2 parámetros
 
+    const filename = `ticket-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="${filename}"`,
       'Content-Length': buffer.length,
     });
     res.end(buffer);
+  }
+
+  @Get('correlativo/:correlativo')
+  @HttpCode(HttpStatus.OK)
+  async findByCorrelativo(@Param('correlativo') correlativo: string) {
+    const cleanCorrelativo = decodeURIComponent(correlativo)
+      .trim()
+      .toUpperCase();
+
+    const sale =
+      await this.receiptQueryService.findSaleByCorrelativo(cleanCorrelativo);
+
+    if (!sale) {
+      throw new NotFoundException(
+        `No se encontró el comprobante con correlativo ${cleanCorrelativo}`,
+      );
+    }
+
+    return sale;
   }
 
   @Get(':id')

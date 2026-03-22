@@ -43,7 +43,7 @@ export class CustomerCommandService implements ICustomerCommandPort {
     }
 
     // 3. Crear entidad de dominio (El Mapper maneja nombres, apellidos, razón social)
-    const customer = CustomerMapper.fromRegisterDto(dto);
+    const customer = CustomerMapper.fromRegisterDto(dto, documentType.cod_sunat);
 
     // 4. Guardar
     const savedCustomer = await this.customerRepository.save(customer);

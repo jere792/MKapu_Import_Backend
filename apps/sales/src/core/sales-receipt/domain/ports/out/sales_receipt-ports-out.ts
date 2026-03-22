@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { QueryRunner } from 'typeorm';
 import { SalesReceipt } from '../../entity/sales-receipt-domain-entity';
 import { SalesReceiptOrmEntity } from '../../../infrastructure/entity/sales-receipt-orm.entity';
@@ -92,4 +93,5 @@ export interface ISalesReceiptRepositoryPort {
     idPromocion: number,
     monto: number,
   ): Promise<void>;
+  findByCorrelative(correlative: string): Promise<SalesReceipt | null>;
 }

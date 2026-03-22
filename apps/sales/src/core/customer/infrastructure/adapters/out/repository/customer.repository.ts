@@ -1,7 +1,3 @@
-/* ============================================
-   sales/src/core/customer/infrastructure/adapters/out/repository/customer.repository.ts
-   ============================================ */
-
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -26,7 +22,10 @@ export class CustomerRepository implements ICustomerRepositoryPort {
   async update(customer: Customer): Promise<Customer> {
     const customerOrm = CustomerMapper.toOrmEntity(customer);
     await this.customerOrmRepository.update(customer.id_cliente!, customerOrm);
-    const updated = await this.customerOrmRepository.findOne({ where: { id_cliente: customer.id_cliente }, relations: ['tipoDocumento'] });
+    const updated = await this.customerOrmRepository.findOne({
+      where: { id_cliente: customer.id_cliente },
+      relations: ['tipoDocumento'],
+    });
     return CustomerMapper.toDomainEntity(updated!);
   }
 
@@ -35,12 +34,18 @@ export class CustomerRepository implements ICustomerRepositoryPort {
   }
 
   async findById(id: string): Promise<Customer | null> {
-    const customerOrm = await this.customerOrmRepository.findOne({ where: { id_cliente: id }, relations: ['tipoDocumento'] });
+    const customerOrm = await this.customerOrmRepository.findOne({
+      where: { id_cliente: id },
+      relations: ['tipoDocumento'],
+    });
     return customerOrm ? CustomerMapper.toDomainEntity(customerOrm) : null;
   }
 
   async findByDocument(valor_doc: string): Promise<Customer | null> {
-    const customerOrm = await this.customerOrmRepository.findOne({ where: { valor_doc }, relations: ['tipoDocumento'] });
+    const customerOrm = await this.customerOrmRepository.findOne({
+      where: { valor_doc },
+      relations: ['tipoDocumento'],
+    });
     return customerOrm ? CustomerMapper.toDomainEntity(customerOrm) : null;
   }
 
@@ -49,8 +54,16 @@ export class CustomerRepository implements ICustomerRepositoryPort {
     return count > 0;
   }
 
+  private parseBoolean(value: any): boolean | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value === 'boolean') return value;
+    if (value === 'true'  || value === '1' || value === 1) return true;
+    if (value === 'false' || value === '0' || value === 0) return false;
+    return undefined;
+  }
+
   async findAll(filters?: {
-    estado?: boolean;
+    estado?: boolean | string;
     search?: string;
     id_tipo_documento?: number;
     page?: number;
@@ -60,9 +73,10 @@ export class CustomerRepository implements ICustomerRepositoryPort {
       .createQueryBuilder('cliente')
       .leftJoinAndSelect('cliente.tipoDocumento', 'tipoDocumento');
 
-    if (filters?.estado !== undefined) {
+    const estadoBoolean = this.parseBoolean(filters?.estado);
+    if (estadoBoolean !== undefined) {
       queryBuilder.andWhere('cliente.estado = :estado', {
-        estado: filters.estado,
+        estado: estadoBoolean ? 1 : 0,
       });
     }
 
@@ -79,20 +93,18 @@ export class CustomerRepository implements ICustomerRepositoryPort {
       );
     }
 
-    // Paginación
-    const page = filters?.page || 1;
+    const page  = filters?.page  || 1;
     const limit = filters?.limit || 10;
-    const skip = (page - 1) * limit;
+    const skip  = (page - 1) * limit;
 
     queryBuilder.skip(skip).take(limit);
     queryBuilder.orderBy('cliente.nombres', 'ASC');
 
-    // IMPORTANTE: getManyAndCount devuelve [array, numeroTotal]
     const [customersOrm, total] = await queryBuilder.getManyAndCount();
 
     return {
-      customers: customersOrm.map((custOrm) => CustomerMapper.toDomainEntity(custOrm)),
-      total: total
+      customers: customersOrm.map((c) => CustomerMapper.toDomainEntity(c)),
+      total,
     };
   }
 }

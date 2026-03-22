@@ -1,8 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { IWastageQueryPort } from '../../domain/ports/in/wastage.port.in';
 import { IWastageRepositoryPort } from '../../domain/ports/out/wastage.port.out';
-import { WastageResponseDto } from '../dto/out/wastage-response.dto';
-import { WastagePaginatedResponseDto } from '../dto/out/wastage-response.dto';
+import { WastageResponseDto, WastagePaginatedResponseDto } from '../dto/out/wastage-response.dto';
 import { WastageMapper } from '../mapper/wastage.mapper';
 
 @Injectable()
@@ -18,15 +17,20 @@ export class WastageQueryService implements IWastageQueryPort {
   }
 
   async findAllPaginated(
-    page: number = 1,
-    limit: number = 10,
+    page:    number = 1,
+    limit:   number = 10,
+    id_sede?: number,        
   ): Promise<WastagePaginatedResponseDto> {
     const skip = (page - 1) * limit;
-    
-    const [wastages, total] = await this.repository.findAndCount(skip, limit);
-    
+
+    const [wastages, total] = await this.repository.findAndCount(
+      skip,
+      limit,
+      id_sede || undefined,  
+    );
+
     return {
-      data: wastages.map(w => WastageMapper.toResponseDto(w)),
+      data:       wastages.map(w => WastageMapper.toResponseDto(w)),
       total,
       page,
       limit,

@@ -1,3 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import * as path from 'path';
 import * as QRCode from 'qrcode';
 
@@ -121,19 +127,19 @@ export async function buildQuotePdf(quote: any): Promise<Buffer> {
     `${cl?.nombre_cliente ?? ''} ${cl?.apellidos_cliente ?? ''}`.trim() ||
     'Cliente';
 
+  const emp = quote.empresa || {};
+
   const empresa = {
-    nombre: process.env.COMPANY_NAME ?? 'MKAPU IMPORT S.A.C.',
-    ruc: process.env.COMPANY_RUC ?? '20613016946',
-    direccion:
-      process.env.COMPANY_ADDRESS ?? 'AV. LAS FLORES DE LA PRIMAVERA NRO. 1838',
-    ciudad: process.env.COMPANY_CITY ?? 'San Juan de Lurigancho - Lima - Perú',
-    email: process.env.COMPANY_EMAIL ?? 'mkapu@gmail.com',
-    web: process.env.COMPANY_WEB ?? 'www.mkapu.com',
-    telefono: process.env.COMPANY_PHONE ?? '903019610',
-    banco: process.env.COMPANY_BANK ?? 'BCP - Cta. Cte. 123-456789-0-12',
+    nombre: emp.razon_social || 'MKAPU IMPORT S.A.C.',
+    ruc: emp.ruc || '20613016946',
+    direccion: emp.direccion || 'AV. LAS FLORES DE LA PRIMAVERA NRO. 1838',
+    ciudad: emp.ciudad || 'San Juan de Lurigancho - Lima - Perú',
+    email: emp.email || 'mkapu@gmail.com',
+    web: emp.web || 'www.mkapu.com',
+    telefono: emp.telefono || '903019610',
+    banco: emp.banco || 'BCP - Cta. Cte. 123-456789-0-12',
   };
 
-  // QR con datos de cotización
   const qrContent = [
     `EMPRESA: ${empresa.nombre}`,
     `RUC: ${empresa.ruc}`,

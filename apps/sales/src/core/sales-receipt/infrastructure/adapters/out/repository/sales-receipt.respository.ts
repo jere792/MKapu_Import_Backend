@@ -1,10 +1,14 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner } from 'typeorm';
+import { Repository, DataSource, QueryRunner, Not } from 'typeorm';
 import {
   ISalesReceiptRepositoryPort,
   SalesReceiptKpiRaw,
@@ -16,7 +20,10 @@ import {
   SalesTypeEnum,
 } from '../../../../domain/entity/sale-type-domain-entity';
 import { ReceiptType } from '../../../../domain/entity/receipt-type-domain-entity';
-import { SalesReceiptOrmEntity } from '../../../entity/sales-receipt-orm.entity';
+import {
+  ReceiptStatusOrm,
+  SalesReceiptOrmEntity,
+} from '../../../entity/sales-receipt-orm.entity';
 import { SalesTypeOrmEntity } from '../../../entity/sales-type-orm.entity';
 import { ReceiptTypeOrmEntity } from '../../../entity/receipt-type-orm.entity';
 import { SalesReceiptMapper } from '../../../../application/mapper/sales-receipt.mapper';
@@ -170,7 +177,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
   async findByCorrelativo(serie: string, numero: number): Promise<any | null> {
     return this.receiptOrmRepository.findOne({
       where: { serie: serie.trim(), numero },
-      relations: ['details'],
+      relations: ['details', 'cliente'],
     });
   }
 
@@ -696,5 +703,38 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .andWhere('r.estado != :anulado', { anulado: 'ANULADO' })
       .getRawOne();
     return Number(row?.total ?? 0);
+  }
+  async findByCorrelative(correlative: string): Promise<SalesReceipt | null> {
+    if (!correlative || !correlative.includes('-')) {
+      return null;
+    }
+
+    const [serieInput, numeroInput] = correlative
+      .trim()
+      .toUpperCase()
+      .split('-');
+    const numeroStr = Number(numeroInput);
+
+    if (!serieInput || isNaN(numeroStr)) {
+      return null;
+    }
+
+    const entity = await this.receiptOrmRepository.findOne({
+      where: {
+        serie: serieInput,
+        numero: numeroStr,
+        estado: Not(ReceiptStatusOrm.ANULADO),
+      },
+      relations: [
+        'cliente',
+        'tipoComprobante',
+        'tipoVenta',
+        'moneda',
+        'details',
+      ],
+    });
+
+    if (!entity) return null;
+    return SalesReceiptMapper.toDomain(entity);
   }
 }

@@ -1,20 +1,27 @@
-import { CreditNoteDetailItemDto } from "./credit-note-detail-item.dto";
+import { CreditNoteDetailItemDto } from './credit-note-detail-item.dto';
 
 export class CreditNoteDetailDto {
-    noteDetailId: number;
-    serie: string;
-    numberDoc: number;
-    correlative: string;
-    issueDate: Date;
-    currency: string;
-    totalAmount: number;
-    saleValue: number;
-    status: string;
-    emissionDate?: Date;
-    businessType: string;
-    isc: number;
-    igv: number;
-    customerId: number;
-    customerName: string;
-    items: CreditNoteDetailItemDto[];
+  noteDetailId: number;
+  serie: string;
+  numberDoc: number;
+  correlative: string;
+  issueDate: Date;
+  emissionDate?: Date;
+  status: string;
+  businessType: string;
+
+  serieRef: string;
+  numberDocRef: string;
+
+  customerId: number;
+  customerName: string;
+  customerDocument: string;
+
+  currency: string;
+  saleValue: number;
+  isc: number;
+  igv: number;
+  totalAmount: number;
+
+  items: CreditNoteDetailItemDto[];
 }

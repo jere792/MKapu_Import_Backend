@@ -247,7 +247,6 @@ export class ProductTypeOrmRepository implements IProductRepositoryPort {
     }));
   }
 
-  // ── NUEVO: autocomplete con precios para ventas ────────────────────────
   async autocompleteProductsVentas(
     id_sede: number,
     search?: string,
@@ -293,7 +292,8 @@ export class ProductTypeOrmRepository implements IProductRepositoryPort {
       .addGroupBy('producto.pre_unit')
       .addGroupBy('producto.pre_caja')
       .addGroupBy('producto.pre_may')
-      .orderBy('producto.codigo', 'ASC')
+      .orderBy('COALESCE(SUM(stock.cantidad), 0)', 'DESC')
+      .addOrderBy('producto.codigo', 'ASC')
       .limit(10);
 
     const rows = await qb.getRawMany();

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslnat/no-unsafe-return */
 import {
   Controller,
   Post,
@@ -52,6 +52,7 @@ export class CustomerRestController {
   ): Promise<CustomerResponseDto | null> {
     return this.customerQueryService.getCustomerByDocument(documentValue);
   }
+
   @Get('suggest')
   @HttpCode(HttpStatus.OK)
   async suggest(
@@ -63,12 +64,9 @@ export class CustomerRestController {
       limit: Number(limit),
       search: q ?? undefined,
     };
-
     const list: CustomerListResponse =
       await this.customerQueryService.listCustomers(filters);
-
     const items = (list as any).customers ?? [];
-
     return Array.isArray(items) ? items.slice(0, Number(limit)) : [];
   }
 
@@ -86,11 +84,7 @@ export class CustomerRestController {
     @Param('id') id: string,
     @Body() updateDto: Omit<UpdateCustomerDto, 'customerId'>,
   ): Promise<CustomerResponseDto> {
-    const fullUpdateDto: UpdateCustomerDto = {
-      ...updateDto,
-      customerId: id,
-    };
-    return this.customerCommandService.updateCustomer(fullUpdateDto);
+    return this.customerCommandService.updateCustomer({ ...updateDto, customerId: id });
   }
 
   @Put(':id/status')
@@ -99,11 +93,10 @@ export class CustomerRestController {
     @Param('id') id: string,
     @Body() statusDto: { status: boolean },
   ): Promise<CustomerResponseDto> {
-    const changeStatusDto: ChangeCustomerStatusDto = {
+    return this.customerCommandService.changeCustomerStatus({
       customerId: id,
       status: statusDto.status,
-    };
-    return this.customerCommandService.changeCustomerStatus(changeStatusDto);
+    });
   }
 
   @Delete(':id')
@@ -116,8 +109,29 @@ export class CustomerRestController {
 
   @Get()
   async listCustomers(
-    @Query() filters: ListCustomerFilterDto,
+    @Query('page')   page?: string,
+    @Query('limit')  limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('tipo')   tipo?: string,
   ): Promise<CustomerListResponse> {
+
+    let estadoBoolean: boolean | undefined = undefined;
+    if (status === 'true')  estadoBoolean = true;
+    if (status === 'false') estadoBoolean = false;
+
+    let documentTypeId: number | undefined = undefined;
+    if (tipo === 'juridica') documentTypeId = 4;
+    if (tipo === 'natural')  documentTypeId = 2;
+
+    const filters: ListCustomerFilterDto = {
+      page:           page  ? Number(page)  : 1,
+      limit:          limit ? Number(limit) : 10,
+      search:         search || undefined,
+      status:         estadoBoolean,
+      documentTypeId: documentTypeId,
+    };
+
     return this.customerQueryService.listCustomers(filters);
   }
 

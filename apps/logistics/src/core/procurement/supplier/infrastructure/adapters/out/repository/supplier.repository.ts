@@ -1,6 +1,4 @@
-/* ============================================
-   logistics/src/core/procurement/supplier/infrastructure/adapters/out/repository/supplier.repository.ts
-   ============================================ */
+/* apps/logistics/src/core/procurement/supplier/infrastructure/adapters/out/repository/supplier.repository.ts */
 
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -57,12 +55,13 @@ export class SupplierRepository implements ISupplierRepositoryPort {
     estado?: boolean;
     search?: string;
   }): Promise<Supplier[]> {
-    const queryBuilder =
-      this.supplierOrmRepository.createQueryBuilder('proveedor');
+    const queryBuilder = this.supplierOrmRepository
+      .createQueryBuilder('proveedor')
+      .orderBy('proveedor.id_proveedor', 'DESC');
 
     if (filters?.estado !== undefined) {
       queryBuilder.andWhere('proveedor.estado = :estado', {
-        estado: filters.estado,
+        estado: filters.estado ? 1 : 0,
       });
     }
 

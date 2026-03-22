@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import { Customer } from '../../domain/entity/customer-domain-entity';
 import { DocumentType } from '../../domain/entity/document-type-domain-entity';
 import { RegisterCustomerDto, UpdateCustomerDto } from '../dto/in';
@@ -40,7 +37,7 @@ export class CustomerMapper {
   ): CustomerListResponse {
     return {
       customers: customers.map((c) => this.toResponseDto(c)),
-      total: total,
+      total,
     };
   }
 
@@ -71,35 +68,35 @@ export class CustomerMapper {
     );
 
     let nombres = name;
-    let apellidos: string | undefined = lastName;
-    let razon_social: string | undefined = businessName;
+    let apellidos: string | undefined = lastName || undefined;
+    let razon_social: string | undefined = businessName || undefined;
 
     if (tipoDocumentoCodSunat === '06') {
-      razon_social = businessName;
-      nombres = ''; // Aseguramos que sea string
+      razon_social = businessName || name;
+      nombres = '';
       apellidos = undefined;
     } else if (tipoDocumentoCodSunat === '01') {
       nombres = name;
-      apellidos = lastName;
+      apellidos = lastName || undefined;
       razon_social = undefined;
     } else {
-      razon_social = businessName;
+      razon_social = businessName || undefined;
       nombres = name;
-      apellidos = lastName;
+      apellidos = lastName || undefined;
     }
 
     return Customer.create({
       id_cliente: uuidv4(),
       id_tipo_documento: dto.documentTypeId,
       valor_doc: dto.documentValue,
-      nombres: nombres,
-      apellidos: apellidos,
-      razon_social: razon_social,
+      nombres,
+      apellidos,
+      razon_social,
       direccion: dto.address ?? undefined,
       email: dto.email ?? undefined,
       telefono: dto.phone ?? undefined,
       estado: true,
-      tipoDocumentoCodSunat: tipoDocumentoCodSunat,
+      tipoDocumentoCodSunat,
     });
   }
 
@@ -138,7 +135,7 @@ export class CustomerMapper {
     if (tipoSunat === '06') {
       finalRazonSocial =
         incomingBusinessName || customer.razon_social || undefined;
-      finalNombres = ''; // String vacío en lugar de null
+      finalNombres = '';
       finalApellidos = undefined;
     } else if (tipoSunat === '01') {
       finalNombres = incomingName || customer.nombres || '';
@@ -191,28 +188,33 @@ export class CustomerMapper {
     } else if (Buffer.isBuffer(customerOrm.estado)) {
       estado = (customerOrm.estado as any)[0] === 1;
     }
-    const nombresSeguros =
-      customerOrm.nombres && customerOrm.nombres.trim() !== ''
-        ? customerOrm.nombres
-        : customerOrm.razon_social || 'Desconocido';
 
-    // También protegemos valor_doc por si hay registros corruptos vacíos en la BD
+    const esRuc = customerOrm.tipoDocumento?.cod_sunat === '06';
+
+    const razonSocial = customerOrm.razon_social?.trim()
+      ? customerOrm.razon_social
+      : esRuc
+        ? customerOrm.nombres?.trim() || undefined
+        : undefined;
+
+    const nombres = customerOrm.nombres?.trim()
+      ? customerOrm.nombres
+      : customerOrm.razon_social?.trim() || 'Desconocido';
+
     const docSeguro =
-      customerOrm.valor_doc && customerOrm.valor_doc.trim() !== ''
-        ? customerOrm.valor_doc
-        : '00000000';
+      customerOrm.valor_doc?.trim() ? customerOrm.valor_doc : '00000000';
 
     return Customer.create({
       id_cliente: customerOrm.id_cliente,
-      id_tipo_documento: customerOrm.id_tipo_documento || 1, // Protección anti-nulos
+      id_tipo_documento: customerOrm.id_tipo_documento || 1,
       valor_doc: docSeguro,
-      nombres: nombresSeguros, // Ya nunca estará vacío
+      nombres,
       apellidos: customerOrm.apellidos || undefined,
-      razon_social: customerOrm.razon_social || undefined,
+      razon_social: razonSocial,
       direccion: customerOrm.direccion || undefined,
       email: customerOrm.email || undefined,
       telefono: customerOrm.telefono || undefined,
-      estado: estado,
+      estado,
       tipoDocumentoDescripcion: customerOrm.tipoDocumento?.descripcion,
       tipoDocumentoCodSunat: customerOrm.tipoDocumento?.cod_sunat,
     });

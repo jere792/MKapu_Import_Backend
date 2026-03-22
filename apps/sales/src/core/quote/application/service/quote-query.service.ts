@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
@@ -16,11 +17,8 @@ import * as nodemailer from 'nodemailer';
 import { buildQuotePdf } from '../../utils/quote-pdf.util';
 import { getWhatsAppStatus, sendWhatsApp } from 'libs/whatsapp.util';
 import { buildThermalPdf } from '../../utils/quote-thermal.util';
-import { SupplierOrmEntity } from 'apps/logistics/src/core/procurement/supplier/infrastructure/entity/supplier-orm.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ISupplierProxy } from '../../domain/ports/out/supplier-proxy.port';
-
+import { EmpresaTcpProxy } from '../../../sales-receipt/infrastructure/adapters/out/TCP/empresa-tcp.proxy';
 
 @Injectable()
 export class QuoteQueryService implements IQuoteQueryPort {
@@ -33,73 +31,101 @@ export class QuoteQueryService implements IQuoteQueryPort {
     private readonly sedeProxy: ISedeProxy,
     @Inject('ISupplierProxy')
     private readonly supplierProxy: ISupplierProxy,
+    @Inject('IEmpresaProxy')
+    private readonly empresaProxy: EmpresaTcpProxy,
   ) {}
 
   // ── Métodos de consulta ───────────────────────────────────────────────────
 
-async getById(id: number): Promise<QuoteResponseDto | null> {
-  const quote = await this.repository.findById(id);
-  if (!quote) return null;
+  async getById(id: number): Promise<QuoteResponseDto | null> {
+    const quote = await this.repository.findById(id);
+    if (!quote) return null;
 
-  const customer = quote.id_cliente
-    ? await this.customerRepository.findById(quote.id_cliente)
-    : null;
+    const [customer, sede, empresa, proveedor] = await Promise.all([
+      quote.id_cliente
+        ? this.customerRepository.findById(quote.id_cliente)
+        : Promise.resolve(null),
+      this.sedeProxy.getSedeById(quote.id_sede),
+      this.empresaProxy.getEmpresaActiva(),
+      quote.id_proveedor
+        ? this.supplierProxy.getSupplierById(Number(quote.id_proveedor))
+        : Promise.resolve(null),
+    ]);
 
-  const sede = await this.sedeProxy.getSedeById(quote.id_sede);
-
-  // ── Buscar proveedor si es COMPRA ────────────────────────────
-  let proveedor = null;
-  if (quote.tipo === 'COMPRA' && quote.id_proveedor) {
-    proveedor = await this.supplierProxy.getSupplierById(Number(quote.id_proveedor));
+    return QuoteMapper.toResponseDto(quote, customer, sede, proveedor, empresa);
   }
-
-  return QuoteMapper.toResponseDto(quote, customer, sede, proveedor);
-}
 
   async getByCustomerDocument(valor_doc: string): Promise<QuoteResponseDto[]> {
     const customer = await this.customerRepository.findByDocument(valor_doc);
     if (!customer) return [];
+
     const quotes = await this.repository.findByCustomerId(customer.id_cliente);
+    const empresa = await this.empresaProxy.getEmpresaActiva();
+
     return Promise.all(
       quotes.map(async (quote) => {
-        const sede = await this.sedeProxy.getSedeById(quote.id_sede);
-        return QuoteMapper.toResponseDto(quote, customer, sede);
+        const [sede, proveedor] = await Promise.all([
+          this.sedeProxy.getSedeById(quote.id_sede),
+          quote.id_proveedor
+            ? this.supplierProxy.getSupplierById(Number(quote.id_proveedor))
+            : Promise.resolve(null),
+        ]);
+
+        return QuoteMapper.toResponseDto(
+          quote,
+          customer,
+          sede,
+          proveedor,
+          empresa,
+        );
       }),
     );
   }
 
-  async findAllPaged(filters: QuoteQueryFiltersDto): Promise<QuotePagedResponseDto> {
+  async findAllPaged(
+    filters: QuoteQueryFiltersDto,
+  ): Promise<QuotePagedResponseDto> {
     const { data, total } = await this.repository.findAllPaged(filters);
-    const page  = Number(filters.page)  || 1;
+    const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 10;
 
-    const sedeIds      = [...new Set(data.map((q) => q.id_sede))];
-    const clienteIds   = [...new Set(data.filter(q => q.id_cliente).map((q) => q.id_cliente))];
+    const sedeIds = [...new Set(data.map((q) => q.id_sede))];
+    const clienteIds = [
+      ...new Set(data.filter((q) => q.id_cliente).map((q) => q.id_cliente)),
+    ];
     // ── IDs de proveedores únicos ────────────────────────────────
-    const proveedorIds = [...new Set(
-      data.filter(q => q.tipo === 'COMPRA' && q.id_proveedor)
-          .map(q => Number(q.id_proveedor))
-    )];
+    const proveedorIds = [
+      ...new Set(
+        data
+          .filter((q) => q.tipo === 'COMPRA' && q.id_proveedor)
+          .map((q) => Number(q.id_proveedor)),
+      ),
+    ];
 
     const [sedes, clientes, proveedores] = await Promise.all([
-      Promise.all(sedeIds.map((id) =>
-        this.sedeProxy.getSedeById(id).then((s) => ({ id, data: s })),
-      )),
-      Promise.all(clienteIds.map((id) =>
-        this.customerRepository.findById(id).then((c) => ({ id, data: c })),
-      )),
+      Promise.all(
+        sedeIds.map((id) =>
+          this.sedeProxy.getSedeById(id).then((s) => ({ id, data: s })),
+        ),
+      ),
+      Promise.all(
+        clienteIds.map((id) =>
+          this.customerRepository.findById(id).then((c) => ({ id, data: c })),
+        ),
+      ),
       // ── Carga proveedores en paralelo ──────────────────────────
-      Promise.all(proveedorIds.map((id) =>
-        this.supplierProxy.getSupplierById(id)
-          .then((p) => ({ id, data: p })),
-      )),
+      Promise.all(
+        proveedorIds.map((id) =>
+          this.supplierProxy.getSupplierById(id).then((p) => ({ id, data: p })),
+        ),
+      ),
     ]);
 
-    const sedeMap      = new Map(sedes.map((s) => [s.id, s.data]));
-    const clienteMap   = new Map(clientes.map((c) => [c.id, c.data]));
+    const sedeMap = new Map(sedes.map((s) => [s.id, s.data]));
+    const clienteMap = new Map(clientes.map((c) => [c.id, c.data]));
     const proveedorMap = new Map(proveedores.map((p) => [p.id, p.data]));
     const mapped = data.map((quote) => {
-      const sede    = sedeMap.get(quote.id_sede);
+      const sede = sedeMap.get(quote.id_sede);
       const cliente = clienteMap.get(quote.id_cliente);
 
       let participante_nombre: string;
@@ -109,9 +135,9 @@ async getById(id: number): Promise<QuoteResponseDto | null> {
 
         const prov = proveedorMap.get(Number(quote.id_proveedor));
 
-        participante_nombre = 
-          provNombreRepo ||          
-          prov?.razon_social ||      
+        participante_nombre =
+          provNombreRepo ||
+          prov?.razon_social ||
           `Proveedor #${quote.id_proveedor}`;
       } else {
         participante_nombre =
@@ -120,23 +146,26 @@ async getById(id: number): Promise<QuoteResponseDto | null> {
           '—';
       }
 
-      return QuoteMapper.toListItemDto(quote, sede?.nombre ?? '', participante_nombre);
+      return QuoteMapper.toListItemDto(
+        quote,
+        sede?.nombre ?? '',
+        participante_nombre,
+      );
     });
-        const kpiAprobadas  = mapped.filter(q => q.estado === 'APROBADA').length;
-    const kpiPendientes = mapped.filter(q => q.estado === 'PENDIENTE').length;
+    const kpiAprobadas = mapped.filter((q) => q.estado === 'APROBADA').length;
+    const kpiPendientes = mapped.filter((q) => q.estado === 'PENDIENTE').length;
 
     return {
       data: mapped,
       total,
       page,
       limit,
-      totalPages:    Math.ceil(total / limit),
-      kpiTotal:      total,
+      totalPages: Math.ceil(total / limit),
+      kpiTotal: total,
       kpiAprobadas,
       kpiPendientes,
     };
   }
-
 
   async exportThermalVoucher(id: number, res: Response): Promise<void> {
     const quote = await this.getById(id);
