@@ -497,12 +497,19 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     };
   }
 
+  
   async exportThermalVoucher(id: number, res: Response): Promise<void> {
     const data = await this.buildPdfData(id);
 
-    const empresa = await this.empresaPort.getEmpresa(id);
+    const empresaRaw = await this.empresaPort.getEmpresa(id);
 
-    const buffer = await buildSalesReceiptThermalPdf(data, false, empresa);
+    // Línea 505: IMPORTANTE usar el Mapper aquí
+    const empresaMapped = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
+    const buffer = await buildSalesReceiptThermalPdf(
+      data,
+      false,
+      empresaMapped,
+    );
 
     res.set({
       'Content-Type': 'application/pdf',

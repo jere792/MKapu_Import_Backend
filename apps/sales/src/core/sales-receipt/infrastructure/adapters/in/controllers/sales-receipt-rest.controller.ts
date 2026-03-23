@@ -46,6 +46,7 @@ import {
 } from '../../../../utils/sales-receipt-pdf.util';
 import { buildSalesReceiptThermalPdf } from '../../../../utils/sales-receipt-thermal.util';
 import { IGV_DIVISOR } from '../../../../constants/fiscal.constants';
+import { SalesReceiptMapper } from '../../../../application/mapper/sales-receipt.mapper';
 
 @Controller('receipts')
 export class SalesReceiptRestController {
@@ -325,7 +326,10 @@ export class SalesReceiptRestController {
     @Res() res: Response,
   ): Promise<void> {
     const pdfData = await this.buildPdfData(id);
-    const empresa = await this.getEmpresa();
+
+    const empresaRaw = await this.receiptQueryService.getEmpresa(1);
+    const empresa = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
+
     const buffer = await buildSalesReceiptPdf(pdfData, empresa);
     const filename = `comprobante-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
     res.set({
@@ -343,9 +347,13 @@ export class SalesReceiptRestController {
     @Res() res: Response,
   ): Promise<void> {
     const esCopia = copia === 'true' || copia === '1';
+
     const pdfData = await this.buildPdfData(id);
-    const empresa = await this.getEmpresa();
+    const empresaRaw = await this.receiptQueryService.getEmpresa(1);
+    const empresa = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
+
     const buffer = await buildSalesReceiptThermalPdf(pdfData, esCopia, empresa);
+
     const filename = `ticket-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
     res.set({
       'Content-Type': 'application/pdf',

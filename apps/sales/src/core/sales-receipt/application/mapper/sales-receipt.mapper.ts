@@ -21,6 +21,9 @@ import {
 import { SalesType } from '../../domain/entity/sale-type-domain-entity';
 import { ReceiptType } from '../../domain/entity/receipt-type-domain-entity';
 import { IGV_DIVISOR, IGV_RATE } from '../../constants/fiscal.constants';
+import { EmpresaPdfData } from '../../utils/sales-receipt-pdf.util';
+
+import { Empresa } from 'apps/administration/src/core/company/domain/entity/empresa.entity';
 
 export class SalesReceiptMapper {
   static fromRegisterDto(
@@ -208,6 +211,26 @@ export class SalesReceiptMapper {
       codSunat: domain.cod_sunat,
       descripcion: domain.descripcion,
       estado: domain.estado,
+    };
+  }
+
+  static toEmpresaPdfData(empresa: Empresa): EmpresaPdfData {
+    return {
+      ruc: empresa.ruc,
+      razon_social: (
+        empresa.razonSocial || empresa.nombreComercial
+      ).toUpperCase(),
+      nombre_comercial: (
+        empresa.nombreComercial ||
+        empresa.razonSocial ||
+        ''
+      ).toUpperCase(),
+      direccion: empresa.direccion || 'DIRECCIÓN NO REGISTRADA',
+      ciudad: empresa.ciudad || 'CIUDAD NO ESPECIFICADA',
+      telefono: empresa.telefono || '',
+      email: empresa.email || '',
+      logo_url: empresa.logoUrl, 
+      sitio_web: empresa.sitioWeb,
     };
   }
 }

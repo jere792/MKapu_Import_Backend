@@ -7,14 +7,15 @@ import { SalesReceiptPdfData } from './sales-receipt-pdf.util';
 
 // ── Empresa shape (misma que EmpresaData del TCP proxy) ─────────────────────
 export interface EmpresaPdfData {
-  razon_social:     string;
+  razon_social: string;
   nombre_comercial: string;
-  ruc:              string;
-  direccion:        string;
-  ciudad:           string;
-  telefono:         string;
-  email:            string;
-  sitio_web?:       string;
+  ruc: string;
+  direccion: string;
+  ciudad: string;
+  telefono: string;
+  email: string;
+  logo_url?: string | null;
+  sitio_web?: string | null;
 }
 
 // ── Paleta (idéntica al PDF fiscal) ─────────────────────────────────────────
