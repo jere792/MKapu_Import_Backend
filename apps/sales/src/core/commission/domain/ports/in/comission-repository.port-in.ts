@@ -8,7 +8,9 @@ export interface ICommandCommissionRepositoryPortIn {
   createRule(dto: CreateCommissionRuleDto): Promise<CommissionRule>;
   updateRule(id: number, dto: CreateCommissionRuleDto): Promise<CommissionRule>;
   toggleStatus(id: number, isActive: boolean): Promise<CommissionRule>;
-  generateFromReceipt(payload: GenerateCommissionPayload): Promise<Commission | null>;
+  generateFromReceipt(
+    payload: GenerateCommissionPayload,
+  ): Promise<Commission | null>;
   annulByReceipt(id_comprobante: number): Promise<void>;
 }
 
@@ -18,16 +20,16 @@ export interface IQueryCommissionRepositoryPortIn {
 }
 
 export interface GenerateCommissionPayload {
-  id_comprobante:     number;
+  id_comprobante: number;
   id_responsable_ref: string;
-  total:              number;
-  fec_emision:        Date;
+  total: number;
+  fec_emision: Date;
   items: Array<{
-    productId:   number;
+    productId: number;
     categoryId?: number;
     productName: string;
-    quantity:    number;
-    unitPrice:   number;
-    total:       number;
+    quantity: number;
+    unitPrice: number;
+    total: number;
   }>;
 }

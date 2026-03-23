@@ -64,6 +64,7 @@ import { CreditNoteModule } from './core/credit-note/credit-note.module';
 import { ServiceTypeOrmEntity } from './core/bank/infrastructure/entity/service-type-orm.entity';
 import { BankOrmEntity } from './core/bank/infrastructure/entity/bank-orm.entity';
 import { BankModule } from './core/bank/bank.module';
+import { CommonModule } from '@app/common';
 
 @Module({
   imports: [
@@ -156,6 +157,7 @@ import { BankModule } from './core/bank/bank.module';
     TypeCreditNoteModule,
     CreditNoteModule,
     BankModule,
+    CommonModule,
   ],
   controllers: [SalesController, WarrantyRestController],
   providers: [

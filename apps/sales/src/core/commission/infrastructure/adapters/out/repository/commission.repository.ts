@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // src/commission/infrastructure/adapters/out/repository/commission.repository.ts
 
 /* eslint-disable @typescript-eslint/unbound-method */
@@ -13,9 +16,9 @@ import {
 } from '../../../../domain/entity/commission-domain-entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CommissionRuleOrmEntity } from '../../../entity/commission-rule-orm.entity';
-import { CommissionOrmEntity }     from '../../../entity/commission-orm.entity';
-import { In, Repository }          from 'typeorm';
-import { ComissionMapper }         from '../../../../application/mapper/comission-mapper';
+import { CommissionOrmEntity } from '../../../entity/commission-orm.entity';
+import { In, Repository } from 'typeorm';
+import { ComissionMapper } from '../../../../application/mapper/comission-mapper';
 
 @Injectable()
 export class CommissionRepository implements ICommissionRepositoryPortOut {
@@ -45,7 +48,10 @@ export class CommissionRepository implements ICommissionRepositoryPortOut {
     return entities.map(ComissionMapper.toDomain);
   }
 
-  async update(id: number, partial: Partial<CommissionRule>): Promise<CommissionRule> {
+  async update(
+    id: number,
+    partial: Partial<CommissionRule>,
+  ): Promise<CommissionRule> {
     await this.ruleRepo.update(id, partial);
     return this.findById(id);
   }
@@ -61,8 +67,16 @@ export class CommissionRepository implements ICommissionRepositoryPortOut {
     return (
       await this.ruleRepo.find({
         where: [
-          { tipo_objetivo: CommissionTargetType.PRODUCTO,  id_objetivo: In(productIds),  activo: true },
-          { tipo_objetivo: CommissionTargetType.CATEGORIA, id_objetivo: In(categoryIds), activo: true },
+          {
+            tipo_objetivo: CommissionTargetType.PRODUCTO,
+            id_objetivo: In(productIds),
+            activo: true,
+          },
+          {
+            tipo_objetivo: CommissionTargetType.CATEGORIA,
+            id_objetivo: In(categoryIds),
+            activo: true,
+          },
         ],
       })
     ).map(ComissionMapper.toDomain);
@@ -72,21 +86,25 @@ export class CommissionRepository implements ICommissionRepositoryPortOut {
 
   async saveCommission(commission: Commission): Promise<Commission> {
     const orm = this.commissionRepo.create({
-      id_comision:       commission.id_comision,
-      id_vendedor_ref:   commission.id_vendedor_ref,
-      id_comprobante:    commission.id_comprobante,
-      porcentaje:        commission.porcentaje,
-      monto:             commission.monto,
-      estado:            commission.estado,
+      id_comision: commission.id_comision,
+      id_vendedor_ref: commission.id_vendedor_ref,
+      id_comprobante: commission.id_comprobante,
+      porcentaje: commission.porcentaje,
+      monto: commission.monto,
+      estado: commission.estado,
       fecha_liquidacion: commission.fecha_liquidacion,
-      id_regla:          commission.id_regla,
+      id_regla: commission.id_regla,
     });
     const saved = await this.commissionRepo.save(orm);
     return this.ormToDomain(saved);
   }
 
-  async findCommissionByReceipt(id_comprobante: number): Promise<Commission | null> {
-    const orm = await this.commissionRepo.findOne({ where: { id_comprobante } });
+  async findCommissionByReceipt(
+    id_comprobante: number,
+  ): Promise<Commission | null> {
+    const orm = await this.commissionRepo.findOne({
+      where: { id_comprobante },
+    });
     return orm ? this.ormToDomain(orm) : null;
   }
 
@@ -108,32 +126,34 @@ export class CommissionRepository implements ICommissionRepositoryPortOut {
 
     const rows = await this.commissionRepo
       .createQueryBuilder('c')
-      .where('c.fecha_registro >= :from',    { from })
-      .andWhere('c.fecha_registro <= :to',   { to: toEndOfDay })
+      .where('c.fecha_registro >= :from', { from })
+      .andWhere('c.fecha_registro <= :to', { to: toEndOfDay })
       .orderBy('c.fecha_registro', 'DESC')
       .getMany();
 
-    return rows.map(c => this.ormToDomain(c));
+    return rows.map((c) => this.ormToDomain(c));
   }
 
   /**
    * Uso de cada regla: total de comisiones generadas y monto acumulado.
    * Excluye comisiones ANULADAS.
    */
-  async getUsageByRule(): Promise<{ id_regla: number; usos: number; monto_total: number }[]> {
+  async getUsageByRule(): Promise<
+    { id_regla: number; usos: number; monto_total: number }[]
+  > {
     const rows = await this.commissionRepo
       .createQueryBuilder('c')
-      .select('c.id_regla',           'id_regla')
+      .select('c.id_regla', 'id_regla')
       .addSelect('COUNT(c.id_comision)', 'usos')
-      .addSelect('SUM(c.monto)',         'monto_total')
+      .addSelect('SUM(c.monto)', 'monto_total')
       .where('c.estado != :estado', { estado: CommissionStatus.ANULADA })
       .andWhere('c.id_regla IS NOT NULL')
       .groupBy('c.id_regla')
       .getRawMany();
 
-    return rows.map(r => ({
-      id_regla:    Number(r.id_regla),
-      usos:        Number(r.usos),
+    return rows.map((r) => ({
+      id_regla: Number(r.id_regla),
+      usos: Number(r.usos),
       monto_total: Number(r.monto_total ?? 0),
     }));
   }
@@ -142,30 +162,37 @@ export class CommissionRepository implements ICommissionRepositoryPortOut {
 
   private ormToDomain(orm: CommissionOrmEntity): Commission {
     return Commission.create({
-      id_comision:       orm.id_comision,
-      id_vendedor_ref:   orm.id_vendedor_ref,
-      id_comprobante:    orm.id_comprobante,
-      porcentaje:        Number(orm.porcentaje),
-      monto:             Number(orm.monto),
-      estado:            orm.estado,
-      fecha_registro:    orm.fecha_registro,
+      id_comision: orm.id_comision,
+      id_vendedor_ref: orm.id_vendedor_ref,
+      id_comprobante: orm.id_comprobante,
+      porcentaje: Number(orm.porcentaje),
+      monto: Number(orm.monto),
+      estado: orm.estado,
+      fecha_registro: orm.fecha_registro,
       fecha_liquidacion: orm.fecha_liquidacion,
-      id_regla:          orm.id_regla,
+      id_regla: orm.id_regla,
     });
   }
 
   async findCommissionById(id_comision: number): Promise<Commission | null> {
-  const orm = await this.commissionRepo.findOne({ where: { id_comision } });
-  return orm ? this.ormToDomain(orm) : null;
+    const orm = await this.commissionRepo.findOne({ where: { id_comision } });
+    return orm ? this.ormToDomain(orm) : null;
   }
 
-  async findByDateRangeWithSede(from: Date, to: Date): Promise<(Commission & { id_sede: number })[]> {
-  const toEndOfDay = new Date(to);
-  toEndOfDay.setHours(23, 59, 59, 999);
+  async findByDateRangeWithSede(
+    from: Date,
+    to: Date,
+  ): Promise<(Commission & { id_sede: number })[]> {
+    const toEndOfDay = new Date(to);
+    toEndOfDay.setHours(23, 59, 59, 999);
 
     const rows = await this.commissionRepo
       .createQueryBuilder('c')
-      .leftJoin('comprobante_venta', 'cv', 'cv.id_comprobante = c.id_comprobante')
+      .leftJoin(
+        'comprobante_venta',
+        'cv',
+        'cv.id_comprobante = c.id_comprobante',
+      )
       .addSelect('cv.id_sede_ref', 'id_sede')
       .where('c.fecha_registro >= :from', { from })
       .andWhere('c.fecha_registro <= :to', { to: toEndOfDay })
