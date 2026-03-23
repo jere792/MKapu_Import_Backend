@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -30,8 +27,9 @@ import { SalesReceiptMapper } from '../mapper/sales-receipt.mapper';
 import { UsersTcpProxy } from '../../infrastructure/adapters/out/TCP/users-tcp.proxy';
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { LogisticsTcpProxy } from '../../infrastructure/adapters/out/TCP/logistics-tcp.proxy';
-import { EmpresaTcpProxy } from '../../infrastructure/adapters/out/TCP/empresa-tcp.proxy';
 import { buildSalesReceiptThermalPdf } from '../../utils/sales-receipt-thermal.util';
+import { SalesReceiptPdfData } from '../../utils/sales-receipt-pdf.util';
+import { IGV_DIVISOR, IGV_RATE } from '../../constants/fiscal.constants';
 
 @Injectable()
 export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
@@ -45,7 +43,6 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     private readonly usersTcpProxy: UsersTcpProxy,
     private readonly sedeTcpProxy: SedeTcpProxy,
     private readonly logisticsTcpProxy: LogisticsTcpProxy,
-    private readonly empresaTcpProxy: EmpresaTcpProxy, // <-- Proxy inyectado correctamente
   ) {}
 
   async findSaleByCorrelativo(correlativo: string): Promise<any> {
@@ -63,26 +60,13 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         `No se encontró el comprobante ${correlativo}`,
       );
     }
-    const nombreRealCliente =
-      sale.nombre_cliente ||
-      sale.cliente?.razon_social ||
-      `${sale.cliente?.nombres || ''} ${sale.cliente?.apellidos || ''}`.trim() ||
-      'Cliente Genérico';
     return {
       id: sale.id_comprobante,
       id_sede: sale.id_sede_ref,
-
-      nombre_cliente: nombreRealCliente,
-      cliente_documento:
-        sale.cliente?.valor_doc || sale.cliente?.valor_doc || null,
-
-      fec_emision: sale.fec_emision,
-      total: sale.total,
-
+      id_almacen: (sale as any).id_almacen || 1,
       cliente_direccion:
         (sale as any).direccion_entrega || 'Dirección no especificada',
       cliente_ubigeo: (sale as any).ubigeo_destino || '150101',
-
       detalles: sale.details.map((d) => ({
         id_producto: d.id_prod_ref,
         cod_prod: d.cod_prod,
@@ -254,7 +238,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   async getDetalleCompleto(
     id_comprobante: number,
     historialPage: number = 1,
-  ): Promise<SalesReceiptDetalleCompletoDto | null | any> {
+  ): Promise<SalesReceiptDetalleCompletoDto | null> {
     const HISTORIAL_LIMIT = 5;
 
     const raw = await this.receiptRepository.findDetalleCompleto(
@@ -300,7 +284,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
     const idSede = Number(comprobante.id_sede);
 
-    const [usuarios, sedeInfo, codigoMap, empresaData] = await Promise.all([
+    const [usuarios, sedeInfo, codigoMap] = await Promise.all([
       todosIds.length > 0
         ? this.usersTcpProxy.findByIds(todosIds)
         : Promise.resolve([]),
@@ -308,8 +292,8 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
       productIds.length > 0
         ? this.logisticsTcpProxy.getProductsCodigoByIds(productIds)
         : Promise.resolve(new Map<number, string>()),
-      this.empresaTcpProxy.getEmpresaActiva(),
     ]);
+
     const usuarioMap = new Map(
       usuarios.map((u) => [u.id_usuario, u.nombreCompleto]),
     );
@@ -356,6 +340,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         cantidad_compras: cantidadComprasFinal,
       },
 
+      // ── Productos — incluye campo remate para ítems vendidos desde remate ──
       productos: (productos as any[]).map((p) => {
         const codigoReal = codigoMap.get(Number(p.id_prod_ref));
         const montoPromo =
@@ -367,20 +352,32 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
         );
 
         return {
-          id_prod_ref: p.id_prod_ref,
-          cod_prod: codigoReal ?? p.cod_prod ?? p.id_prod_ref,
-          descripcion: p.descripcion,
-          cantidad: Number(p.cantidad),
-          precio_unit: Number(p.precio_unit),
-          igv: Number(p.igv),
-          total: Number(p.total),
-          descuento_nombre: p.descuento_nombre || null,
-          descuento_porcentaje: Number(p.descuento_porcentaje) || null,
-          promocion_aplicada: Boolean(p.promocion_aplicada),
+          id_prod_ref:   p.id_prod_ref,
+          cod_prod:      codigoReal ?? p.cod_prod ?? p.id_prod_ref,
+          descripcion:   p.descripcion,
+          cantidad:      Number(p.cantidad),
+          precio_unit:   Number(p.precio_unit),
+          igv:           Number(p.igv),
+          total:         Number(p.total),
+          descuento_nombre:      p.descuento_nombre || null,
+          descuento_porcentaje:  Number(p.descuento_porcentaje) || null,
+          promocion_aplicada:    Boolean(p.promocion_aplicada),
           descuento_promo_monto: montoPromo,
           descuento_promo_porcentaje:
             montoPromo != null && baseItemSinIgv > 0
               ? Number(((montoPromo / baseItemSinIgv) * 100).toFixed(2))
+              : null,
+          // Campo remate: presente si el ítem fue vendido desde un remate activo
+          remate:
+            p.remate != null
+              ? {
+                  id_detalle_remate: Number(p.remate.id_detalle_remate),
+                  id_remate:         Number(p.remate.id_remate),
+                  cod_remate:        p.remate.cod_remate        ?? '',
+                  descripcion:       p.remate.descripcion       ?? '',
+                  pre_original:      Number(p.remate.pre_original),
+                  pre_remate:        Number(p.remate.pre_remate),
+                }
               : null,
         };
       }),
@@ -394,35 +391,34 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
       promocion: promocion
         ? {
-            id: promocion.id,
-            codigo: promocion.codigo,
-            nombre: promocion.nombre,
-            tipo: promocion.tipo,
-            monto_descuento: promocion.monto_descuento,
-            descuento_nombre: promocion.descuento_nombre,
+            id:                  promocion.id,
+            codigo:              promocion.codigo,
+            nombre:              promocion.nombre,
+            tipo:                promocion.tipo,
+            monto_descuento:     promocion.monto_descuento,
+            descuento_nombre:    promocion.descuento_nombre,
             descuento_porcentaje: promocion.descuento_porcentaje,
-            reglas: promocion.reglas ?? [],
-            productosIds: promocion.productosIds ?? [],
+            reglas:              promocion.reglas ?? [],
+            productosIds:        promocion.productosIds ?? [],
           }
         : null,
 
       historial_cliente: (historial as any[]).map((h) => ({
-        id_comprobante: Number(h.id_comprobante),
+        id_comprobante:  Number(h.id_comprobante),
         numero_completo: `${h.serie}-${String(h.numero).padStart(8, '0')}`,
-        fec_emision: h.fec_emision,
-        total: Number(h.total),
-        estado: h.estado,
-        metodo_pago: h.metodo_pago,
-        responsable: usuarioMap.get(Number(h.id_responsable)) ?? '—',
+        fec_emision:     h.fec_emision,
+        total:           Number(h.total),
+        estado:          h.estado,
+        metodo_pago:     h.metodo_pago,
+        responsable:     usuarioMap.get(Number(h.id_responsable)) ?? '—',
       })),
 
       historial_pagination: {
-        total: historialTotal,
-        page: historialPage,
-        limit: HISTORIAL_LIMIT,
+        total:       historialTotal,
+        page:        historialPage,
+        limit:       HISTORIAL_LIMIT,
         total_pages: Math.ceil(historialTotal / HISTORIAL_LIMIT),
       },
-      empresa: empresaData, // <-- Inyectamos la empresa para el Frontend
     };
   }
 
@@ -436,71 +432,80 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     return types.map(SalesReceiptMapper.toReceiptTypeDto);
   }
 
-  private async buildPdfData(id: number): Promise<any> {
+  private async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
     const detalle = await this.getDetalleCompleto(id);
-    console.log('2️⃣ DETALLE COMPLETO OBTENIDO:', detalle);
     if (!detalle)
       throw new NotFoundException(`Comprobante #${id} no encontrado`);
 
     return {
-      id_comprobante: detalle.id_comprobante,
-      serie: detalle.serie,
-      numero: detalle.numero,
+      id_comprobante:   detalle.id_comprobante,
+      serie:            detalle.serie,
+      numero:           detalle.numero,
       tipo_comprobante: detalle.tipo_comprobante,
-      fec_emision: detalle.fec_emision,
-      fec_venc: detalle.fec_venc,
-      estado: detalle.estado,
-      subtotal: detalle.subtotal,
-      igv: detalle.igv,
-      total: detalle.total,
-      metodo_pago: detalle.metodo_pago,
+      fec_emision:      detalle.fec_emision,
+      fec_venc:         detalle.fec_venc,
+      estado:           detalle.estado,
+      subtotal:         detalle.subtotal,
+      igv:              detalle.igv,
+      total:            detalle.total,
+      metodo_pago:      detalle.metodo_pago,
 
       cliente: {
-        nombre: detalle.cliente.nombre,
-        documento: detalle.cliente.documento,
+        nombre:         detalle.cliente.nombre,
+        documento:      detalle.cliente.documento,
         tipo_documento: detalle.cliente.tipo_documento,
-        direccion: detalle.cliente.direccion,
-        email: detalle.cliente.email,
-        telefono: detalle.cliente.telefono,
+        direccion:      detalle.cliente.direccion,
+        email:          detalle.cliente.email,
+        telefono:       detalle.cliente.telefono,
       },
 
       responsable: {
-        nombre: detalle.responsable.nombre,
+        nombre:     detalle.responsable.nombre,
         nombreSede: detalle.responsable.nombreSede,
       },
 
-      productos: detalle.productos.map((p) => ({
-        cod_prod: String(p.cod_prod),
-        descripcion: p.descripcion,
-        cantidad: p.cantidad,
-        precio_unit: p.precio_unit,
-        total: p.total,
-        descuento_nombre: p.descuento_nombre,
-        descuento_porcentaje: p.descuento_porcentaje,
-      })),
+      productos: detalle.productos.map((p) => {
+        // pre_uni guardado sin IGV. P.UNIT. muestra sin IGV, TOTAL muestra con IGV.
+        const precioSinIgv = Number(Number(p.precio_unit).toFixed(2));
+        const totalConIgv  = Number((precioSinIgv * IGV_DIVISOR * p.cantidad).toFixed(2));
+
+        return {
+          cod_prod:             String(p.cod_prod),
+          descripcion:          p.descripcion,
+          cantidad:             p.cantidad,
+          precio_unit:          precioSinIgv,
+          total:                totalConIgv,
+          descuento_nombre:     p.descuento_nombre,
+          descuento_porcentaje: p.descuento_porcentaje,
+          remate: p.remate
+            ? {
+                cod_remate:   p.remate.cod_remate,
+                pre_original: Number(Number(p.remate.pre_original).toFixed(2)),
+                pre_remate:   Number(Number(p.remate.pre_remate).toFixed(2)),
+              }
+            : null,
+        };
+      }),
 
       promocion: detalle.promocion
         ? {
-            nombre: detalle.promocion.nombre,
-            tipo: detalle.promocion.tipo,
-            monto_descuento: detalle.promocion.monto_descuento,
+            nombre:              detalle.promocion.nombre,
+            tipo:                detalle.promocion.tipo,
+            monto_descuento:     detalle.promocion.monto_descuento,
             productos_afectados: undefined,
           }
         : null,
-
-      empresaData: detalle.empresa, // <-- Lee la empresa extraída desde getDetalleCompleto
     };
   }
 
   async exportThermalVoucher(id: number, res: Response): Promise<void> {
-    const data = await this.buildPdfData(id);
-    console.log('1️⃣ DATA ANTES DE ENTRAR AL TÉRMICO:', data.empresaData);
-    const buffer = await buildSalesReceiptThermalPdf(data, data.empresaData);
+    const data   = await this.buildPdfData(id);
+    const buffer = await buildSalesReceiptThermalPdf(data);
 
     res.set({
-      'Content-Type': 'application/pdf',
+      'Content-Type':        'application/pdf',
       'Content-Disposition': `inline; filename=Ticket_${id}.pdf`,
-      'Content-Length': buffer.length,
+      'Content-Length':      buffer.length,
     });
     res.end(buffer);
   }
