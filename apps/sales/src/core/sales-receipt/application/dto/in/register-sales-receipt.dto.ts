@@ -5,8 +5,9 @@ export interface SalesReceiptItemDto {
   description: string;
   total: number;
   igv?: number;
-  codigo?: string; // ← para reglas PRODUCTO
-  categoriaId?: number; // ← para reglas CATEGORIA
+  codigo?: string;
+  categoriaId?: number;
+  id_detalle_remate?: number | null;
 }
 
 export interface RegisterSalesReceiptDto {
@@ -15,7 +16,7 @@ export interface RegisterSalesReceiptDto {
   saleTypeId: number;
   receiptTypeId: number;
   serie: string;
-  dueDate: Date;
+  dueDate: string;
   operationType?: string;
   subtotal: number;
   igv: number;
@@ -30,5 +31,8 @@ export interface RegisterSalesReceiptDto {
   esCreditoPendiente?: boolean;
   promotionId?: number | null;
   descuento?: number;
+  bankId?: number;
+  serviceTypeId?: number;
+  comisionBancaria?: number;
   items: SalesReceiptItemDto[];
 }

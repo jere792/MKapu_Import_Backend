@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* sales/src/core/sales-receipt/application/mapper/sales-receipt.mapper.ts */
-
 import {
   SalesReceipt,
   ReceiptStatus,
@@ -25,6 +20,7 @@ import {
 } from '../dto/out';
 import { SalesType } from '../../domain/entity/sale-type-domain-entity';
 import { ReceiptType } from '../../domain/entity/receipt-type-domain-entity';
+import { IGV_DIVISOR, IGV_RATE } from '../../constants/fiscal.constants';
 
 export class SalesReceiptMapper {
   static fromRegisterDto(
@@ -40,8 +36,10 @@ export class SalesReceiptMapper {
     const currencyCode = dto.currencyCode ?? 'PEN';
     const descuento = dto.descuento ?? 0;
 
-    const totalFinal = Number((dto.total - descuento).toFixed(2));
-    const subtotalFinal = Number((totalFinal / 1.18).toFixed(2));
+    // dto.total ya viene con el descuento aplicado desde el frontend.
+    // El descuento se guarda por separado en descuento_aplicado — no restar aquí.
+    const totalFinal = Number(dto.total.toFixed(2));
+    const subtotalFinal = Number((totalFinal / IGV_DIVISOR).toFixed(2));
     const igvFinal = Number((totalFinal - subtotalFinal).toFixed(2));
 
     const domainItems: SalesReceiptItem[] = dto.items.map((item) => ({
@@ -50,9 +48,10 @@ export class SalesReceiptMapper {
       unitPrice: item.unitPrice,
       productName: item.description,
       total: item.total || item.quantity * item.unitPrice,
-      igv: item.igv || 0,
+      igv: Number((item.unitPrice * IGV_RATE).toFixed(2)),
       codigo: item.codigo,
       categoriaId: item.categoriaId,
+      id_detalle_remate: item.id_detalle_remate ?? null,
     }));
 
     return SalesReceipt.createNew(
@@ -61,9 +60,9 @@ export class SalesReceiptMapper {
       dto.receiptTypeId,
       dto.serie,
       nextNumber,
-      dto.customerName,
+      dto.customerName ?? '',
       new Date(),
-      dto.dueDate,
+      dto.dueDate ? new Date(dto.dueDate) : new Date(),
       operationType,
       subtotalFinal,
       igvFinal,
@@ -79,7 +78,7 @@ export class SalesReceiptMapper {
   }
 
   static toDomain(orm: SalesReceiptOrmEntity): SalesReceipt {
-    const domain = SalesReceipt.create({
+    return SalesReceipt.create({
       id_comprobante: orm.id_comprobante,
       id_cliente: orm.cliente?.id_cliente,
       id_tipo_venta: orm.tipoVenta?.id_tipo_venta,
@@ -87,7 +86,7 @@ export class SalesReceiptMapper {
       cod_moneda: orm.moneda?.codigo,
       serie: orm.serie,
       numero: orm.numero,
-      nombre_cliente: orm.nombre_cliente,
+      nombre_cliente: orm.nombre_cliente ?? '',
       fec_emision: orm.fec_emision,
       fec_venc: orm.fec_venc,
       tipo_operacion: orm.tipo_operacion,
@@ -106,12 +105,9 @@ export class SalesReceiptMapper {
           productName: d.descripcion || '',
           total: Number(d.cantidad) * Number(d.pre_uni),
           igv: Number(d.igv),
+          id_detalle_remate: d.id_detalle_remate ?? null,
         })) || [],
     });
-    if (orm.cliente) {
-      (domain as any).clienteOriginal = orm.cliente;
-    }
-    return domain;
   }
 
   static toOrm(domain: SalesReceipt): SalesReceiptOrmEntity {
@@ -119,8 +115,12 @@ export class SalesReceiptMapper {
     if (domain.id_comprobante !== undefined)
       orm.id_comprobante = domain.id_comprobante;
     orm.cliente = { id_cliente: domain.id_cliente } as CustomerOrmEntity;
-    orm.tipoVenta = { id_tipo_venta: domain.id_tipo_venta } as SalesTypeOrmEntity;
-    orm.tipoComprobante = { id_tipo_comprobante: domain.id_tipo_comprobante } as ReceiptTypeOrmEntity;
+    orm.tipoVenta = {
+      id_tipo_venta: domain.id_tipo_venta,
+    } as SalesTypeOrmEntity;
+    orm.tipoComprobante = {
+      id_tipo_comprobante: domain.id_tipo_comprobante,
+    } as ReceiptTypeOrmEntity;
     orm.moneda = { codigo: domain.cod_moneda } as SunatCurrencyOrmEntity;
 
     orm.serie = domain.serie;
@@ -144,10 +144,15 @@ export class SalesReceiptMapper {
         detail.cantidad = Math.round(item.quantity);
         detail.pre_uni = item.unitPrice;
         detail.valor_uni = item.unitPrice;
-        detail.igv = item.igv || 0;
-        detail.descripcion = (item.productName || item.description || '').substring(0, 45);
-        (detail as any).tipo_afectacion_igv = 1;
-        (detail as any).id_descuento = item.discountId ?? null;
+        detail.igv = Number((item.unitPrice * IGV_RATE).toFixed(2));
+        detail.descripcion = (
+          item.productName ||
+          item.description ||
+          ''
+        ).substring(0, 45);
+        detail.tipo_afectacion_igv = 1;
+        detail.id_descuento = item.discountId ?? null;
+        detail.id_detalle_remate = item.id_detalle_remate ?? null;
         return detail;
       });
     }
@@ -156,22 +161,9 @@ export class SalesReceiptMapper {
   }
 
   static toResponseDto(domain: SalesReceipt): SalesReceiptResponseDto {
-    const clienteOrm = (domain as any).clienteOriginal;
     return {
       idComprobante: domain.id_comprobante,
       idCliente: domain.id_cliente,
-
-      cliente: clienteOrm
-        ? {
-            numero_documento:
-              clienteOrm.valor_doc || clienteOrm.numero_documento,
-            nombres: clienteOrm.nombres,
-            apellidos: clienteOrm.apellidos,
-            razon_social: clienteOrm.razon_social,
-            direccion: clienteOrm.direccion || 'Sin dirección',
-          }
-        : null,
-
       numeroCompleto: domain.getFullNumber(),
       serie: domain.serie,
       numero: domain.numero,

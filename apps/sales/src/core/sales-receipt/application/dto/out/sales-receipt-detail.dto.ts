@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents */
+
 export class SalesReceiptDetailProductoDto {
   id_prod_ref: string;
   cod_prod: string;
@@ -12,6 +13,11 @@ export class SalesReceiptDetailProductoDto {
   promocion_aplicada: boolean;
   descuento_promo_monto: number | null;
   descuento_promo_porcentaje: number | null;
+  remate: {
+    cod_remate: string;
+    pre_original: number;
+    pre_remate: number;
+  } | null;
 }
 
 export class SalesReceiptPromocionDto {
@@ -41,7 +47,6 @@ export class SalesReceiptHistorialItemDto {
   responsable: string;
 }
 
-// ── DTO de la Empresa inyectada por TCP ───────────────────────────
 export class EmpresaDetalleDto {
   id?: number;
   nombreComercial?: string;

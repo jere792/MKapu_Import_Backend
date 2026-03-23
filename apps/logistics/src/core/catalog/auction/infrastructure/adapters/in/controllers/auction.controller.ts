@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Put, Delete,
   Param, Query, Body,
   ParseIntPipe, HttpCode, HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuctionCommandService } from '../../../../application/service/auction-command.service';
 import { AuctionQueryService }   from '../../../../application/service/auction-query.service';
@@ -9,6 +10,7 @@ import { CreateAuctionDto }      from '../../../../application/dto/in/create-auc
 import { UpdateAuctionDto }      from '../../../../application/dto/in/update-auction.dto';
 import { ListAuctionFilterDto }  from '../../../../application/dto/in/list-auction-filter.dto';
 import { AuctionResponseDto }    from '../../../../application/dto/out/auction-response.dto';
+import { AuctionAutocompleteItem } from '../../../../domain/port/out/auction.port.out';
 
 @Controller('auctions')
 export class AuctionController {
@@ -16,6 +18,25 @@ export class AuctionController {
     private readonly commandService: AuctionCommandService,
     private readonly queryService:   AuctionQueryService,
   ) {}
+
+  @Get('autocomplete')
+  async autocomplete(
+    @Query('search') search?: string,
+    @Query('id_sede') id_sede?: string,
+  ): Promise<{ data: AuctionAutocompleteItem[] }> {
+    if (!search || search.trim().length < 2) {
+      throw new BadRequestException(
+        'El parámetro "search" es obligatorio y debe tener al menos 2 caracteres.',
+      );
+    }
+
+    const sedeId = id_sede && Number(id_sede) > 0 ? Number(id_sede) : undefined;
+    const data   = await this.queryService.autocomplete(search.trim(), sedeId);
+
+    return { data };
+  }
+
+  // ── CRUD estándar ──────────────────────────────────────────────────────────
 
   /** GET /auctions */
   @Get()
@@ -51,14 +72,14 @@ export class AuctionController {
     return this.commandService.update(id, dto as any);
   }
 
-  /** POST /auctions/:id/finalize — sin stock restante, remate terminado */
+  /** POST /auctions/:id/finalize */
   @Post(':id/finalize')
   @HttpCode(HttpStatus.OK)
   async finalize(@Param('id', ParseIntPipe) id: number): Promise<AuctionResponseDto> {
     return this.commandService.finalize(id);
   }
 
-  /** POST /auctions/:id/cancel — cancela y devuelve stock al almacén */
+  /** POST /auctions/:id/cancel */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   async cancel(@Param('id', ParseIntPipe) id: number): Promise<AuctionResponseDto> {

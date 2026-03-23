@@ -16,8 +16,9 @@ export interface SalesReceiptItem {
   total: number;
   igv?: number;
   discountId?: number | null;
-  codigo?: string; // ← nuevo: para regla PRODUCTO
-  categoriaId?: number; // ← nuevo: para regla CATEGORIA
+  codigo?: string;
+  categoriaId?: number;
+  id_detalle_remate?: number | null;
 }
 
 export interface SalesReceiptProps {
@@ -40,8 +41,8 @@ export interface SalesReceiptProps {
   id_sede_ref: number;
   cod_moneda: string;
   items: SalesReceiptItem[];
-  promotionId?: number | null; // ← nuevo
-  descuento?: number; // ← nuevo
+  promotionId?: number | null;
+  descuento?: number;
 }
 
 export class SalesReceipt {
@@ -62,7 +63,6 @@ export class SalesReceipt {
       throw new Error('Los montos no pueden ser negativos');
     if (!props.items || props.items.length === 0)
       throw new Error('El comprobante debe contener al menos un item');
-
     return new SalesReceipt(props);
   }
 
@@ -84,8 +84,8 @@ export class SalesReceipt {
     id_sede_ref: number,
     cod_moneda: string,
     items: SalesReceiptItem[] = [],
-    promotionId?: number | null, // ← nuevo
-    descuento?: number, // ← nuevo
+    promotionId?: number | null,
+    descuento?: number,
   ): SalesReceipt {
     return SalesReceipt.create({
       id_cliente,
@@ -106,12 +106,10 @@ export class SalesReceipt {
       id_sede_ref,
       cod_moneda,
       items,
-      promotionId: promotionId ?? null, // ← nuevo
-      descuento: descuento ?? 0, // ← nuevo
+      promotionId: promotionId ?? null,
+      descuento: descuento ?? 0,
     });
   }
-
-  // ── Getters existentes ────────────────────────────────────────────────────
 
   get items(): SalesReceiptItem[] {
     return this.props.items;
@@ -136,6 +134,9 @@ export class SalesReceipt {
   }
   get numero(): number {
     return this.props.numero;
+  }
+  get nombre_cliente(): string {
+    return this.props.nombre_cliente;
   }
   get fec_emision(): Date {
     return this.props.fec_emision;
@@ -170,18 +171,12 @@ export class SalesReceipt {
   get cod_moneda(): string {
     return this.props.cod_moneda;
   }
-  // ── Getters nuevos ────────────────────────────────────────────────────────
-  get nombre_cliente(): string {
-    return this.props.nombre_cliente;
-  }
   get promotionId(): number | null | undefined {
     return this.props.promotionId;
   }
   get descuento(): number {
     return this.props.descuento ?? 0;
   }
-
-  // ── Métodos de negocio (sin cambios) ─────────────────────────────────────
 
   isEmitido(): boolean {
     return this.estado === ReceiptStatus.EMITIDO;

@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-floating-promises */
 import {
   Controller,
   Post,
@@ -47,6 +45,7 @@ import {
   SalesReceiptPdfData,
 } from '../../../../utils/sales-receipt-pdf.util';
 import { buildSalesReceiptThermalPdf } from '../../../../utils/sales-receipt-thermal.util';
+import { IGV_DIVISOR, IGV_RATE } from '../../../../constants/fiscal.constants';
 
 @Controller('receipts')
 export class SalesReceiptRestController {
@@ -61,9 +60,7 @@ export class SalesReceiptRestController {
     private readonly currencyRepo: Repository<SunatCurrencyOrmEntity>,
   ) {}
 
-  // ── Helpers compartidos ────────────────────────────────────────────
-
-  /** Construye SalesReceiptPdfData a partir del id del comprobante */
+  // ── buildPdfData ───────────────────────────────────────────────────
   private async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
     const detalle = await this.receiptQueryService.getDetalleCompleto(id, 1);
     if (!detalle)
@@ -81,10 +78,9 @@ export class SalesReceiptRestController {
         return tipoCond === 'PRODUCTO';
       });
 
-      const tipoPromo = detalle.promocion.tipo;
-      const montoCabecera = Number(detalle.promocion.monto_descuento);
-
-      const rawPromo: any = detalle.promocion;
+      const tipoPromo       = detalle.promocion.tipo;
+      const montoCabecera   = Number(detalle.promocion.monto_descuento);
+      const rawPromo: any   = detalle.promocion;
       const posiblePorcentaje =
         rawPromo.valor ?? rawPromo.promo_valor ?? rawPromo.porcentaje ?? 0;
 
@@ -105,26 +101,24 @@ export class SalesReceiptRestController {
         );
 
         const listaAfectados = productosAfectados.map((p: any) => ({
-          cod_prod: p.cod_prod,
-          descripcion: p.descripcion,
+          cod_prod:        p.cod_prod,
+          descripcion:     p.descripcion,
           monto_descuento: montoCabecera,
         }));
 
         codigosPromo = listaAfectados.map((p) => p.cod_prod);
 
         promoData = {
-          nombre:
-            detalle.promocion.nombre ?? detalle.promocion.descuento_nombre,
-          tipo: tipoPromo,
-          monto_descuento: montoCabecera,
+          nombre:              detalle.promocion.nombre ?? detalle.promocion.descuento_nombre,
+          tipo:                tipoPromo,
+          monto_descuento:     montoCabecera,
           productos_afectados: listaAfectados,
         };
       } else {
         promoData = {
-          nombre:
-            detalle.promocion.nombre ?? detalle.promocion.descuento_nombre,
-          tipo: detalle.promocion.tipo,
-          monto_descuento: montoCabecera,
+          nombre:              detalle.promocion.nombre ?? detalle.promocion.descuento_nombre,
+          tipo:                detalle.promocion.tipo,
+          monto_descuento:     montoCabecera,
           productos_afectados: [],
         };
       }
@@ -132,47 +126,57 @@ export class SalesReceiptRestController {
 
     const productos = (detalle.productos ?? []).map((p: any) => {
       const estaEnPromo = codigosPromo.includes(p.cod_prod);
+
+      // pre_uni guardado sin IGV. P.UNIT. muestra sin IGV, TOTAL muestra con IGV.
+      const precioSinIgv  = Number(Number(p.precio_unit ?? p.pre_uni ?? 0).toFixed(2));
+      const totalConIgv   = Number((precioSinIgv * IGV_DIVISOR * Number(p.cantidad)).toFixed(2));
+
       return {
-        cod_prod: p.cod_prod,
-        descripcion: p.descripcion,
-        cantidad: Number(p.cantidad),
-        precio_unit: Number(p.pre_uni ?? p.precio_unit),
-        total: Number(p.total),
+        cod_prod:             p.cod_prod,
+        descripcion:          p.descripcion,
+        cantidad:             Number(p.cantidad),
+        precio_unit:          precioSinIgv,
+        total:                totalConIgv,
         descuento_nombre:
           estaEnPromo && porcentajePromo != null ? `${porcentajePromo}%` : null,
         descuento_porcentaje:
           estaEnPromo && porcentajePromo != null ? porcentajePromo : null,
+        remate: p.remate
+          ? {
+              cod_remate:   p.remate.cod_remate   ?? '',
+              pre_original: Number(Number(p.remate.pre_original).toFixed(2)),
+              pre_remate:   Number(Number(p.remate.pre_remate).toFixed(2)),
+            }
+          : null,
       };
     });
 
     return {
-      id_comprobante: detalle.id_comprobante,
-      serie: detalle.serie,
-      numero: detalle.numero,
+      id_comprobante:   detalle.id_comprobante,
+      serie:            detalle.serie,
+      numero:           detalle.numero,
       tipo_comprobante: detalle.tipo_comprobante,
-      fec_emision: detalle.fec_emision,
-      fec_venc: detalle.fec_venc ?? null,
-      estado: detalle.estado,
-      subtotal: Number(detalle.subtotal),
-      igv: Number(detalle.igv),
-      total: Number(detalle.total),
-      metodo_pago: detalle.metodo_pago ?? 'N/A',
+      fec_emision:      detalle.fec_emision,
+      fec_venc:         detalle.fec_venc ?? null,
+      estado:           detalle.estado,
+      subtotal:         Number(detalle.subtotal),
+      igv:              Number(detalle.igv),
+      total:            Number(detalle.total),
+      metodo_pago:      detalle.metodo_pago ?? 'N/A',
       cliente: {
-        nombre: detalle.cliente.nombre,
-        documento: detalle.cliente.documento,
+        nombre:         detalle.cliente.nombre,
+        documento:      detalle.cliente.documento,
         tipo_documento: detalle.cliente.tipo_documento,
-        direccion: detalle.cliente.direccion || undefined,
-        email: detalle.cliente.email || undefined,
-        telefono: detalle.cliente.telefono || undefined,
+        direccion:      detalle.cliente.direccion || undefined,
+        email:          detalle.cliente.email    || undefined,
+        telefono:       detalle.cliente.telefono || undefined,
       },
       responsable: {
-        nombre: detalle.responsable.nombre,
+        nombre:     detalle.responsable.nombre,
         nombreSede: detalle.responsable.nombreSede,
       },
       productos,
       promocion: promoData,
-      // 👇 La clave mágica 👇
-      empresaData: detalle.empresa,
     };
   }
 
@@ -247,28 +251,28 @@ export class SalesReceiptRestController {
 
   @Get('historial')
   async listHistorial(
-    @Query('status') status?: string,
-    @Query('customerId') customerId?: string,
-    @Query('receiptTypeId') receiptTypeId?: string,
+    @Query('status')          status?: string,
+    @Query('customerId')      customerId?: string,
+    @Query('receiptTypeId')   receiptTypeId?: string,
     @Query('paymentMethodId') paymentMethodId?: string,
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
-    @Query('search') search?: string,
-    @Query('sedeId') sedeId?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query('dateFrom')        dateFrom?: string,
+    @Query('dateTo')          dateTo?: string,
+    @Query('search')          search?: string,
+    @Query('sedeId')          sedeId?: string,
+    @Query('page')            page?: string,
+    @Query('limit')           limit?: string,
   ) {
     const filters: ListSalesReceiptFilterDto = {
-      status: status as any,
+      status:          status as any,
       customerId,
-      receiptTypeId: receiptTypeId ? Number(receiptTypeId) : undefined,
+      receiptTypeId:   receiptTypeId   ? Number(receiptTypeId)   : undefined,
       paymentMethodId: paymentMethodId ? Number(paymentMethodId) : undefined,
       dateFrom,
       dateTo,
       search,
-      sedeId: sedeId ? Number(sedeId) : undefined,
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
+      sedeId:          sedeId ? Number(sedeId) : undefined,
+      page:            page   ? Number(page)   : 1,
+      limit:           limit  ? Number(limit)  : 10,
     };
     return this.receiptQueryService.listReceiptsPaginated(filters);
   }
@@ -287,7 +291,7 @@ export class SalesReceiptRestController {
     return this.receiptQueryService.listReceipts(filters);
   }
 
-  // ── PDFs ───────────────────────────────────────────────────────────
+  // ── Detalle ────────────────────────────────────────────────────────
 
   @Get(':id/detalle')
   async getDetalleCompleto(
@@ -303,19 +307,21 @@ export class SalesReceiptRestController {
     return detalle;
   }
 
+  // ── PDFs ───────────────────────────────────────────────────────────
+
   @Get(':id/pdf')
   async downloadReceiptPdf(
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ): Promise<void> {
-    const pdfData = await this.buildPdfData(id);
-    const buffer = await buildSalesReceiptPdf(pdfData); // Solo 1 parámetro
-
+    const pdfData  = await this.buildPdfData(id);
+    const buffer   = await buildSalesReceiptPdf(pdfData);
     const filename = `comprobante-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
+
     res.set({
-      'Content-Type': 'application/pdf',
+      'Content-Type':        'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': buffer.length,
+      'Content-Length':      buffer.length,
     });
     res.end(buffer);
   }
@@ -326,36 +332,17 @@ export class SalesReceiptRestController {
     @Query('copia') copia: string,
     @Res() res: Response,
   ): Promise<void> {
-    const esCopia = copia === 'true' || copia === '1';
-    const pdfData = await this.buildPdfData(id);
-    const buffer = await buildSalesReceiptThermalPdf(pdfData, esCopia); // Solo 2 parámetros
-
+    const esCopia  = copia === 'true' || copia === '1';
+    const pdfData  = await this.buildPdfData(id);
+    const buffer   = await buildSalesReceiptThermalPdf(pdfData, esCopia);
     const filename = `ticket-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
+
     res.set({
-      'Content-Type': 'application/pdf',
+      'Content-Type':        'application/pdf',
       'Content-Disposition': `inline; filename="${filename}"`,
-      'Content-Length': buffer.length,
+      'Content-Length':      buffer.length,
     });
     res.end(buffer);
-  }
-
-  @Get('correlativo/:correlativo')
-  @HttpCode(HttpStatus.OK)
-  async findByCorrelativo(@Param('correlativo') correlativo: string) {
-    const cleanCorrelativo = decodeURIComponent(correlativo)
-      .trim()
-      .toUpperCase();
-
-    const sale =
-      await this.receiptQueryService.findSaleByCorrelativo(cleanCorrelativo);
-
-    if (!sale) {
-      throw new NotFoundException(
-        `No se encontró el comprobante con correlativo ${cleanCorrelativo}`,
-      );
-    }
-
-    return sale;
   }
 
   @Get(':id')
@@ -366,19 +353,15 @@ export class SalesReceiptRestController {
   }
 
   // ── TCP ────────────────────────────────────────────────────────────
+
   @MessagePattern('get_sale_by_id')
   async getSaleByIdTcp(@Payload() id_comprobante: string | number) {
-    const id = Number(id_comprobante);
-
-    const sale = await this.receiptQueryService.getReceiptById(id);
-
-    return sale;
+    return this.receiptQueryService.getReceiptById(Number(id_comprobante));
   }
 
   @MessagePattern({ cmd: 'verify_sale' })
   async verifySaleForRemission(@Payload() id_comprobante: number) {
-    const sale =
-      await this.receiptQueryService.verifySaleForRemission(id_comprobante);
+    const sale = await this.receiptQueryService.verifySaleForRemission(id_comprobante);
     return sale
       ? { success: true, data: sale }
       : { success: false, message: 'Venta no encontrada' };
@@ -397,22 +380,6 @@ export class SalesReceiptRestController {
 
   @MessagePattern({ cmd: 'find_sale_by_correlativo' })
   async findSaleByCorrelativo(@Payload() correlativo: string) {
-    return await this.receiptQueryService.findSaleByCorrelativo(correlativo);
+    return this.receiptQueryService.findSaleByCorrelativo(correlativo);
   }
-  // ── AGREGAR en sales-receipt-rest.controller.ts ──────────────────────
-// Añade este MessagePattern al final de la clase, junto a los otros TCP
-
-@MessagePattern({ cmd: 'get_receipt_detalle' })
-async getReceiptDetalleTcp(@Payload() id_comprobante: number) {
-  try {
-    const detalle = await this.receiptQueryService.getDetalleCompleto(
-      id_comprobante,
-      1,
-    );
-    if (!detalle) return { success: false, data: null };
-    return { success: true, data: detalle };
-  } catch {
-    return { success: false, data: null };
-  }
-}
 }

@@ -1,11 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-/* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import * as path from 'path';
 import * as QRCode from 'qrcode';
+import { IGV_RATE, IGV_DIVISOR } from '../constants/fiscal.constants';
 
 const LOGO_PATH = path.join(
   process.cwd(),
@@ -16,7 +11,6 @@ const LOGO_PATH = path.join(
   'logo.jpg',
 );
 
-// ── Paleta ───────────────────────────────────────────────────────────
 const C = {
   yellow: '#F6AF33',
   black: '#1A1A1A',
@@ -28,14 +22,14 @@ const C = {
   darkBg: '#2B2B2B',
   green: '#2D7A4F',
   red: '#C0392B',
+  orange: '#E65100',
+  orangeL: '#FFF3E0',
 };
 
-// ── Medidas A4 ───────────────────────────────────────────────────────
 const PW = 595.28;
 const MAR = 28;
 const INNER = PW - MAR * 2;
 
-// ── Helpers ──────────────────────────────────────────────────────────
 function box(
   doc: any,
   x: number,
@@ -115,7 +109,6 @@ function valueCell(
     .text(text, x, y, { width: w, ellipsis: true });
 }
 
-// ── Tipos ────────────────────────────────────────────────────────────
 export interface SalesReceiptPdfData {
   id_comprobante: number;
   serie: string;
@@ -128,6 +121,17 @@ export interface SalesReceiptPdfData {
   igv: number;
   total: number;
   metodo_pago: string;
+
+  empresaData?: {
+    razonSocial?: string;
+    nombreComercial?: string;
+    ruc?: string;
+    direccion?: string;
+    ciudad?: string;
+    telefono?: string;
+    email?: string;
+    sitioWeb?: string;
+  } | null;
 
   cliente: {
     nombre: string;
@@ -151,6 +155,11 @@ export interface SalesReceiptPdfData {
     total: number;
     descuento_nombre?: string | null;
     descuento_porcentaje?: number | null;
+    remate?: {
+      cod_remate: string;
+      pre_original: number;
+      pre_remate: number;
+    } | null;
   }[];
 
   promocion?: {
@@ -163,22 +172,13 @@ export interface SalesReceiptPdfData {
       monto_descuento: number;
     }[];
   } | null;
-
-  // ── INYECTADO: Data de la empresa TCP ────────────────────────
-  empresaData?: any;
 }
 
-// ── QR content ───────────────────────────────────────────────────────
-// 👇 1. Firma limpia de 1 argumento y abstracción directa 👇
 function buildQrContent(data: SalesReceiptPdfData): string {
-  const empData = data.empresaData || (data as any).empresa || {};
-  const ruc = empData.ruc ?? '20000000000';
-  const nombreEmpresa =
-    empData.razonSocial ?? empData.nombreComercial ?? 'MKAPU IMPORT S.A.C.';
+  const ruc = process.env.COMPANY_RUC ?? '20613016946';
   const numero = String(data.numero).padStart(8, '0');
-
   return [
-    `EMPRESA: ${nombreEmpresa}`,
+    `EMPRESA: ${process.env.COMPANY_NAME ?? 'MKAPU IMPORT S.A.C.'}`,
     `RUC: ${ruc}`,
     `DOCUMENTO: ${data.tipo_comprobante} ${data.serie}-${numero}`,
     `FECHA: ${new Date(data.fec_emision).toLocaleDateString('es-PE')}`,
@@ -202,27 +202,20 @@ function estadoColor(estado: string): string {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════
-//  FUNCIÓN PRINCIPAL
-// ════════════════════════════════════════════════════════════════════
-// 👇 2. Firma limpia de 1 argumento 👇
 export async function buildSalesReceiptPdf(
   data: SalesReceiptPdfData,
 ): Promise<Buffer> {
   const PDFDocument = require('pdfkit');
   const chunks: Buffer[] = [];
 
-  // Mapeamos los datos de la empresa asegurando las propiedades correctas
-  const empData = data.empresaData || (data as any).empresa || {};
   const empresa = {
-    nombre:
-      empData.razonSocial ?? empData.nombreComercial ?? 'MKAPU IMPORT S.A.C.',
-    ruc: empData.ruc ?? '20000000000',
-    direccion: empData.direccion ?? 'Dirección no registrada',
-    ciudad: empData.ciudad ?? 'Lima - Perú',
-    email: empData.email ?? 'correo@empresa.com',
-    telefono: empData.telefono ?? '000000000',
-    web: empData.sitioWeb ?? 'https://fe.tumi-soft.com',
+    nombre: process.env.COMPANY_NAME ?? 'MKAPU IMPORT S.A.C.',
+    ruc: process.env.COMPANY_RUC ?? '20613016946',
+    direccion:
+      process.env.COMPANY_ADDRESS ?? 'AV. LAS FLORES DE LA PRIMAVERA 1836',
+    ciudad: process.env.COMPANY_CITY ?? 'San Juan de Lurigancho - Lima - Perú',
+    email: process.env.COMPANY_EMAIL ?? 'mkapu@gmail.com',
+    telefono: process.env.COMPANY_PHONE ?? '903019610',
   };
 
   const docRef = `${data.serie}-${String(data.numero).padStart(8, '0')}`;
@@ -254,17 +247,13 @@ export async function buildSalesReceiptPdf(
 
   function getDescCell(prod: SalesReceiptPdfData['productos'][0]): string {
     if (!data.promocion || !promoMontoMap.has(prod.cod_prod)) return '—';
-
     const montoItem = promoMontoMap.get(prod.cod_prod)!;
-
     if (tipoPromo === 'PORCENTAJE') {
       const pct = prod.descuento_porcentaje;
       if (pct != null && pct > 0) return `${Number(pct).toFixed(0)}%`;
-
       const base = Number(prod.precio_unit) * Number(prod.cantidad);
-      if (base > 0 && montoItem > 0) {
+      if (base > 0 && montoItem > 0)
         return `${((montoItem / base) * 100).toFixed(0)}%`;
-      }
       return '—';
     }
     return montoItem > 0 ? `-S/ ${montoItem.toFixed(2)}` : '—';
@@ -276,6 +265,9 @@ export async function buildSalesReceiptPdf(
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    // ═══════════════════════════════════════════
+    //  CABECERA
+    // ═══════════════════════════════════════════
     const HDR_H = 88;
     const LW = 180;
     const RW = INNER - LW - 8;
@@ -338,6 +330,9 @@ export async function buildSalesReceiptPdf(
       .fontSize(8)
       .text(data.estado, xRight, badgeY + 5, { width: RW, align: 'center' });
 
+    // ═══════════════════════════════════════════
+    //  EMPRESA
+    // ═══════════════════════════════════════════
     let y = HDR_H + 4;
     const EH = 66;
     box(doc, MAR, y, INNER, EH, { fill: C.lgray, radius: 3 });
@@ -366,6 +361,9 @@ export async function buildSalesReceiptPdf(
       { width: INNER - 20 },
     );
 
+    // ═══════════════════════════════════════════
+    //  CLIENTE / COMPROBANTE
+    // ═══════════════════════════════════════════
     y += EH + 6;
     const B3H = 80;
     const CLW = INNER * 0.58;
@@ -449,6 +447,9 @@ export async function buildSalesReceiptPdf(
       if (i < infoRows.length - 1) hline(doc, xFec + 6, ry + 11, FEW - 12);
     });
 
+    // ═══════════════════════════════════════════
+    //  MÉTODO DE PAGO
+    // ═══════════════════════════════════════════
     y += B3H + 6;
     const PBH = 24;
     box(doc, MAR, y, INNER, PBH, { fill: C.darkBg, radius: 3 });
@@ -462,6 +463,10 @@ export async function buildSalesReceiptPdf(
       .fontSize(8)
       .text(`  ${data.metodo_pago}`, { continued: false });
 
+    // ═══════════════════════════════════════════
+    //  TABLA DE PRODUCTOS
+    //  N° | CÓDIGO | DESCRIPCIÓN | CANT. | P.UNIT.(sin IGV) | DESC. | TOTAL(sin IGV)
+    // ═══════════════════════════════════════════
     y += PBH + 8;
 
     const COLS = [26, 58, 168, 44, 66, 60, 56];
@@ -494,15 +499,22 @@ export async function buildSalesReceiptPdf(
     const tableTopY = y;
 
     data.productos.forEach((prod, idx) => {
-      const rh = 20;
+      const esRemate = prod.remate != null;
       const descTxt = getDescCell(prod);
       const tieneDesc = descTxt !== '—';
 
-      const bgColor = tieneDesc
-        ? '#EEF8F2'
-        : idx % 2 === 0
-          ? C.rowAlt
-          : C.white;
+      // Fondo: naranja claro para remates, verde claro si tiene promo, alterno normal
+      const bgColor = esRemate
+        ? C.orangeL
+        : tieneDesc
+          ? '#EEF8F2'
+          : idx % 2 === 0
+            ? C.rowAlt
+            : C.white;
+
+      // Altura de fila: remate necesita una línea extra para mostrar cod_remate + precios
+      const rh = esRemate ? 30 : 20;
+
       box(doc, MAR, y, INNER, rh, { fill: bgColor });
       hline(doc, MAR, y + rh, INNER, C.border, 0.4);
 
@@ -511,6 +523,12 @@ export async function buildSalesReceiptPdf(
         xs += cw;
         if (ci < COLS.length - 1) vline(doc, xs, y, y + rh, C.border, 0.3);
       });
+
+      // ── Badge "REMATE" en la columna descripción ──
+      const descColX = MAR + 4 + COLS[0] + COLS[1];
+      const descColW = COLS[2] - 6;
+
+      xc = MAR + 4;
 
       const cells = [
         String(idx + 1),
@@ -522,22 +540,66 @@ export async function buildSalesReceiptPdf(
         `S/ ${Number(prod.total).toFixed(2)}`,
       ];
 
-      xc = MAR + 4;
       cells.forEach((cell, i) => {
         const align = i >= 3 ? 'right' : i === 0 ? 'center' : 'left';
 
-        let color = C.black;
-        let font = 'Helvetica';
-        if (i === 5 && tieneDesc) {
-          color = tipoPromo === 'PORCENTAJE' ? C.green : C.red;
-          font = 'Helvetica-Bold';
+        // Columna DESCRIPCIÓN (i=2): si es remate, dibujar mini-badge y texto más arriba
+        if (i === 2 && esRemate) {
+          // Nombre del producto
+          doc
+            .fillColor(C.black)
+            .font('Helvetica')
+            .fontSize(7.8)
+            .text(cell, xc, y + 4, { width: descColW - 36, ellipsis: true });
+          // Badge "REMATE" inline
+          const badgeX = xc + descColW - 34;
+          box(doc, badgeX, y + 3, 32, 10, { fill: C.orange, radius: 2 });
+          doc
+            .fillColor(C.white)
+            .font('Helvetica-Bold')
+            .fontSize(6)
+            .text('REMATE', badgeX + 1, y + 5, { width: 30, align: 'center' });
+          // Segunda línea: cod_remate + precio original tachado → precio remate
+          const rem = prod.remate!;
+          doc
+            .fillColor(C.orange)
+            .font('Helvetica-Bold')
+            .fontSize(6.5)
+            .text(rem.cod_remate, xc, y + 17, { width: 50 });
+          doc
+            .fillColor(C.gray)
+            .font('Helvetica')
+            .fontSize(6.5)
+            .text(`Orig: S/${rem.pre_original.toFixed(2)}`, xc + 52, y + 17, {
+              width: 55,
+              strike: true,
+            });
+          doc
+            .fillColor(C.orange)
+            .font('Helvetica-Bold')
+            .fontSize(6.5)
+            .text(`S/${rem.pre_remate.toFixed(2)}`, xc + 110, y + 17, {
+              width: 50,
+            });
+        } else {
+          let color = C.black;
+          let font = 'Helvetica';
+          if (i === 5 && tieneDesc) {
+            color = tipoPromo === 'PORCENTAJE' ? C.green : C.red;
+            font = 'Helvetica-Bold';
+          }
+          // En filas de remate centrar verticalmente en la altura mayor
+          const textY = esRemate ? y + 10 : y + 6;
+          doc
+            .fillColor(color)
+            .font(font)
+            .fontSize(7.8)
+            .text(cell, xc, textY, {
+              width: COLS[i] - 6,
+              align,
+              ellipsis: true,
+            });
         }
-
-        doc
-          .fillColor(color)
-          .font(font)
-          .fontSize(7.8)
-          .text(cell, xc, y + 6, { width: COLS[i] - 6, align, ellipsis: true });
         xc += COLS[i];
       });
 
@@ -549,6 +611,9 @@ export async function buildSalesReceiptPdf(
       radius: 3,
     });
 
+    // ═══════════════════════════════════════════
+    //  TOTALES  +  QR
+    // ═══════════════════════════════════════════
     y += 8;
 
     const QR_SIZE = 80;
@@ -558,18 +623,34 @@ export async function buildSalesReceiptPdf(
     const qrBoxX = MAR + totW + 6;
 
     const montoPromoTotal = Number(data.promocion?.monto_descuento ?? 0);
-    const subtotalBruto = data.promocion
-      ? Number((data.subtotal + montoPromoTotal).toFixed(2))
-      : data.subtotal;
+
+    // Subtotal bruto con IGV = suma de (pre_uni * IGV_DIVISOR * cantidad) de cada fila
+    const subtotalBrutoConIgv = data.productos.reduce(
+      (sum, p) =>
+        sum +
+        Number(
+          (Number(p.precio_unit) * IGV_DIVISOR * Number(p.cantidad)).toFixed(2),
+        ),
+      0,
+    );
+
+    // El descuento guardado en BD (monto_descuento) está sin IGV → convertir a con IGV para mostrar
+    const descuentoConIgv = Number((montoPromoTotal * IGV_DIVISOR).toFixed(2));
 
     const totales: [string, string, boolean][] = [
-      [`Subtotal (antes dcto):`, `S/ ${subtotalBruto.toFixed(2)}`, false],
       ...(data.promocion && montoPromoTotal > 0
-        ? ([[`Descuento:`, `-S/ ${montoPromoTotal.toFixed(2)}`, false]] as [
-            string,
-            string,
-            boolean,
-          ][])
+        ? ([
+            [
+              `Subtotal (antes dcto):`,
+              `S/ ${subtotalBrutoConIgv.toFixed(2)}`,
+              false,
+            ],
+            [
+              `Descuento (${data.promocion.nombre}):`,
+              `-S/ ${descuentoConIgv.toFixed(2)}`,
+              false,
+            ],
+          ] as [string, string, boolean][])
         : []),
       [`Base imponible:`, `S/ ${Number(data.subtotal).toFixed(2)}`, false],
       [`IGV (18%):`, `S/ ${Number(data.igv).toFixed(2)}`, false],
@@ -626,11 +707,12 @@ export async function buildSalesReceiptPdf(
         align: 'center',
       });
 
+    // ═══════════════════════════════════════════
+    //  LÍNEA FINAL
+    // ═══════════════════════════════════════════
     y = ty + 14;
     doc.rect(MAR, y, INNER, 3).fill(C.yellow);
 
     doc.end();
-
-    //
   });
 }
