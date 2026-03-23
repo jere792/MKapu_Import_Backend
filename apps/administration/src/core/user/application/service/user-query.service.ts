@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* ============================================
    administration/src/core/user/application/service/user-query.service.ts
    ============================================ */
@@ -74,7 +78,8 @@ export class UserQueryService implements IUserQueryPort {
       nombres: u.nombres,
       ape_pat: u.ape_pat,
       ape_mat: u.ape_mat,
-      nombreCompleto: `${u.nombres ?? ''} ${u.ape_pat ?? ''} ${u.ape_mat ?? ''}`.trim(),
+      nombreCompleto:
+        `${u.nombres ?? ''} ${u.ape_pat ?? ''} ${u.ape_mat ?? ''}`.trim(),
     }));
   }
 

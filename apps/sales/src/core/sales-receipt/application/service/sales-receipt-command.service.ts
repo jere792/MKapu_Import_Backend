@@ -178,19 +178,21 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       if (!dto.esCreditoPendiente && dto.receiptTypeId !== 3) {
         try {
           await this.commissionCommandService.generateFromReceipt({
-            id_comprobante:     savedOrm.id_comprobante,
+            id_comprobante: savedOrm.id_comprobante,
             id_responsable_ref: String(dto.responsibleId ?? dto.branchId),
-            total:              Number(savedOrm.total),
-            fec_emision:        savedOrm.fec_emision ?? new Date(),
+            total: Number(savedOrm.total),
+            fec_emision: savedOrm.fec_emision ?? new Date(),
             items: dto.items.map((item) => ({
-              productId:   Number(item.productId),
-              categoryId:  item.categoriaId !== undefined
-                             ? Number(item.categoriaId)
-                             : undefined,
-              productName: item.description ?? item.codigo ?? String(item.productId),
-              quantity:    Number(item.quantity),
-              unitPrice:   Number(item.unitPrice),
-              total:       Number(item.total ?? item.quantity * item.unitPrice),
+              productId: Number(item.productId),
+              categoryId:
+                item.categoriaId !== undefined
+                  ? Number(item.categoriaId)
+                  : undefined,
+              productName:
+                item.description ?? item.codigo ?? String(item.productId),
+              quantity: Number(item.quantity),
+              unitPrice: Number(item.unitPrice),
+              total: Number(item.total ?? item.quantity * item.unitPrice),
             })),
           });
           console.log(
@@ -314,17 +316,19 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     // ── Generar comisión al emitir crédito ────────────────────────────────
     try {
       await this.commissionCommandService.generateFromReceipt({
-        id_comprobante:     id,
-        id_responsable_ref: String(receipt.id_responsable_ref ?? receipt.id_sede_ref),
-        total:              Number(receipt.total),
-        fec_emision:        receipt.fec_emision ?? new Date(),
+        id_comprobante: id,
+        id_responsable_ref: String(
+          receipt.id_responsable_ref ?? receipt.id_sede_ref,
+        ),
+        total: Number(receipt.total),
+        fec_emision: receipt.fec_emision ?? new Date(),
         items: receipt.items.map((item) => ({
-          productId:   Number(item.productId),
-          categoryId:  undefined,
+          productId: Number(item.productId),
+          categoryId: undefined,
           productName: String(item.productId),
-          quantity:    Number(item.quantity),
-          unitPrice:   Number(item.unitPrice ?? 0),
-          total:       Number(item.quantity) * Number(item.unitPrice ?? 0),
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice ?? 0),
+          total: Number(item.quantity) * Number(item.unitPrice ?? 0),
         })),
       });
     } catch (commissionError) {
@@ -463,8 +467,12 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     dto: RegisterSalesReceiptDto,
     promo: PromotionDto,
   ): number {
-    const reglasProducto  = promo.reglas.filter((r) => r?.tipoCondicion === 'PRODUCTO');
-    const reglasCategoria = promo.reglas.filter((r) => r?.tipoCondicion === 'CATEGORIA');
+    const reglasProducto = promo.reglas.filter(
+      (r) => r?.tipoCondicion === 'PRODUCTO',
+    );
+    const reglasCategoria = promo.reglas.filter(
+      (r) => r?.tipoCondicion === 'CATEGORIA',
+    );
 
     const tieneRestriccionItems =
       reglasProducto.length > 0 || reglasCategoria.length > 0;
@@ -477,7 +485,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
           reglasProducto.length === 0 ||
           reglasProducto.some(
             (r) =>
-              item.codigo    === r.valorCondicion ||
+              item.codigo === r.valorCondicion ||
               item.productId === r.valorCondicion,
           );
 
@@ -502,7 +510,9 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       );
     } else {
       baseDescuento = Number((dto.total / 1.18).toFixed(2));
-      console.log(`🔍 Sin restricción de ítems | Base total sin IGV: S/ ${baseDescuento}`);
+      console.log(
+        `🔍 Sin restricción de ítems | Base total sin IGV: S/ ${baseDescuento}`,
+      );
     }
 
     let monto = 0;
@@ -539,7 +549,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         case 'PRODUCTO': {
           const tieneProducto = dto.items.some(
             (i) =>
-              i.codigo    === regla.valorCondicion ||
+              i.codigo === regla.valorCondicion ||
               i.productId === regla.valorCondicion,
           );
           if (!tieneProducto)

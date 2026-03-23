@@ -10,7 +10,10 @@ import {
   ICustomerTrackingRepositoryPort,
   IDocumentTypeRepositoryPort,
 } from '../../domain/ports/out/customer-port-out';
-import { ListCustomerFilterDto, ListCustomerTrackingFilterDto } from '../dto/in';
+import {
+  ListCustomerFilterDto,
+  ListCustomerTrackingFilterDto,
+} from '../dto/in';
 import {
   CustomerListResponse,
   CustomerQuotesResponseDto,
@@ -56,7 +59,8 @@ export class CustomerQueryService implements ICustomerQueryPort {
   async getCustomerByDocument(
     documentValue: string,
   ): Promise<CustomerResponseDto | null> {
-    const customer = await this.customerRepository.findByDocument(documentValue);
+    const customer =
+      await this.customerRepository.findByDocument(documentValue);
 
     if (!customer) {
       throw new NotFoundException(

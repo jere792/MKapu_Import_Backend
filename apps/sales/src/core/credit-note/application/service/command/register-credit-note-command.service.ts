@@ -322,7 +322,6 @@ export class RegisterCreditNoteCommandService implements IRegisterCreditNoteComm
       creditNote.validateItems();
       creditNote.validateTotals();
 
-      await this.creditNoteRepository.create(creditNote, queryRunner);
       const savedNote: any = await this.creditNoteRepository.create(
         creditNote,
         queryRunner,

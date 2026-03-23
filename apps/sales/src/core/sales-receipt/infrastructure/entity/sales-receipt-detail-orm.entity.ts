@@ -39,6 +39,9 @@ export class SalesReceiptDetailOrmEntity {
   @Column({ name: 'id_descuento', type: 'int', nullable: true, default: null })
   id_descuento: number | null;
 
+  @Column({ name: 'id_detalle_remate', type: 'int', nullable: true, default: null })
+  id_detalle_remate: number | null;
+
   @Column({ name: 'id_comprobante' })
   id_comprobante: number;
 

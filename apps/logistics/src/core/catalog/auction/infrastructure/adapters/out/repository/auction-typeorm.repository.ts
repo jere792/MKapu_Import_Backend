@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IAuctionRepositoryPort } from '../../../../domain/port/out/auction.port.out';
+import { IAuctionRepositoryPort, AuctionAutocompleteItem } from '../../../../domain/port/out/auction.port.out';
 import { Auction, AuctionStatus } from '../../../../domain/entity/auction-domain-entity';
 import { ListAuctionFilterDto } from '../../../../application/dto/in/list-auction-filter.dto';
 import { AuctionOrmEntity } from '../../../entity/auction-orm.entity';
@@ -17,9 +17,8 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
     private readonly dataSource: DataSource,
   ) {}
 
-
   // ── Resuelve id_sede desde stock por almacén ──────────────────────────────
-  async resolveSedeByAlmacen(id_almacen: number): Promise<number> {  
+  async resolveSedeByAlmacen(id_almacen: number): Promise<number> {
     if (!id_almacen) return 0;
     const result = await this.dataSource.query(
       `SELECT MIN(CAST(id_sede AS UNSIGNED)) AS id_sede
@@ -30,6 +29,77 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
     );
     return Number(result?.[0]?.id_sede ?? 0);
   }
+
+  // ── autocomplete ──────────────────────────────────────────────────────────
+  async autocomplete(
+    search: string,
+    id_sede?: number,
+  ): Promise<AuctionAutocompleteItem[]> {
+    const like = `%${search}%`;
+    const params: any[] = [like, like, like];
+
+    let sedeFilter = '';
+    if (id_sede && Number(id_sede) > 0) {
+      sedeFilter = 'AND r.id_sede_ref = ?';
+      params.push(Number(id_sede));
+    }
+
+    const rows = await this.dataSource.query(
+      `SELECT
+         d.id_detalle_remate,
+         d.id_remate,
+         r.cod_remate,
+         d.id_producto,
+         p.codigo                          AS codigo_producto,
+         p.anexo                           AS nombre_producto,
+         p.descripcion                     AS descripcion_producto,
+         COALESCE(
+           NULLIF(TRIM(p.anexo), ''),
+           r.descripcion,
+           ''
+         )                                 AS descripcion_remate,
+         c.id_categoria,
+         COALESCE(c.nombre, '')            AS familia,
+         d.pre_original,
+         d.pre_remate,
+         d.stock_remate
+       FROM mkp_logistica.detalle_remate d
+       INNER JOIN mkp_logistica.remate r
+               ON r.id_remate = d.id_remate
+       LEFT JOIN mkp_logistica.producto p
+               ON p.id_producto = d.id_producto
+       LEFT JOIN mkp_logistica.categoria c
+               ON c.id_categoria = p.id_categoria
+       WHERE r.estado = 'ACTIVO'
+         AND d.stock_remate > 0
+         AND (
+           p.anexo        LIKE ?
+           OR p.descripcion LIKE ?
+           OR r.cod_remate LIKE ?
+         )
+         ${sedeFilter}
+       ORDER BY d.stock_remate DESC
+       LIMIT 20`,
+      params,
+    );
+
+    return rows.map((row: any) => ({
+      id_detalle_remate:    Number(row.id_detalle_remate),
+      id_remate:            Number(row.id_remate),
+      cod_remate:           row.cod_remate          ?? '',
+      id_producto:          Number(row.id_producto),
+      codigo_producto:      row.codigo_producto     ?? '',
+      nombre_producto:      row.nombre_producto     ?? '',
+      descripcion_producto: row.descripcion_producto ?? '',
+      descripcion_remate:   row.descripcion_remate  ?? '',
+      id_categoria:         Number(row.id_categoria ?? 0),
+      familia:              row.familia             ?? '',
+      pre_original:         Number(row.pre_original),
+      pre_remate:           Number(row.pre_remate),
+      stock_remate:         Number(row.stock_remate),
+    }));
+  }
+
   // ── orm → domain ──────────────────────────────────────────────────────────
   private toDomain(orm: AuctionOrmEntity): Auction {
     const details = (orm.detalles || []).map((d: AuctionDetailOrmEntity) => ({
@@ -41,7 +111,7 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
       observacion:       (d as any).observacion ?? undefined,
     }));
 
-    const auction = new Auction(
+    return new Auction(
       orm.cod_remate,
       orm.descripcion,
       orm.estado as AuctionStatus,
@@ -50,8 +120,6 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
       orm.id_almacen_ref ?? 0,
       orm.id_sede_ref    ?? 0,
     );
-
-    return auction;
   }
 
   // ── domain → orm ──────────────────────────────────────────────────────────
@@ -123,13 +191,14 @@ export class AuctionTypeormRepository implements IAuctionRepositoryPort {
     return this.toDomain(orm);
   }
 
-  // ── findPaged — agrega filtro por sede ────────────────────────────────────
+  // ── findPaged ─────────────────────────────────────────────────────────────
   async findPaged(filters: ListAuctionFilterDto): Promise<{ items: Auction[]; total: number }> {
     const page  = filters.page  && filters.page  > 0 ? filters.page  : 1;
     const limit = filters.limit && filters.limit > 0 ? filters.limit : 10;
     const skip  = (page - 1) * limit;
 
-    const qb = this.auctionRepo.createQueryBuilder('r')
+    const qb = this.auctionRepo
+      .createQueryBuilder('r')
       .leftJoinAndSelect('r.detalles', 'd');
 
     if (filters.search) {

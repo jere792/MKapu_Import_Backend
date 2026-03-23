@@ -33,7 +33,7 @@ export class WarrantySalesAdapter implements IWarrantySalesPort {
         serie: '',
         operationType: '01',
 
-        dueDate: new Date(),
+        dueDate: new Date().toISOString().split('T')[0], 
         responsibleId: 'SISTEMA',
 
         subtotal: Number(subtotal.toFixed(2)),

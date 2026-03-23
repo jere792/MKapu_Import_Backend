@@ -16,7 +16,13 @@ export class SalesType {
   static create(props: SalesTypeProps): SalesType {
     return new SalesType(props);
   }
-  get id_tipo_venta(): number | undefined { return this.props.id_tipo_venta; }
-  get tipo(): SalesTypeEnum { return this.props.tipo; }
-  get descripcion(): string { return this.props.descripcion; }
+  get id_tipo_venta(): number | undefined {
+    return this.props.id_tipo_venta;
+  }
+  get tipo(): SalesTypeEnum {
+    return this.props.tipo;
+  }
+  get descripcion(): string {
+    return this.props.descripcion;
+  }
 }

@@ -98,6 +98,7 @@ import { StockTcpController } from './core/warehouse/inventory/infrastructure/ad
     RemissionModule,
     WarehouseModule,
     DispatchModule,
+    CommonModule,
   ],
   controllers: [LogisticsController, StockTcpController],
   providers: [LogisticsService],

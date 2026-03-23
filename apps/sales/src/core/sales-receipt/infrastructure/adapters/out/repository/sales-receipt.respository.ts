@@ -115,36 +115,32 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .leftJoinAndSelect('receipt.tipoComprobante', 'tipoComprobante')
       .leftJoinAndSelect('receipt.moneda', 'moneda');
 
-    if (filters?.estado) {
+    if (filters?.estado)
       qb.andWhere('receipt.estado = :estado', { estado: filters.estado });
-    }
-    if (filters?.fec_desde) {
+    if (filters?.fec_desde)
       qb.andWhere('receipt.fec_emision >= :fec_desde', {
         fec_desde: filters.fec_desde,
       });
-    }
     if (filters?.fec_hasta) {
       const hasta = new Date(filters.fec_hasta);
       hasta.setHours(23, 59, 59, 999);
       qb.andWhere('receipt.fec_emision <= :fec_hasta', { fec_hasta: hasta });
     }
-    if (filters?.id_cliente) {
+    if (filters?.id_cliente)
       qb.andWhere('cliente.id_cliente = :id_cliente', {
         id_cliente: filters.id_cliente,
       });
-    }
-    if (filters?.id_tipo_comprobante) {
+    if (filters?.id_tipo_comprobante)
       qb.andWhere('tipoComprobante.id_tipo_comprobante = :typeId', {
         typeId: filters.id_tipo_comprobante,
       });
-    }
     if (filters?.search) {
       qb.andWhere(
-        `(receipt.serie             LIKE :search
-          OR receipt.numero         LIKE :search
-          OR cliente.razon_social   LIKE :search
-          OR cliente.nombres        LIKE :search
-          OR cliente.apellidos      LIKE :search
+        `(receipt.serie LIKE :search
+          OR receipt.numero LIKE :search
+          OR cliente.razon_social LIKE :search
+          OR cliente.nombres LIKE :search
+          OR cliente.apellidos LIKE :search
           OR CONCAT(COALESCE(cliente.nombres,''), ' ', COALESCE(cliente.apellidos,'')) LIKE :search)`,
         { search: `%${filters.search}%` },
       );
@@ -380,7 +376,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
         'r.numero                                                                                                                 AS numero',
         'tc.descripcion                                                                                                           AS tipo_comprobante',
         'r.fec_emision                                                                                                            AS fec_emision',
-        'r.fec_venc                                                                                                              AS fec_venc',
+        'r.fec_venc                                                                                                               AS fec_venc',
         'r.subtotal                                                                                                               AS subtotal',
         'r.igv                                                                                                                    AS igv',
         'r.total                                                                                                                  AS total',
@@ -411,28 +407,37 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
          d.igv,
          (d.cantidad * d.pre_uni)            AS total,
          d.id_descuento,
+         d.id_detalle_remate,
          COALESCE(desc_.nombre,     '')      AS descuento_nombre,
-         COALESCE(desc_.porcentaje, 0)       AS descuento_porcentaje
+         COALESCE(desc_.porcentaje, 0)       AS descuento_porcentaje,
+         dr.pre_original                     AS remate_pre_original,
+         dr.pre_remate                       AS remate_pre_remate,
+         r.cod_remate                        AS remate_cod_remate
        FROM mkp_ventas.detalle_comprobante d
        LEFT JOIN mkp_ventas.descuento desc_
               ON desc_.id_descuento = d.id_descuento
              AND d.id_descuento != 0
+       LEFT JOIN mkp_logistica.detalle_remate dr
+              ON dr.id_detalle_remate = d.id_detalle_remate
+             AND d.id_detalle_remate IS NOT NULL
+       LEFT JOIN mkp_logistica.remate r
+              ON r.id_remate = dr.id_remate
        WHERE d.id_comprobante = ?`,
       [id_comprobante],
     );
 
     const promoRow = await this.receiptOrmRepository.manager.query(
       `SELECT
-     da.id_descuento,
-     da.monto        AS monto_descuento,
-     da.id_promocion,
-     p.concepto      AS promo_concepto,
-     p.tipo          AS promo_tipo,
-     p.valor         AS promo_valor
-   FROM mkp_ventas.descuento_aplicado da
-   INNER JOIN mkp_ventas.promocion p ON p.id_promocion = da.id_promocion
-   WHERE da.id_comprobante = ?
-   LIMIT 1`,
+         da.id_descuento,
+         da.monto        AS monto_descuento,
+         da.id_promocion,
+         p.concepto      AS promo_concepto,
+         p.tipo          AS promo_tipo,
+         p.valor         AS promo_valor
+       FROM mkp_ventas.descuento_aplicado da
+       INNER JOIN mkp_ventas.promocion p ON p.id_promocion = da.id_promocion
+       WHERE da.id_comprobante = ?
+       LIMIT 1`,
       [id_comprobante],
     );
 
@@ -441,8 +446,8 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     if (promo?.id_promocion) {
       reglasPromo = await this.receiptOrmRepository.manager.query(
         `SELECT tipo_condicion, valor_condicion
-     FROM mkp_ventas.regla_promocion
-     WHERE id_promocion = ?`,
+         FROM mkp_ventas.regla_promocion
+         WHERE id_promocion = ?`,
         [promo.id_promocion],
       );
     }
@@ -471,9 +476,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
               p.cod_prod === r.valor_condicion ||
               p.id_prod_ref === r.valor_condicion,
           );
-
         const calificaPorCategoria = reglasCategoria.length === 0 || true;
-
         califica = calificaPorProducto && calificaPorCategoria;
       }
 
@@ -509,6 +512,14 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
         promocion_aplicada: p._califica && !!promo,
         descuento_promo_monto,
         descuento_promo_porcentaje: promo ? (promo.promo_valor ?? 0) : 0,
+        remate:
+          p.id_detalle_remate != null
+            ? {
+                cod_remate: p.remate_cod_remate ?? '',
+                pre_original: Number(p.remate_pre_original ?? 0),
+                pre_remate: Number(p.remate_pre_remate ?? 0),
+              }
+            : null,
       };
     });
 
@@ -745,9 +756,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     monto: number,
   ): Promise<void> {
     await this.dataSource.query(
-      `INSERT INTO mkp_ventas.descuento_aplicado
-         (id_promocion, id_comprobante, monto)
-       VALUES (?, ?, ?)`,
+      `INSERT INTO mkp_ventas.descuento_aplicado (id_promocion, id_comprobante, monto) VALUES (?, ?, ?)`,
       [idPromocion, idComprobante, monto],
     );
   }
@@ -761,10 +770,9 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .getRawOne();
     return Number(row?.total ?? 0);
   }
+
   async findByCorrelative(correlative: string): Promise<SalesReceipt | null> {
-    if (!correlative || !correlative.includes('-')) {
-      return null;
-    }
+    if (!correlative || !correlative.includes('-')) return null;
 
     const [serieInput, numeroInput] = correlative
       .trim()
@@ -772,9 +780,7 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
       .split('-');
     const numeroStr = Number(numeroInput);
 
-    if (!serieInput || isNaN(numeroStr)) {
-      return null;
-    }
+    if (!serieInput || isNaN(numeroStr)) return null;
 
     const entity = await this.receiptOrmRepository.findOne({
       where: {
