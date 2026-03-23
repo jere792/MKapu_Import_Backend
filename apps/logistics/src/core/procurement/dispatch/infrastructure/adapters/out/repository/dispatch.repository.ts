@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { IDispatchOutputPort } from '../../../../domain/ports/out/dispatch-output.port';
+import { IDispatchOutputPort, FindAllFilters } from '../../../../domain/ports/out/dispatch-output.port';
 import { Dispatch } from '../../../../domain/entity/dispatch-domain-entity';
 import { DispatchDetail } from '../../../../domain/entity/dispatch-detail-domain-entity';
 import { DispatchMapper } from '../../../../application/mapper/dispatch.mapper';
@@ -33,12 +33,39 @@ export class DispatchRepository implements IDispatchOutputPort {
     return DispatchMapper.detailToDomain(orm);
   }
 
-  async findAll(): Promise<Dispatch[]> {
-    const orms = await this.dispatchRepo.find({ relations: ['detalles'] });
-    return orms.map(orm => {
+  // Devuelve { data, total } para paginación real
+  async findAll(filters?: FindAllFilters): Promise<{ data: Dispatch[]; total: number }> {
+    const page  = filters?.page  ?? 1;
+    const limit = filters?.limit ?? 10;
+
+    const qb = this.dispatchRepo
+      .createQueryBuilder('d')
+      .leftJoinAndSelect('d.detalles', 'det')
+      .orderBy('d.id_despacho', 'DESC');
+
+    if (filters?.fechaDesde) {
+      const desde = new Date(filters.fechaDesde);
+      desde.setHours(0, 0, 0, 0);
+      qb.andWhere('d.fecha_creacion >= :desde', { desde });
+    }
+
+    if (filters?.fechaHasta) {
+      const hasta = new Date(filters.fechaHasta);
+      hasta.setHours(23, 59, 59, 999);
+      qb.andWhere('d.fecha_creacion <= :hasta', { hasta });
+    }
+
+    const total = await qb.getCount();
+
+    qb.skip((page - 1) * limit).take(limit);
+
+    const orms = await qb.getMany();
+    const data = orms.map(orm => {
       const detalles = (orm.detalles ?? []).map(DispatchMapper.detailToDomain);
       return DispatchMapper.toDomain(orm, detalles);
     });
+
+    return { data, total };
   }
 
   async findByVenta(id_venta_ref: number): Promise<Dispatch[]> {

@@ -30,6 +30,9 @@ import {
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { ReceiptStatus } from '../../domain/entity/sales-receipt-domain-entity';
 
+// ── Comisiones ────────────────────────────────────────────────────────────────
+import { CommissionCommandService } from '../../../commission/application/service/commission-command.service';
+
 @Injectable()
 export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
   constructor(
@@ -43,6 +46,8 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     private readonly sedeTcpProxy: SedeTcpProxy,
     @Inject('IPromotionQueryPort')
     private readonly promotionQueryPort: IPromotionQueryPort,
+    // ── Inyección del servicio de comisiones ────────────────────────────────
+    private readonly commissionCommandService: CommissionCommandService,
   ) {}
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -153,9 +158,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         );
       }
 
-      // 3. Registrar descuento_aplicado vinculado al comprobante ──────────────
-      //    REQUIERE columna id_comprobante en descuento_aplicado.
-      //    Ejecutar migration_descuento_aplicado.sql antes de usar esto.
+      // 3. Registrar descuento_aplicado ──────────────────────────────────────
       if (dto.promotionId && descuentoCalculado > 0) {
         await queryRunner.manager.query(
           `INSERT INTO mkp_ventas.descuento_aplicado
@@ -167,12 +170,42 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
           `🎁 Descuento aplicado: promoción ${dto.promotionId} → comprobante ${savedOrm.id_comprobante} → S/ ${descuentoCalculado}`,
         );
       }
-      // ──────────────────────────────────────────────────────────────────────
 
       await queryRunner.commitTransaction();
       savedReceiptDomain = SalesReceiptMapper.toDomain(savedOrm);
 
-      // 4. Descontar stock (fuera de transacción)
+      // ── 4. Generar comisión (fuera de transacción, no bloquea la venta) ──
+      if (!dto.esCreditoPendiente && dto.receiptTypeId !== 3) {
+        try {
+          await this.commissionCommandService.generateFromReceipt({
+            id_comprobante:     savedOrm.id_comprobante,
+            id_responsable_ref: String(dto.responsibleId ?? dto.branchId),
+            total:              Number(savedOrm.total),
+            fec_emision:        savedOrm.fec_emision ?? new Date(),
+            items: dto.items.map((item) => ({
+              productId:   Number(item.productId),
+              categoryId:  item.categoriaId !== undefined
+                             ? Number(item.categoriaId)
+                             : undefined,
+              productName: item.description ?? item.codigo ?? String(item.productId),
+              quantity:    Number(item.quantity),
+              unitPrice:   Number(item.unitPrice),
+              total:       Number(item.total ?? item.quantity * item.unitPrice),
+            })),
+          });
+          console.log(
+            `💰 Comisión generada para comprobante ${savedOrm.id_comprobante}`,
+          );
+        } catch (commissionError) {
+          // La comisión falla silenciosamente — no revierte la venta
+          console.error(
+            `⚠️ Error al generar comisión para comprobante ${savedOrm.id_comprobante}:`,
+            commissionError,
+          );
+        }
+      }
+
+      // 5. Descontar stock (fuera de transacción)
       if (dto.receiptTypeId !== 3 && !dto.esCreditoPendiente) {
         const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(
           dto.branchId,
@@ -278,6 +311,29 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       await queryRunner.release();
     }
 
+    // ── Generar comisión al emitir crédito ────────────────────────────────
+    try {
+      await this.commissionCommandService.generateFromReceipt({
+        id_comprobante:     id,
+        id_responsable_ref: String(receipt.id_responsable_ref ?? receipt.id_sede_ref),
+        total:              Number(receipt.total),
+        fec_emision:        receipt.fec_emision ?? new Date(),
+        items: receipt.items.map((item) => ({
+          productId:   Number(item.productId),
+          categoryId:  undefined,
+          productName: String(item.productId),
+          quantity:    Number(item.quantity),
+          unitPrice:   Number(item.unitPrice ?? 0),
+          total:       Number(item.quantity) * Number(item.unitPrice ?? 0),
+        })),
+      });
+    } catch (commissionError) {
+      console.error(
+        `⚠️ Error al generar comisión al emitir comprobante ${id}:`,
+        commissionError,
+      );
+    }
+
     const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(
       receipt.id_sede_ref,
     );
@@ -327,6 +383,18 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       existingReceipt.id_comprobante,
       'RECHAZADO',
     );
+
+    // ── Anular comisión asociada ──────────────────────────────────────────
+    try {
+      await this.commissionCommandService.annulByReceipt(
+        existingReceipt.id_comprobante,
+      );
+    } catch (commissionError) {
+      console.error(
+        `⚠️ Error al anular comisión del comprobante ${existingReceipt.id_comprobante}:`,
+        commissionError,
+      );
+    }
 
     const fueEmitido = existingReceipt.estado === ReceiptStatus.EMITIDO;
 
@@ -391,15 +459,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
   // HELPERS PRIVADOS
   // ───────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Calcula el descuento real basándose SOLO en los ítems que califican
-   * según las reglas PRODUCTO / CATEGORIA de la promoción.
-   *
-   * item.total llega CON IGV desde el frontend (unitPrice * 1.18 * quantity).
-   * Se divide entre 1.18 para obtener la base imponible antes de aplicar %.
-   *
-   * Si no hay reglas de ítem, aplica sobre el subtotal completo del comprobante.
-   */
   private calcularDescuentoPromocion(
     dto: RegisterSalesReceiptDto,
     promo: PromotionDto,
@@ -433,7 +492,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
 
       if (itemsCalificados.length === 0) return 0;
 
-      // item.total viene CON IGV → dividir entre 1.18 para base imponible
       baseDescuento = itemsCalificados.reduce((sum, item) => {
         const totalConIgv = item.total ?? item.quantity * item.unitPrice * 1.18;
         return sum + Number((totalConIgv / 1.18).toFixed(2));
@@ -443,7 +501,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         `🔍 Ítems calificados: ${itemsCalificados.length}/${dto.items.length} | Base sin IGV: S/ ${baseDescuento}`,
       );
     } else {
-      // dto.total viene CON IGV → extraer base imponible
       baseDescuento = Number((dto.total / 1.18).toFixed(2));
       console.log(`🔍 Sin restricción de ítems | Base total sin IGV: S/ ${baseDescuento}`);
     }

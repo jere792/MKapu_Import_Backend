@@ -1,22 +1,12 @@
 import {
-  Body,
-  Controller,
-  Get,
-  Inject,
-  Param,
-  ParseIntPipe,
-  Patch,
-  Post,
+  Body, Controller, Get, Inject, Param,
+  ParseIntPipe, Patch, Post, Query,
 } from '@nestjs/common';
 import { IDispatchInputPort } from '../../../../domain/ports/in/dispatch-input.port';
 import { IDispatchQueryPort } from '../../../../application/service/dispatch-query.service';
 import {
-  CancelarDespachoDto,
-  ConfirmarEntregaDto,
-  CreateDispatchDto,
-  IniciarTransitoDto,
-  MarcarDetalleDespachoadoDto,
-  MarcarDetallePreparadoDto,
+  CancelarDespachoDto, ConfirmarEntregaDto, CreateDispatchDto,
+  IniciarTransitoDto, MarcarDetallePreparadoDto,
 } from '../../../../application/dto/in/dispatch-input.dto';
 
 @Controller('despachos')
@@ -28,9 +18,20 @@ export class DispatchRestController {
     private readonly queryService: IDispatchQueryPort,
   ) {}
 
+  // Devuelve lista paginada + enriquecida con datos de sales vía TCP
   @Get()
-  findAll() {
-    return this.queryService.findAll();
+  findAll(
+    @Query('page')       page?: string,
+    @Query('limit')      limit?: string,
+    @Query('fechaDesde') fechaDesde?: string,
+    @Query('fechaHasta') fechaHasta?: string,
+  ) {
+    return this.queryService.findAll({
+      page:       page  ? Number(page)  : 1,
+      limit:      limit ? Number(limit) : 10,
+      fechaDesde: fechaDesde || undefined,
+      fechaHasta: fechaHasta || undefined,
+    });
   }
 
   @Get('venta/:id_venta')
@@ -54,44 +55,27 @@ export class DispatchRestController {
   }
 
   @Patch(':id/transito')
-  iniciarTransito(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: IniciarTransitoDto,
-  ) {
+  iniciarTransito(@Param('id', ParseIntPipe) id: number, @Body() dto: IniciarTransitoDto) {
     return this.commandService.iniciarTransito({ ...dto, id_despacho: id });
   }
 
   @Patch(':id/entrega')
-  confirmarEntrega(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: ConfirmarEntregaDto,
-  ) {
+  confirmarEntrega(@Param('id', ParseIntPipe) id: number, @Body() dto: ConfirmarEntregaDto) {
     return this.commandService.confirmarEntrega({ ...dto, id_despacho: id });
   }
 
   @Patch(':id/cancelar')
-  cancelar(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CancelarDespachoDto,
-  ) {
+  cancelar(@Param('id', ParseIntPipe) id: number, @Body() dto: CancelarDespachoDto) {
     return this.commandService.cancelarDespacho({ ...dto, id_despacho: id });
   }
 
   @Patch('detalle/:id/preparado')
-  marcarDetallePreparado(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: MarcarDetallePreparadoDto,
-  ) {
-    return this.commandService.marcarDetallePreparado({
-      ...dto,
-      id_detalle_despacho: id,
-    });
+  marcarDetallePreparado(@Param('id', ParseIntPipe) id: number, @Body() dto: MarcarDetallePreparadoDto) {
+    return this.commandService.marcarDetallePreparado({ ...dto, id_detalle_despacho: id });
   }
 
   @Patch('detalle/:id/despachado')
   marcarDetalleDespachado(@Param('id', ParseIntPipe) id: number) {
-    return this.commandService.marcarDetalleDespachado({
-      id_detalle_despacho: id,
-    });
+    return this.commandService.marcarDetalleDespachado({ id_detalle_despacho: id });
   }
 }

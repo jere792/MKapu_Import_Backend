@@ -84,6 +84,7 @@ export class CommissionRule {
   get fecha_fin(): Date | undefined {
     return this.props.fecha_fin;
   }
+  
   get activo(): boolean {
     return this.props.activo;
   }

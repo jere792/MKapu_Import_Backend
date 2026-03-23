@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommissionController } from './infrastructure/adapters/in/controllers/commission.controller';
 import { CommissionCommandService } from './application/service/commission-command.service';
@@ -7,12 +7,16 @@ import { CommissionQueryService } from './application/service/commission-query.s
 import { CommissionRepository } from './infrastructure/adapters/out/repository/commission.repository';
 import { COMMISSION_REPOSITORY } from './domain/ports/out/commission-repository.port';
 import { CommissionRuleOrmEntity } from './infrastructure/entity/commission-rule-orm.entity';
+import { CommissionOrmEntity } from './infrastructure/entity/commission-orm.entity';
 import { SalesReceiptModule } from '../sales-receipt/sales-receipt.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CommissionRuleOrmEntity]),
-    SalesReceiptModule,
+    TypeOrmModule.forFeature([
+      CommissionRuleOrmEntity,
+      CommissionOrmEntity,
+    ]),
+    forwardRef(() => SalesReceiptModule), 
   ],
   controllers: [CommissionController],
   providers: [
@@ -23,6 +27,6 @@ import { SalesReceiptModule } from '../sales-receipt/sales-receipt.module';
       useClass: CommissionRepository,
     },
   ],
-  exports: [CommissionQueryService],
+  exports: [CommissionQueryService, CommissionCommandService],
 })
 export class CommissionModule {}
