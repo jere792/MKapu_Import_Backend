@@ -23,6 +23,9 @@ export class QuoteOrmEntity {
   @Column({ type: 'int', nullable: false })
   id_sede: number;
 
+  @Column({ name: 'id_responsable_ref', length: 255, nullable: true })
+  id_responsable_ref: string | null;        
+
   @Column({
     type: 'enum',
     enum: ['VENTA', 'COMPRA'],

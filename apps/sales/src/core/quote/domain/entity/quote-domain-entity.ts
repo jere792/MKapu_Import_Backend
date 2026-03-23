@@ -8,8 +8,8 @@ export class Quote {
 
   constructor(
     public readonly id_cotizacion: number | null,
-    public readonly id_cliente: string | null, // null cuando tipo = COMPRA
-    public readonly id_proveedor: string | null, // null cuando tipo = VENTA
+    public readonly id_cliente: string | null,
+    public readonly id_proveedor: string | null,
     public readonly id_sede: number,
     public subtotal: number,
     public igv: number,
@@ -20,6 +20,7 @@ export class Quote {
     public activo: boolean = true,
     details: QuoteDetail[] = [],
     public tipo: QuoteTipo = 'VENTA',
+    public readonly id_responsable_ref: string | null = null,  
   ) {
     this.details = details;
     this.fec_emision =
@@ -32,12 +33,10 @@ export class Quote {
     this.validarEstadoInicial();
     this.validarTipo();
     this.validarSede();
-    this.validarParticipante(); // ← nueva validación
+    this.validarParticipante();
   }
 
   public readonly fec_emision: Date;
-
-  // ── Lógica de negocio ─────────────────────────────────────────────────────
 
   aprobar(): void {
     if (this.estaVencida())
@@ -61,69 +60,41 @@ export class Quote {
 
   vencer(): void {
     if (!this.estaVencida())
-      throw new Error(
-        'Solo cotizaciones expiradas pueden marcarse como vencidas',
-      );
+      throw new Error('Solo cotizaciones expiradas pueden marcarse como vencidas');
     this.estado = 'VENCIDA';
   }
 
   cambiarEstado(nuevoEstado: QuoteStatus): void {
-    const ESTADOS_VALIDOS: QuoteStatus[] = [
-      'PENDIENTE',
-      'APROBADA',
-      'VENCIDA',
-      'RECHAZADA',
-    ];
+    const ESTADOS_VALIDOS: QuoteStatus[] = ['PENDIENTE', 'APROBADA', 'VENCIDA', 'RECHAZADA'];
     if (!ESTADOS_VALIDOS.includes(nuevoEstado))
       throw new Error(`Estado inválido: ${nuevoEstado}`);
     this.estado = nuevoEstado;
   }
 
-  // ── Helpers de tipo ───────────────────────────────────────────────────────
-  esVenta(): boolean {
-    return this.tipo === 'VENTA';
-  }
-  esCompra(): boolean {
-    return this.tipo === 'COMPRA';
-  }
+  esVenta(): boolean  { return this.tipo === 'VENTA'; }
+  esCompra(): boolean { return this.tipo === 'COMPRA'; }
 
-  // ── Helpers de estado ─────────────────────────────────────────────────────
-  estaVencida(): boolean {
-    return new Date() > this.fec_venc;
-  }
-  esAprobada(): boolean {
-    return this.estado === 'APROBADA';
-  }
-  esPendiente(): boolean {
-    return this.estado === 'PENDIENTE';
-  }
-  esVencida(): boolean {
-    return this.estado === 'VENCIDA';
-  }
-  esRechazada(): boolean {
-    return this.estado === 'RECHAZADA';
-  }
+  estaVencida(): boolean  { return new Date() > this.fec_venc; }
+  esAprobada(): boolean   { return this.estado === 'APROBADA'; }
+  esPendiente(): boolean  { return this.estado === 'PENDIENTE'; }
+  esVencida(): boolean    { return this.estado === 'VENCIDA'; }
+  esRechazada(): boolean  { return this.estado === 'RECHAZADA'; }
 
-  // ── Validaciones ──────────────────────────────────────────────────────────
   private validarMontos(): void {
     if (this.subtotal < 0) throw new Error('El subtotal no puede ser negativo');
-    if (this.igv < 0) throw new Error('El IGV no puede ser negativo');
-    if (this.total < 0) throw new Error('El total no puede ser negativo');
+    if (this.igv < 0)      throw new Error('El IGV no puede ser negativo');
+    if (this.total < 0)    throw new Error('El total no puede ser negativo');
     if (Math.abs(this.subtotal + this.igv - this.total) > 0.01)
       throw new Error('La suma de subtotal e IGV debe ser igual al total');
   }
 
   private validarFechas(): void {
     if (this.fec_emision > this.fec_venc)
-      throw new Error(
-        'La fecha de emisión no puede ser mayor a la fecha de vencimiento',
-      );
+      throw new Error('La fecha de emisión no puede ser mayor a la fecha de vencimiento');
   }
 
   private validarEstadoInicial(): void {
-    if (
-      !['PENDIENTE', 'APROBADA', 'VENCIDA', 'RECHAZADA'].includes(this.estado)
-    )
+    if (!['PENDIENTE', 'APROBADA', 'VENCIDA', 'RECHAZADA'].includes(this.estado))
       throw new Error('Estado de cotización no válido');
   }
 
@@ -144,13 +115,8 @@ export class Quote {
       throw new Error('Una cotización de COMPRA debe tener un proveedor');
   }
 
-  // ── Activar / desactivar ──────────────────────────────────────────────────
-  desactivar(): void {
-    this.activo = false;
-  }
-  activar(): void {
-    this.activo = true;
-  }
+  desactivar(): void { this.activo = false; }
+  activar(): void    { this.activo = true; }
 
   setMontos(subtotal: number, igv: number, total: number): void {
     if (!this.esPendiente())
@@ -163,9 +129,7 @@ export class Quote {
 
   setFechaVencimiento(nuevaFecha: Date): void {
     if (!this.esPendiente())
-      throw new Error(
-        'Solo puede cambiar la fecha de vencimiento en estado PENDIENTE',
-      );
+      throw new Error('Solo puede cambiar la fecha de vencimiento en estado PENDIENTE');
     this.fec_venc = nuevaFecha;
     this.validarFechas();
   }

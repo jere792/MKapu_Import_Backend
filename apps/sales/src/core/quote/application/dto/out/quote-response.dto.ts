@@ -1,4 +1,4 @@
-export class QuoteDetailResponseDto {
+export interface QuoteDetailResponseDto {
   id_detalle: number;
   id_prod_ref: number;
   cod_prod: string;
@@ -56,24 +56,26 @@ export interface QuoteResponseDto {
   estado: string;
   activo: boolean;
   detalles: QuoteDetailResponseDto[];
+  id_responsable_ref?: string | null;
 }
 
 export interface QuoteListItemDto {
-  id_cotizacion: number;
-  codigo: string;
-  cliente_nombre: string;
-  proveedor_nombre?: string;
-  id_proveedor?: number;
-  fec_emision: string;
-  fec_venc: string;
-  id_sede: number;
-  sede_nombre: string;
-  tipo: string;
-  estado: string;
-  total: number;
-  activo: boolean;
+  id_cotizacion:       number;
+  codigo:              string;
+  cliente_nombre:      string;
+  proveedor_nombre?:   string;
+  id_proveedor?:       number;
+  fec_emision:         string;
+  fec_venc:            string;
+  id_sede:             number;
+  sede_nombre:         string;
+  tipo:                string;
+  estado:              string;
+  total:               number;
+  activo:              boolean;
+  id_responsable_ref?: string | null;
+  nombre_responsable?: string | null; 
 }
-
 export interface QuotePagedResponseDto {
   data: QuoteListItemDto[];
   total: number;

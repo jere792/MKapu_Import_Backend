@@ -25,11 +25,11 @@ export class CreateQuoteDetailDto {
 export class CreateQuoteDto {
   @IsOptional()
   @IsString()
-  documento_cliente?: string;       // obligatorio si tipo = VENTA
+  documento_cliente?: string;
 
   @IsOptional()
   @IsString()
-  id_proveedor?: string;            // obligatorio si tipo = COMPRA
+  id_proveedor?: string;
 
   @IsDateString()
   fec_venc: string;
@@ -45,6 +45,10 @@ export class CreateQuoteDto {
 
   @IsNumber()
   id_sede: number;
+
+  @IsOptional()
+  @IsString()
+  id_responsable_ref?: string;        
 
   @IsOptional()
   @IsNumber()

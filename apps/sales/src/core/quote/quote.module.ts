@@ -16,10 +16,13 @@ import { ProductStockTcpProxy } from './infrastructure/adapters/out/TCP/ProductS
 import { SedeTcpProxy } from './infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { SupplierTcpProxy } from './infrastructure/adapters/out/TCP/SupplierTcpProxy';
 import { EmpresaTcpProxy } from '../sales-receipt/infrastructure/adapters/out/TCP/empresa-tcp.proxy';
+import { UsersTcpProxy } from '../sales-receipt/infrastructure/adapters/out/TCP/users-tcp.proxy';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
+    ConfigModule,
     TypeOrmModule.forFeature([
       QuoteOrmEntity,
       CustomerOrmEntity,
@@ -51,10 +54,19 @@ import { EmpresaTcpProxy } from '../sales-receipt/infrastructure/adapters/out/TC
           port: Number(process.env.LOGISTICS_TCP_PORT) || 5005,
         },
       },
+      {
+        name: 'USERS_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.ADMINISTRATION_HOST || 'localhost',
+          port: Number(process.env.ADMINISTRATION_TCP_PORT) || 3011,
+        },
+      },
     ]),
   ],
   controllers: [QuoteController],
   providers: [
+    UsersTcpProxy,
     ProductStockTcpClientProvider,
     ProductStockTcpProxy,
     SedeTcpProxy,

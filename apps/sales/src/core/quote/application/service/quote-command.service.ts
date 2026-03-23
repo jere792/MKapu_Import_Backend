@@ -37,7 +37,6 @@ export class QuoteCommandService implements IQuoteCommandPort {
     private readonly eventEmitter: EventEmitter2,
     @Inject('ISupplierProxy')
     private readonly supplierProxy: ISupplierProxy,
-    // 👇 Inyectamos el proxy de empresa
     @Inject('IEmpresaProxy')
     private readonly empresaProxy: EmpresaTcpProxy,
   ) {}
@@ -100,21 +99,22 @@ export class QuoteCommandService implements IQuoteCommandPort {
         ),
     );
 
-    const domain = new Quote(
-      null,
-      customer?.id_cliente ?? null,
-      dto.id_proveedor ?? null,
-      dto.id_sede,
-      dto.subtotal,
-      dto.igv,
-      dto.total,
-      'PENDIENTE',
-      new Date(),
-      new Date(dto.fec_venc),
-      true,
-      details,
-      tipo,
-    );
+   const domain = new Quote(
+    null,
+    customer?.id_cliente ?? null,
+    dto.id_proveedor ?? null,
+    dto.id_sede,
+    dto.subtotal,
+    dto.igv,
+    dto.total,
+    'PENDIENTE',
+    new Date(),
+    new Date(dto.fec_venc),
+    true,
+    details,
+    tipo,
+    dto.id_responsable_ref ?? null,   
+  );
 
     const saved = await this.repository.save(domain);
 
