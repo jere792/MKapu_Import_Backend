@@ -1,4 +1,4 @@
-// administration/src/core/user/infrastructure/adapters/in/controllers/user-rest.controller.ts
+﻿// administration/src/core/user/infrastructure/adapters/in/controllers/user-rest.controller.ts
 
 import {
   Controller,
@@ -25,6 +25,7 @@ import { UserWebSocketGateway } from '../../out/user-websocket.gateway';
 import {
   ChangeUserStatusDto,
   ListUserFilterDto,
+  ListUserQuotesFilterDto,
   ListUserSalesFilterDto,
   RegisterUserDto,
   UpdateUserDto,
@@ -32,6 +33,7 @@ import {
 import {
   UserDeletedResponseDto,
   UserListResponse,
+  UserQuotesResponseDto,
   UserResponseDto,
   UserSalesResponseDto,
   UserWithAccountResponseDto,
@@ -115,6 +117,15 @@ export class UserRestController {
     filters: ListUserSalesFilterDto,
   ): Promise<UserSalesResponseDto> {
     return this.userQueryService.getUserSales(id, filters);
+  }
+
+  @Get(':id/quotes')
+  getUserQuotes(
+    @Param('id', ParseIntPipe) id: number,
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    filters: ListUserQuotesFilterDto,
+  ): Promise<UserQuotesResponseDto> {
+    return this.userQueryService.getUserQuotes(id, filters);
   }
 
   @Get(':id')

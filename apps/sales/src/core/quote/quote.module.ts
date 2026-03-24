@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { CustomerModule } from '../customer/customer.module';
@@ -8,6 +8,7 @@ import { QuoteOrmEntity } from './infrastructure/entity/quote-orm.entity';
 import { CustomerOrmEntity } from '../customer/infrastructure/entity/customer-orm.entity';
 import { QuoteDetailOrmEntity } from './infrastructure/entity/quote-orm-detail.entity';
 import { QuoteController } from './infrastructure/adapters/in/controllers/quote-rest.controller';
+import { QuoteTcpController } from './infrastructure/adapters/in/TCP/quote-tcp.controller';
 import { QuoteTypeOrmRepository } from './infrastructure/adapters/out/repository/quote-typeorm.repository';
 import { QuoteCommandService } from './application/service/quote-command.service';
 import { QuoteQueryService } from './application/service/quote-query.service';
@@ -64,7 +65,7 @@ import { ConfigModule } from '@nestjs/config';
       },
     ]),
   ],
-  controllers: [QuoteController],
+  controllers: [QuoteController, QuoteTcpController],
   providers: [
     UsersTcpProxy,
     ProductStockTcpClientProvider,
@@ -92,7 +93,6 @@ import { ConfigModule } from '@nestjs/config';
       provide: 'ISupplierProxy',
       useClass: SupplierTcpProxy,
     },
-    // 👇 AGREGAMOS EL PROVIDER CORRECTAMENTE MAPEADO
     {
       provide: 'IEmpresaProxy',
       useClass: EmpresaTcpProxy,

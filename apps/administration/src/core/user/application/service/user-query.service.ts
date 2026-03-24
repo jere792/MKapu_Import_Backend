@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+ï»¿/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -10,11 +10,15 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IUserQueryPort } from '../../domain/ports/in/user-port-in';
-import { IUserRepositoryPort } from '../../domain/ports/out/user-port-out';
-import { ListUserFilterDto, ListUserSalesFilterDto } from '../dto/in';
 import {
-  UserResponseDto,
+  ListUserFilterDto,
+  ListUserQuotesFilterDto,
+  ListUserSalesFilterDto,
+} from '../dto/in';
+import {
   UserListResponse,
+  UserQuotesResponseDto,
+  UserResponseDto,
   UserSalesResponseDto,
 } from '../dto/out';
 import { UserMapper } from '../mapper/user.mapper';
@@ -23,6 +27,7 @@ import { UserSimpleResponseDto } from '../dto/out/user-simple-response.dto';
 import { CuentaUsuarioOrmEntity } from '../../infrastructure/entity/cuenta-usuario-orm.entity';
 import { AccountCredentialsResponseDto } from '../dto/out/account-credentials-response.dto';
 import { SalesTcpProxy } from '../../infrastructure/adapters/out/TCP/sales-tcp.proxy';
+import { IUserRepositoryPort } from '../../domain/ports/out/user-port-out';
 
 @Injectable()
 export class UserQueryService implements IUserQueryPort {
@@ -87,18 +92,21 @@ export class UserQueryService implements IUserQueryPort {
     id: number,
     filters: ListUserSalesFilterDto,
   ): Promise<UserSalesResponseDto> {
-    const usuario = await this.repository.findById(id);
-
-    if (!usuario) {
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
-    }
-
+    await this.getUserOrFail(id);
     return this.salesTcpProxy.getUserSales(id, filters);
+  }
+
+  async getUserQuotes(
+    id: number,
+    filters: ListUserQuotesFilterDto,
+  ): Promise<UserQuotesResponseDto> {
+    await this.getUserOrFail(id);
+    return this.salesTcpProxy.getUserQuotes(id, filters);
   }
 
   /**
    * Devuelve los datos actuales de la cuenta (nom_usu, email_emp).
-   * Útil para pre-poblar el formulario de edición de credenciales.
+   * Util para pre-poblar el formulario de edicion de credenciales.
    */
   async getAccountByUserId(
     id_usuario: number,
@@ -119,5 +127,13 @@ export class UserQueryService implements IUserQueryPort {
       updatedAt: new Date(),
       message: 'Cuenta encontrada',
     };
+  }
+
+  private async getUserOrFail(id: number): Promise<void> {
+    const usuario = await this.repository.findById(id);
+
+    if (!usuario) {
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    }
   }
 }

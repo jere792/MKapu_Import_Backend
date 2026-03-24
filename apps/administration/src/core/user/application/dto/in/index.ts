@@ -1,4 +1,4 @@
-/* ============================================
+﻿/* ============================================
    administration/src/core/user/application/dto/in/index.ts
    ============================================ */
 
@@ -7,3 +7,4 @@ export * from './update-user-dto';
 export * from './change-user-status-dto';
 export * from './list-user-filter-dto';
 export * from './list-user-sales-filter.dto';
+export * from './list-user-quotes-filter.dto';
