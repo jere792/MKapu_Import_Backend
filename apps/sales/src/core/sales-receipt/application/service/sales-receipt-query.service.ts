@@ -31,6 +31,7 @@ import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.pro
 import { LogisticsTcpProxy } from '../../infrastructure/adapters/out/TCP/logistics-tcp.proxy';
 import { buildSalesReceiptThermalPdf } from '../../utils/sales-receipt-thermal.util';
 import { SalesReceiptPdfData } from '../../utils/sales-receipt-pdf.util';
+
 import { IGV_DIVISOR } from '../../constants/fiscal.constants';
 
 import { EmpresaPortOut } from '../../domain/ports/out/empresa-port-out';

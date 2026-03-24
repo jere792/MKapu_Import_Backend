@@ -202,15 +202,11 @@ export class SalesReceiptRepository implements ISalesReceiptRepositoryPort {
     }
 
     if (filters.dateFrom) {
-      const desde = new Date(filters.dateFrom);
-      desde.setHours(0, 0, 0, 0);
-      qb.andWhere('r.fec_emision >= :desde', { desde });
+      qb.andWhere('DATE(r.fec_emision) >= :desde', { desde: filters.dateFrom });
     }
 
     if (filters.dateTo) {
-      const hasta = new Date(filters.dateTo);
-      hasta.setHours(23, 59, 59, 999);
-      qb.andWhere('r.fec_emision <= :hasta', { hasta });
+      qb.andWhere('DATE(r.fec_emision) <= :hasta', { hasta: filters.dateTo });
     }
 
     if (filters.receiptTypeId) {

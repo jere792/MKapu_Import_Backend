@@ -1,26 +1,40 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* sales/src/core/sales-receipt/infrastructure/adapters/out/TCP/empresa-tcp.proxy.ts */
+
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
+import { EmpresaPortOut } from '../../../../domain/ports/out/empresa-port-out';
+import { Empresa } from 'apps/administration/src/core/company/domain/entity/empresa.entity';
 
 @Injectable()
-export class EmpresaTcpProxy {
+export class EmpresaTcpProxy implements EmpresaPortOut {
   private readonly logger = new Logger(EmpresaTcpProxy.name);
 
   constructor(@Inject('ADMIN_SERVICE') private readonly client: ClientProxy) {}
 
-  async getEmpresaActiva(): Promise<any> {
+  // CAMBIA EL NOMBRE AQUÍ PARA QUE COINCIDA CON EL SERVICIO
+  async getEmpresa(id: number): Promise<any> {
     try {
-      // Revisa tu proxy de logistics para confirmar el patrón exacto.
-      // Usualmente es un string 'get_empresa_activa' o un objeto { cmd: 'get_empresa_activa' }
       const response = await firstValueFrom(
-        this.client.send('get_empresa_activa', {}).pipe(timeout(5000)), // ¡El timeout es clave!
+        // Usamos el patrón string 'get_empresa_activa' que ya tienes en el controller
+        this.client.send('get_empresa_activa', { id }).pipe(timeout(5000)),
       );
-      return response?.data ? response.data : response;
+
+      // Como tu controller de Admin responde con { ok: true, data: ... }
+      // debemos retornar solo la propiedad data.
+      if (response && response.ok) {
+        return response.data;
+      }
+      
+      return response; 
     } catch (error) {
-      this.logger.warn(`⚠️ Error al obtener empresa por TCP: ${error.message}`);
+      this.logger.error(`❌ Error al obtener empresa por TCP: ${error.message}`);
       return null;
     }
+  }
+
+  // Puedes mantener este si lo usas en otro lugar
+  async getEmpresaActiva(): Promise<any> {
+     return this.getEmpresa(1);
   }
 }

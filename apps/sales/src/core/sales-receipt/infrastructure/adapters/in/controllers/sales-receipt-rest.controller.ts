@@ -45,6 +45,8 @@ import {
   SalesReceiptPdfData,
 } from '../../../../utils/sales-receipt-pdf.util';
 import { buildSalesReceiptThermalPdf } from '../../../../utils/sales-receipt-thermal.util';
+import { buildNotaVentaPdf } from '../../../../utils/sales-receipt-nota-venta.util';
+
 import { IGV_DIVISOR } from '../../../../constants/fiscal.constants';
 import { SalesReceiptMapper } from '../../../../application/mapper/sales-receipt.mapper';
 
@@ -363,6 +365,43 @@ export class SalesReceiptRestController {
     res.end(buffer);
   }
 
+  @Get(':id/nota-venta')
+  async exportNotaVentaPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const pdfData = await this.buildPdfData(id);
+      console.log('PDF Data obtenida:', pdfData.id_comprobante);
+
+      const empresaEntity = await this.receiptQueryService.getEmpresa(1);
+      console.log('Empresa obtenida:', empresaEntity?.razonSocial);
+
+      if (!empresaEntity) {
+        throw new Error('No se encontró la configuración de la empresa (ID 1)');
+      }
+
+      const empresaMapped = SalesReceiptMapper.toEmpresaPdfData(empresaEntity);
+      const buffer = await buildNotaVentaPdf(pdfData, empresaMapped);
+
+      const filename = `NOTA_VENTA-${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}.pdf`;
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${filename}"`,
+        'Content-Length': buffer.length,
+      });
+
+      res.end(buffer);
+    } catch (error) {
+      console.error('ERROR GENERANDO NOTA DE VENTA:', error);
+      res.status(500).json({
+        message: 'Error interno al generar el PDF',
+        error: error.message,
+      });
+    }
+  }
+  
   @Get(':id')
   async getReceipt(
     @Param('id', ParseIntPipe) id: number,

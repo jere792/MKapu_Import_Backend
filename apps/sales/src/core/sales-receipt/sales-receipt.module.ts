@@ -139,7 +139,7 @@ import { CommissionModule } from '../commission/commission.module';
     },
     {
       provide: 'EmpresaPortOut',
-      useClass: SedeTcpProxy,
+      useClass: EmpresaTcpProxy,
     }
   ],
 
