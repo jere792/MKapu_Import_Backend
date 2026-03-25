@@ -3,6 +3,7 @@ import { IPromotionQueryPort } from '../../domain/ports/in/promotion-ports-in';
 import { IPromotionRepositoryPort } from '../../domain/ports/out/promotion-ports-out';
 import { PromotionMapper } from '../mapper/promotion.mapper';
 import { PromotionDetailDto, PromotionDto, PromotionPagedDto } from '../dto/out';
+import { ListPromotionFilterDto } from '../dto/in';
 import { PromotionDomainEntity } from '../../domain/entity/promotion-domain-entity';
 
 @Injectable()
@@ -12,8 +13,15 @@ export class PromotionQueryService implements IPromotionQueryPort {
     private readonly repository: IPromotionRepositoryPort,
   ) {}
 
-  async listPromotions(page = 1, limit = 10): Promise<PromotionPagedDto> {
-    const [promotions, total] = await this.repository.findAll(page, limit);
+  async listPromotions(
+    filters: ListPromotionFilterDto = {},
+  ): Promise<PromotionPagedDto> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const search = filters.search?.trim();
+
+    const [promotions, total] = await this.repository.findAll(page, limit, search);
+
     return PromotionMapper.toPagedDto(promotions, total, page, limit);
   }
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Not, Repository } from 'typeorm';
+import { Brackets, EntityManager, In, Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { IPromotionRepositoryPort } from '../../../../domain/ports/out/promotion-ports-out';
 import { PromotionDomainEntity } from '../../../../domain/entity/promotion-domain-entity';
 import { PromotionOrmEntity } from '../../../entity/promotion-orm.entity';
@@ -18,13 +18,66 @@ export class PromotionRepository implements IPromotionRepositoryPort {
   async findAll(
     page = 1,
     limit = 10,
+    search?: string,
   ): Promise<[PromotionDomainEntity[], number]> {
-    const [entities, total] = await this.repository.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
+    const query = this.repository.createQueryBuilder('promotion');
+
+    this.applySearchFilter(query, search);
+
+    query
+      .orderBy('promotion.id_promocion', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [entities, total] = await query.getManyAndCount();
+
+    if (!entities.length) {
+      return [[], total];
+    }
+
+    const ids = entities.map((entity) => entity.id_promocion);
+    const entitiesWithRelations = await this.repository.find({
+      where: { id_promocion: In(ids) },
       relations: ['rules', 'discountsApplied'],
     });
-    return [PromotionMapper.toDomainList(entities), total];
+
+    const orderedEntities = ids
+      .map((id) => entitiesWithRelations.find((entity) => entity.id_promocion === id))
+      .filter((entity): entity is PromotionOrmEntity => Boolean(entity));
+
+    return [PromotionMapper.toDomainList(orderedEntities), total];
+  }
+
+  private applySearchFilter(
+    query: SelectQueryBuilder<PromotionOrmEntity>,
+    search?: string,
+  ): void {
+    const term = search?.trim();
+
+    if (!term) {
+      return;
+    }
+
+    const normalizedCode = term.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const searchValue = `%${term}%`;
+    const codeSearchValue = `%${normalizedCode}%`;
+
+    query.andWhere(
+      new Brackets((builder) => {
+        builder
+          .where('promotion.concepto LIKE :searchValue', { searchValue })
+          .orWhere('promotion.tipo LIKE :searchValue', { searchValue })
+          .orWhere('CAST(promotion.valor AS CHAR) LIKE :searchValue', {
+            searchValue,
+          })
+          .orWhere('CAST(promotion.id_promocion AS CHAR) LIKE :searchValue', {
+            searchValue,
+          })
+          .orWhere("LOWER(CONCAT('cod', promotion.id_promocion)) LIKE :codeSearchValue", {
+            codeSearchValue,
+          });
+      }),
+    );
   }
 
   async findById(id: number): Promise<PromotionDomainEntity | null> {

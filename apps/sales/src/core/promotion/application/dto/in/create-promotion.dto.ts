@@ -1,5 +1,19 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, ValidateNested, ArrayMinSize } from 'class-validator';
-import { Type } from 'class-transformer';
+﻿import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  ValidateNested,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  normalizePromotionConcept,
+  PROMOTION_CONCEPT_MESSAGE,
+  PROMOTION_CONCEPT_PATTERN,
+} from '../../validation/promotion-concept.validation';
 
 class PromotionRuleDto {
   @IsString()
@@ -19,7 +33,11 @@ class DiscountAppliedDto {
 }
 
 export class CreatePromotionDto {
+  @Transform(normalizePromotionConcept)
   @IsString()
+  @MinLength(3)
+  @MaxLength(100)
+  @Matches(PROMOTION_CONCEPT_PATTERN, { message: PROMOTION_CONCEPT_MESSAGE })
   concepto: string;
 
   @IsString()

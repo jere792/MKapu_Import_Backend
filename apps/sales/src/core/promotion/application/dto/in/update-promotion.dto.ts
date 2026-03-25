@@ -1,11 +1,19 @@
-import {
+﻿import {
   IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
+  MaxLength,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import {
+  normalizePromotionConcept,
+  PROMOTION_CONCEPT_MESSAGE,
+  PROMOTION_CONCEPT_PATTERN,
+} from '../../validation/promotion-concept.validation';
 
 class UpdatePromotionRuleDto {
   @IsOptional()
@@ -30,7 +38,11 @@ class UpdateDiscountAppliedDto {
 
 export class UpdatePromotionDto {
   @IsOptional()
+  @Transform(normalizePromotionConcept)
   @IsString()
+  @MinLength(3)
+  @MaxLength(100)
+  @Matches(PROMOTION_CONCEPT_PATTERN, { message: PROMOTION_CONCEPT_MESSAGE })
   concepto?: string;
 
   @IsOptional()

@@ -2,6 +2,7 @@ import {
   CreatePromotionDto,
   UpdatePromotionDto,
   ChangePromotionStatusDto,
+  ListPromotionFilterDto,
 } from '../../../application/dto/in';
 import {
   PromotionDetailDto,
@@ -22,7 +23,7 @@ export interface IPromotionCommandPort {
 }
 
 export interface IPromotionQueryPort {
-  listPromotions(page?: number, limit?: number): Promise<PromotionPagedDto>;
+  listPromotions(filters?: ListPromotionFilterDto): Promise<PromotionPagedDto>;
   getPromotionById(id: number): Promise<PromotionDto | null>;
   getPromotionDetailById(id: number): Promise<PromotionDetailDto | null>;
   getActivePromotions(): Promise<PromotionDto[]>;

@@ -19,6 +19,7 @@ import {
 } from '../../../../domain/ports/in/promotion-ports-in';
 import {
   CreatePromotionDto,
+  ListPromotionFilterDto,
   UpdatePromotionDto,
 } from '../../../../application/dto/in';
 
@@ -37,8 +38,8 @@ export class PromotionRestController {
   }
 
   @Get()
-  async list(@Query('page') page = 1, @Query('limit') limit = 10) {
-    return await this.queryPort.listPromotions(Number(page), Number(limit));
+  async list(@Query() query: ListPromotionFilterDto) {
+    return await this.queryPort.listPromotions(query);
   }
 
   @Get('active')
