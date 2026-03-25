@@ -6,7 +6,12 @@ export interface RemissionPortOut {
   findAll(filter: any): Promise<{ data: Remission[]; total: number }>;
   findById(id: string): Promise<Remission | null>;
   findByRefId(idVenta: number): Promise<any>;
-  getSummaryInfo(startDate: Date, endDate: Date): Promise<any>;
+  getSummaryInfo(
+    startDate: Date,
+    endDate: Date,
+    id_sede?: number,
+  ): Promise<any>;
   obtenerGuiaParaReporte(id: string): Promise<any>;
   markAsPrinted(id: string): Promise<void>;
+  changeStatus(idGuia: string, estado: string): Promise<void>;
 }

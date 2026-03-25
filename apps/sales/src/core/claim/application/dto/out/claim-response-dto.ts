@@ -1,5 +1,6 @@
 export interface ClaimResponseDto {
   claimId: number;
+  codigoReclamo?: string; 
   receiptId: number;
   sellerId: string;
   reason: string;

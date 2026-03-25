@@ -44,58 +44,26 @@ export class RemissionQueryService implements RemissionQueryPortIn {
   ) {}
 
   async executeList(
-    filter: ListRemissionFilterDto,
-  ): Promise<RemissionListResponseDto> {
-    const { data, total } = await this.remissionRepository.findAll(filter);
-
-    const dtos = data.map((domain) => {
-      const dto = new RemissionDetailResponseDto();
-      dto.id_guia = domain.id_guia;
-      dto.motivo_traslado = domain.motivo_traslado;
-      dto.estado = domain.estado;
-      dto.fecha_emision = domain.fecha_emision;
-      dto.fecha_inicio = domain.fecha_inicio;
-      dto.motivo_traslado = domain.motivo_traslado;
-      dto.unidad_peso = domain.unidad_peso;
-      dto.peso_total = domain.peso_total;
-      dto.id_comprobante_ref = domain.id_comprobante_ref;
-      dto.tipo_guia = domain.tipo_guia;
-      dto.modalidad = domain.modalidad;
-      dto.cantidad = domain.cantidad;
-
-      // ✅ Se agrega la propiedad impreso al DTO de lista (Asegúrate de agregar 'impreso?: boolean' en tu DTO)
-      (dto as any).impreso = (domain as any).impreso || false;
-
-      dto.items = domain.getDetalles().map((detalle) => {
-        const itemDto = new RemissionItemResponseDto();
-        itemDto.id_producto = detalle.id_producto;
-        itemDto.cod_prod = detalle.cod_prod;
-        itemDto.cantidad = detalle.cantidad;
-        itemDto.peso_total = detalle.peso_total;
-        itemDto.peso_unitario = detalle.peso_unitario;
-        return itemDto;
-      });
-      return dto;
-    });
-
-    return {
-      data: dtos,
-      total,
-    };
+    filter: any,
+  ): Promise<{ data: RemissionResponseDto[]; total: number }> {
+    // Retornamos directamente lo que entrega el repositorio (que ahora ya es el DTO plano)
+    return await this.remissionRepository.findAll(filter);
   }
 
   async executeFindById(id: string): Promise<RemissionResponseDto> {
-    const domain = await this.remissionRepository.findById(id);
+    // 1. Ahora el repositorio devuelve el DTO plano, no la entidad de dominio.
+    const dto = await this.remissionRepository.findById(id);
 
-    if (!domain) {
+    if (!dto) {
       throw new NotFoundException(`Remission con ID ${id} no encontrada`);
     }
 
+    // 2. Orquestación de microservicios para poblar el DTO con datos extra
     let sedeData: any = null;
     const idSede =
-      (domain as any).id_sede_ref ||
-      (domain as any).idSedeRef ||
-      (domain as any).id_sede;
+      (dto as any).id_sede_ref ||
+      (dto as any).idSedeRef ||
+      (dto as any).id_sede;
     if (idSede) {
       try {
         const sedeResponse = await this.sedeClient.getSedeById(String(idSede));
@@ -108,7 +76,7 @@ export class RemissionQueryService implements RemissionQueryPortIn {
     let ventaData: any = null;
     let clienteData: any = null;
     const idVenta =
-      (domain as any).id_comprobante_ref || (domain as any).idComprobanteRef;
+      (dto as any).id_comprobante_ref || (dto as any).idComprobanteRef;
 
     if (idVenta) {
       try {
@@ -125,8 +93,7 @@ export class RemissionQueryService implements RemissionQueryPortIn {
     }
 
     let usuarioData: any = null;
-    const idUsuario =
-      (domain as any).id_usuario_ref || (domain as any).idUsuarioRef;
+    const idUsuario = (dto as any).id_usuario_ref || (dto as any).idUsuarioRef;
     if (idUsuario) {
       try {
         const userResponse = await this.userClient.getUserById(
@@ -138,30 +105,7 @@ export class RemissionQueryService implements RemissionQueryPortIn {
       }
     }
 
-    const dto = new RemissionResponseDto();
-    dto.id_guia = domain.id_guia;
-    dto.serie = domain.serie;
-    dto.numero = domain.numero;
-    dto.estado = domain.estado;
-    dto.tipo_guia = domain.tipo_guia;
-    dto.fecha_emision = domain.fecha_emision;
-    dto.fecha_inicio = domain.fecha_inicio;
-    dto.motivo_traslado = domain.motivo_traslado;
-    dto.peso_total = domain.peso_total;
-    dto.unidad_peso = domain.unidad_peso;
-    dto.cantidad = domain.cantidad;
-
-    // ✅ Se mapea el estado de impresión al DTO de detalle
-    (dto as any).impreso = (domain as any).impreso || false;
-
-    dto.items = domain.getDetalles().map((detalle) => ({
-      id_producto: detalle.id_producto,
-      cod_prod: detalle.cod_prod,
-      cantidad: detalle.cantidad,
-      peso_total: detalle.peso_total,
-      peso_unitario: detalle.peso_unitario,
-    }));
-
+    // 3. Inyectamos los datos extra al DTO que ya traía el repositorio
     (dto as any).sede = sedeData;
     (dto as any).cliente = clienteData;
     (dto as any).venta = ventaData;
@@ -170,21 +114,33 @@ export class RemissionQueryService implements RemissionQueryPortIn {
     return dto;
   }
 
-  async executeGetSummary(): Promise<RemissionSummaryResponseDto> {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-    );
+  async executeGetSummary(
+    filter: any = {},
+  ): Promise<RemissionSummaryResponseDto> {
+    let startDate: Date;
+    let endDate: Date;
+
+    if (filter.startDate && filter.endDate) {
+      startDate = new Date(filter.startDate);
+      endDate = new Date(filter.endDate);
+    } else {
+      const now = new Date();
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+    }
 
     const summary = await this.remissionRepository.getSummaryInfo(
-      firstDay,
-      lastDay,
+      startDate,
+      endDate,
+      filter.id_sede,
     );
 
     const dto = new RemissionSummaryResponseDto();
@@ -197,15 +153,14 @@ export class RemissionQueryService implements RemissionQueryPortIn {
   }
 
   async exportExcel(id: string, res: Response): Promise<void> {
-    // 1. Obtener la remisión desde el repositorio
-    const domain = await this.remissionRepository.findById(id);
-    if (!domain) {
+    const dto = await this.remissionRepository.findById(id);
+    if (!dto) {
       throw new NotFoundException(
         `Guía de remisión con ID ${id} no encontrada`,
       );
     }
 
-    const detalles = domain.getDetalles();
+    const detalles = dto.getDetalles();
     let empresaData: any = null;
 
     try {
@@ -217,7 +172,6 @@ export class RemissionQueryService implements RemissionQueryPortIn {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Guía de Remisión');
 
-    // Estilos generales de columnas
     worksheet.columns = [
       { width: 20 },
       { width: 30 },
@@ -233,24 +187,19 @@ export class RemissionQueryService implements RemissionQueryPortIn {
     titleCell.alignment = { horizontal: 'center' };
 
     worksheet.addRow(['RUC Empresa:', empresaData?.ruc || 'N/A']);
-    worksheet.addRow(['Guía de Remisión:', domain.id_guia]);
-    worksheet.addRow(['Fecha de Emisión:', domain.fecha_emision]);
-    worksheet.addRow(['Fecha de Inicio:', domain.fecha_inicio]);
-    worksheet.addRow(['Motivo de Traslado:', domain.motivo_traslado]);
-    worksheet.addRow(['Modalidad:', domain.modalidad]);
-    worksheet.addRow([
-      'Peso Total:',
-      `${domain.peso_total} ${domain.unidad_peso}`,
-    ]);
+    worksheet.addRow(['Guía de Remisión:', dto.id_guia]);
+    worksheet.addRow(['Fecha de Emisión:', dto.fecha_emision]);
+    worksheet.addRow(['Fecha de Inicio:', dto.fecha_inicio]);
+    worksheet.addRow(['Motivo de Traslado:', dto.motivo_traslado]);
+    worksheet.addRow(['Modalidad:', dto.modalidad]);
+    worksheet.addRow(['Peso Total:', `${dto.peso_total} ${dto.unidad_peso}`]);
 
-    // Si la guía está ligada a un comprobante, lo mostramos
-    if (domain.id_comprobante_ref) {
-      worksheet.addRow(['ID Comprobante Ref:', domain.id_comprobante_ref]);
+    if (dto.id_comprobante_ref) {
+      worksheet.addRow(['ID Comprobante Ref:', dto.id_comprobante_ref]);
     }
 
-    worksheet.addRow([]); // Fila vacía para separación
+    worksheet.addRow([]);
 
-    // 5. Generar la tabla de productos (Detalles)
     worksheet.addRow(['DETALLE DE PRODUCTOS']).font = { bold: true };
 
     const headerRow = worksheet.addRow([
@@ -261,20 +210,18 @@ export class RemissionQueryService implements RemissionQueryPortIn {
       'PESO TOTAL',
     ]);
 
-    // Estilos de la cabecera de la tabla
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.eachCell((cell) => {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF4F81BD' }, // Color Azul
+        fgColor: { argb: 'FF4F81BD' },
       };
       cell.alignment = { horizontal: 'center' };
     });
 
-    // Iterar sobre los detalles extraídos con el método de dominio correcto
     if (detalles && detalles.length > 0) {
-      detalles.forEach((item) => {
+      detalles.forEach((item: any) => {
         worksheet.addRow([
           item.cod_prod,
           item.id_producto,
@@ -287,14 +234,13 @@ export class RemissionQueryService implements RemissionQueryPortIn {
       worksheet.addRow(['No hay productos registrados en esta guía.']);
     }
 
-    // 6. Enviar la respuesta como archivo adjunto
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=Remision_${domain.id_guia}.xlsx`,
+      `attachment; filename=Remision_${dto.id_guia}.xlsx`,
     );
 
     await workbook.xlsx.write(res);
@@ -302,6 +248,8 @@ export class RemissionQueryService implements RemissionQueryPortIn {
   }
 
   async exportPdf(id: string, res: Response): Promise<void> {
+    // ⚠️ NOTA: ExportPdf ya usa obtenerGuiaParaReporte, que retorna el objeto ORM plano.
+    // Esta lógica no necesita ser modificada, funcionará perfecto.
     const guia = (await this.remissionRepository.obtenerGuiaParaReporte(
       id,
     )) as any;

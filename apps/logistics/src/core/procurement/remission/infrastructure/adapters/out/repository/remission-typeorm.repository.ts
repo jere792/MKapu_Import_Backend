@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -16,7 +17,10 @@ import { RemissionDetailOrmEntity } from '../../../entity/remission-detail-orm.e
 import { GuideTransferOrm } from '../../../entity/transport_guide-orm.entity';
 import { VehiculoOrmEntity } from '../../../entity/vehicle-orm.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RemissionMapper } from '../../../../application/mapper/remission.mapper';
+import {
+  RemissionResponseDto,
+  RemissionItemResponseDto,
+} from '../../../../application/dto/out/remission-response.dto';
 
 @Injectable()
 export class RemissionTypeormRepository implements RemissionPortOut {
@@ -25,6 +29,7 @@ export class RemissionTypeormRepository implements RemissionPortOut {
     private readonly repository: Repository<RemissionOrmEntity>,
     private readonly dataSource: DataSource,
   ) {}
+
   async getNextCorrelative(): Promise<number> {
     const last = await this.dataSource.manager.find(RemissionOrmEntity, {
       order: { numero: 'DESC' },
@@ -32,6 +37,7 @@ export class RemissionTypeormRepository implements RemissionPortOut {
     });
     return last.length > 0 ? last[0].numero + 1 : 1;
   }
+
   async save(remission: Remission): Promise<void> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -114,26 +120,72 @@ export class RemissionTypeormRepository implements RemissionPortOut {
       await queryRunner.release();
     }
   }
-  async findById(id: string): Promise<Remission | null> {
+
+  async findById(id: string): Promise<any | null> {
     const ormEntity = await this.repository.findOne({
       where: { id_guia: id },
       relations: ['details'],
     });
+
     if (!ormEntity) {
       return null;
     }
-    return RemissionMapper.toDomain(ormEntity, ormEntity.details);
+
+    const dto = new RemissionResponseDto();
+    dto.id_guia = ormEntity.id_guia;
+    dto.serie = ormEntity.serie;
+    dto.numero = ormEntity.numero;
+    dto.tipo_guia = ormEntity.tipo_guia;
+    dto.fecha_emision = ormEntity.fecha_emision;
+    dto.fecha_inicio = ormEntity.fecha_inicio;
+    dto.motivo_traslado = ormEntity.motivo_traslado;
+    dto.peso_total = ormEntity.peso_total;
+    dto.unidad_peso = ormEntity.unidad_peso;
+    dto.cantidad = ormEntity.cantidad;
+    dto.modalidad = ormEntity.modalidad;
+    dto.estado = ormEntity.estado;
+    dto.id_comprobante_ref = ormEntity.id_comprobante_ref;
+
+    // Mapeo manual de los items
+    if (ormEntity.details) {
+      dto.items = ormEntity.details.map((det) => {
+        const itemDto = new RemissionItemResponseDto();
+        itemDto.id_producto = det.id_producto;
+        itemDto.cod_prod = det.cod_prod;
+        itemDto.cantidad = det.cantidad;
+        itemDto.peso_total = det.peso_total;
+        itemDto.peso_unitario = det.peso_unitario;
+        return itemDto;
+      });
+    }
+
+    return dto;
   }
+
   async findByRefId(idVenta: number): Promise<any> {
     return await this.repository.findOne({
       where: { id_comprobante_ref: idVenta },
     });
   }
+
+  // ✅ SE MANTIENE TU MAPEO AL DTO
   async findAll(filter: any): Promise<{ data: any[]; total: number }> {
-    const { page = 1, limit = 10, search, estado, startDate, endDate } = filter;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      estado,
+      startDate,
+      endDate,
+      id_sede,
+    } = filter;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.repository.createQueryBuilder('remission');
+
+    if (id_sede) {
+      queryBuilder.andWhere('remission.id_sede_ref = :id_sede', { id_sede });
+    }
 
     if (search) {
       queryBuilder.andWhere(
@@ -163,45 +215,70 @@ export class RemissionTypeormRepository implements RemissionPortOut {
       .skip(skip)
       .take(limit);
 
-    // 3. Obtenemos solo los datos de la página actual
     const ormEntities = await queryBuilder.getMany();
 
     return {
-      data: ormEntities.map((entity) => RemissionMapper.toDomain(entity)),
-      total, // Ahora sí devolverá 4 (o el número real que haya en la BD)
+      data: ormEntities.map((entity) => {
+        const dto = new RemissionResponseDto();
+        dto.id_guia = entity.id_guia;
+        dto.serie = entity.serie;
+        dto.numero = entity.numero;
+        dto.tipo_guia = entity.tipo_guia;
+        dto.fecha_emision = entity.fecha_emision;
+        dto.fecha_inicio = entity.fecha_inicio;
+        dto.motivo_traslado = entity.motivo_traslado;
+        dto.peso_total = entity.peso_total;
+        dto.unidad_peso = entity.unidad_peso;
+        dto.cantidad = entity.cantidad;
+        dto.modalidad = entity.modalidad;
+        dto.estado = entity.estado;
+        dto.id_comprobante_ref = entity.id_comprobante_ref;
+        return dto;
+      }),
+      total,
     };
   }
 
-  async getSummaryInfo(startDate: Date, endDate: Date): Promise<any> {
+  async getSummaryInfo(
+    startDate: Date,
+    endDate: Date,
+    id_sede?: number,
+  ): Promise<any> {
     const qb = this.repository
       .createQueryBuilder('remission')
       .select('COUNT(remission.id_guia)', 'totalMes')
       .addSelect(
-        `SUM(CASE WHEN remission.estado = 'EMITIDO' THEN 1 ELSE 0 END)`,
+        `SUM(CASE WHEN remission.estado = 'EN_CAMINO' THEN 1 ELSE 0 END)`,
         'enTransito',
       )
       .addSelect(
-        `SUM(CASE WHEN remission.estado = 'PROCESADO' THEN 1 ELSE 0 END)`,
+        `SUM(CASE WHEN remission.estado = 'ENTREGADO' THEN 1 ELSE 0 END)`,
         'entregadas',
       )
       .addSelect(
-        `SUM(CASE WHEN remission.estado = 'ANULADO' THEN 1 ELSE 0 END)`,
+        `SUM(CASE WHEN remission.estado IN ('ANULADO', 'RECHAZADO') THEN 1 ELSE 0 END)`,
         'observadas',
       )
       .where('remission.fecha_emision >= :startDate', { startDate })
       .andWhere('remission.fecha_emision <= :endDate', { endDate });
 
+    if (id_sede) {
+      qb.andWhere('remission.id_sede = :id_sede', { id_sede });
+    }
+
     const rawData = await qb.getRawOne();
 
     return {
-      totalMes: Number(rawData.totalMes || 0),
-      enTransito: Number(rawData.enTransito || 0),
-      entregadas: Number(rawData.entregadas || 0),
-      observadas: Number(rawData.observadas || 0),
+      totalMes: Number(rawData?.totalMes || 0),
+      enTransito: Number(rawData?.enTransito || 0),
+      entregadas: Number(rawData?.entregadas || 0),
+      observadas: Number(rawData?.observadas || 0),
     };
   }
+
+  // Si usas este método en tu controlador para ver detalles, también mapealo
   async obtenerGuiaParaReporte(id: string): Promise<any> {
-    return await this.repository
+    const guiaInfo = await this.repository
       .createQueryBuilder('guia')
       .leftJoinAndSelect('guia.details', 'details')
       .leftJoinAndMapOne(
@@ -230,8 +307,21 @@ export class RemissionTypeormRepository implements RemissionPortOut {
       )
       .where('guia.id_guia = :id', { id })
       .getOne();
+
+    return guiaInfo; // Si el JSON se arma con las relations, esto debería bastar para los reportes
   }
+
   async markAsPrinted(id: string): Promise<void> {
     await this.repository.update(id, { impreso: true });
+  }
+
+  async changeStatus(idGuia: string, estado: string): Promise<void> {
+    const result = await this.repository.update({ id_guia: idGuia }, {
+      estado: estado,
+    } as any);
+
+    if (result.affected === 0) {
+      throw new Error(`No se encontró la guía de remisión con ID ${idGuia}`);
+    }
   }
 }

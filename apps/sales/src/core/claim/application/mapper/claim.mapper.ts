@@ -13,28 +13,28 @@ import { ClaimResponseDto } from '../dto/out/claim-response-dto';
 
 export class ClaimMapper {
   static toDomain(ormEntity: ClaimOrmEntity): Claim {
-    const props: ClaimProps = {
-      id_reclamo: ormEntity.id_reclamo,
-      id_comprobante: ormEntity.id_comprobante,
-      id_vendedor_ref: ormEntity.id_vendedor_ref,
-      id_sede: ormEntity.id_sede,
-      motivo: ormEntity.motivo,
-      descripcion: ormEntity.descripcion,
-      respuesta: ormEntity.respuesta,
-      estado: ormEntity.estado as ClaimStatus,
-      fecha_registro: ormEntity.fecha_registro,
-      fecha_resolucion: ormEntity.fecha_resolucion,
-
-      detalles:
-        ormEntity.detalles?.map((d) =>
-          ClaimDetail.create({
-            tipo: d.tipo,
-            descripcion: d.descripcion,
-            fecha: d.fecha || new Date(),
-          }),
-        ) || [],
-    };
-    return Claim.create(props);
+  const props: ClaimProps = {
+    id_reclamo: ormEntity.id_reclamo,
+    id_comprobante: ormEntity.id_comprobante,
+    id_vendedor_ref: ormEntity.id_vendedor_ref,
+    codigo_reclamo: ormEntity.codigo_reclamo,  
+    id_sede: ormEntity.id_sede,
+    motivo: ormEntity.motivo,
+    descripcion: ormEntity.descripcion,
+    respuesta: ormEntity.respuesta,
+    estado: ormEntity.estado as ClaimStatus,
+    fecha_registro: ormEntity.fecha_registro,
+    fecha_resolucion: ormEntity.fecha_resolucion,
+    detalles:
+      ormEntity.detalles?.map((d) =>
+        ClaimDetail.create({
+          tipo: d.tipo,
+          descripcion: d.descripcion, 
+          fecha: d.fecha || new Date(),
+        }),
+      ) || [],
+  };
+  return Claim.create(props);
   }
 
   static toOrm(domainEntity: Claim): ClaimOrmEntity {
@@ -42,6 +42,7 @@ export class ClaimMapper {
     if (domainEntity.id_reclamo) {
       orm.id_reclamo = domainEntity.id_reclamo;
     }
+    orm.codigo_reclamo = domainEntity.codigo_reclamo ?? null; 
     orm.id_comprobante = domainEntity.id_comprobante;
     orm.id_vendedor_ref = domainEntity.id_vendedor_ref;
     orm.id_sede = domainEntity.id_sede;
@@ -71,6 +72,7 @@ export class ClaimMapper {
   static toResponseDto(claim: Claim): ClaimResponseDto {
     return {
       claimId: claim.id_reclamo!,
+      codigoReclamo: claim.codigo_reclamo, 
       receiptId: claim.id_comprobante,
       sellerId: claim.id_vendedor_ref,
       reason: claim.motivo,
@@ -78,12 +80,11 @@ export class ClaimMapper {
       status: claim.estado,
       registeredAt: claim.fecha_registro,
       resolvedAt: claim.fecha_resolucion || null,
-      detalles:
-        claim.detalles?.map((d) => ({
-          tipo: d.tipo,
-          descripcion: d.descripcion,
-          fecha: d.fecha,
-        })) || [],
+      detalles: claim.detalles?.map((d) => ({
+        tipo: d.tipo,
+        descripcion: d.descripcion,
+        fecha: d.fecha,
+      })),
       respuesta: claim.respuesta,
       sedeId: claim.id_sede,
     };
@@ -99,8 +100,6 @@ export class ClaimMapper {
   }
 
   static fromRegisterDto(dto: RegisterClaimDto): Claim {
-    // Nota: Si usas 'createNew', asegúrate de actualizar ese método en la entidad Claim
-    // para que acepte el id_sede como 5to parámetro.
     return Claim.createNew(
       dto.id_comprobante,
       dto.id_vendedor_ref,

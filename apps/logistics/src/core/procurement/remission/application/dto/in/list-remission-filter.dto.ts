@@ -9,4 +9,8 @@ export class ListRemissionFilterDto {
   @IsOptional() @IsNumber() @Type(() => Number) estado?: number;
   @IsOptional() @IsString() startDate?: string;
   @IsOptional() @IsString() endDate?: string;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  id_sede?: number;
 }

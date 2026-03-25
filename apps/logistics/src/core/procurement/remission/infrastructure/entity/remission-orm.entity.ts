@@ -10,9 +10,11 @@ export enum TransportMode {
   PRIVADO,
 }
 export enum RemissionStatus {
-  EMITIDO,
-  ANULADO,
-  PROCESADO,
+  EMITIDO = 'EMITIDO',
+  EN_CAMINO = 'EN_CAMINO',
+  ENTREGADO = 'ENTREGADO',
+  ANULADO = 'ANULADO',
+  RECHAZADO = 'RECHAZADO',
 }
 @Entity('guia_remision')
 export class RemissionOrmEntity {

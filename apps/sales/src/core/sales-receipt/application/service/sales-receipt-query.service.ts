@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -184,19 +186,26 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     };
   }
 
-  async getKpiSemanal(sedeId?: number): Promise<SalesReceiptKpiDto> {
-    const raw = await this.receiptRepository.getKpiSemanal(sedeId);
+  async getKpiSemanal(filters: KpiFilterParams): Promise<SalesReceiptKpiDto> {
+    const raw = await this.receiptRepository.getKpiDinamico(filters);
 
-    const ahora = new Date();
-    const diaSemana = ahora.getDay();
-    const diffLunes = diaSemana === 0 ? 6 : diaSemana - 1;
+    let semana_desde: string;
+    let semana_hasta: string;
 
-    const lunes = new Date(ahora);
-    lunes.setDate(ahora.getDate() - diffLunes);
-    lunes.setHours(0, 0, 0, 0);
+    if (filters.dateFrom && filters.dateTo) {
+      semana_desde = new Date(filters.dateFrom).toISOString().split('T')[0];
+      semana_hasta = new Date(filters.dateTo).toISOString().split('T')[0];
+    } else if (filters.dateFrom) {
+      semana_desde = new Date(filters.dateFrom).toISOString().split('T')[0];
+      semana_hasta = new Date().toISOString().split('T')[0];
+    } else if (filters.dateTo) {
+      semana_desde = 'inicio';
+      semana_hasta = new Date(filters.dateTo).toISOString().split('T')[0];
+    } else {
+      semana_desde = 'todo';
+      semana_hasta = 'todo';
+    }
 
-    const domingo = new Date(lunes);
-    domingo.setDate(lunes.getDate() + 6);
     return {
       total_ventas: raw.total_ventas,
       cantidad_ventas: raw.cantidad_ventas,
@@ -538,12 +547,10 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     };
   }
 
-  
   async exportThermalVoucher(id: number, res: Response): Promise<void> {
     const data = await this.buildPdfData(id);
     const empresaRaw = await this.empresaPort.getEmpresa(id);
 
-    // Línea 505: IMPORTANTE usar el Mapper aquí
     const empresaMapped = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
     const buffer = await buildSalesReceiptThermalPdf(
       data,
@@ -563,6 +570,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
   async getEmpresa(id: number): Promise<Empresa> {
     return await this.empresaPort.getEmpresa(id);
   }
+}
 
 function parseDateStart(value?: string): Date | undefined {
   if (!value) return undefined;

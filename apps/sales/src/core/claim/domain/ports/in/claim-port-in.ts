@@ -6,7 +6,7 @@ export const CLAIM_COMMAND_PORT = 'IClaimCommandPort';
 export const CLAIM_QUERY_PORT = 'IClaimQueryPort';
 
 export interface IClaimCommandPort {
-  register(dto: RegisterClaimDto): Promise<Claim>;
+  register(dto: RegisterClaimDto): Promise<ClaimResponseDto>; 
   attend(id: number, respuesta: string): Promise<ClaimResponseDto>;
   resolve(id: number, respuesta: string): Promise<ClaimResponseDto>;
 }

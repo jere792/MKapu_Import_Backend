@@ -20,11 +20,20 @@ export class ClaimTypeormRepository implements ClaimPortOut {
     });
     return claims.map((orm) => ClaimMapper.toDomain(orm));
   }
+
   async save(claim: Claim): Promise<Claim> {
     const claimOrm = ClaimMapper.toOrm(claim);
     const savedClaimOrm = await this.claimRepository.save(claimOrm);
-    return ClaimMapper.toDomain(savedClaimOrm);
+
+    // 👇 Volver a buscar para obtener TODOS los campos incluyendo codigo_reclamo
+    const fullClaimOrm = await this.claimRepository.findOne({
+      where: { id_reclamo: savedClaimOrm.id_reclamo },
+      relations: ['detalles'],
+    });
+
+    return ClaimMapper.toDomain(fullClaimOrm!);
   }
+  
   async findById(id: number): Promise<Claim | null> {
     const claimOrm = await this.claimRepository.findOne({
       where: { id_reclamo: id },

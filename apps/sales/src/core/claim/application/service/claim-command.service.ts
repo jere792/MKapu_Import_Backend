@@ -21,7 +21,8 @@ export class ClaimCommandService implements IClaimCommandPort {
     @InjectRepository(SalesReceiptOrmEntity)
     private readonly salesReceiptRepository: Repository<SalesReceiptOrmEntity>,
   ) {}
-  async register(dto: RegisterClaimDto): Promise<Claim> {
+
+  async register(dto: RegisterClaimDto): Promise<ClaimResponseDto> { 
     const saleExists = await this.salesReceiptRepository.findOne({
       where: { id_comprobante: dto.id_comprobante },
     });
@@ -32,8 +33,9 @@ export class ClaimCommandService implements IClaimCommandPort {
     }
     const newClaim = ClaimMapper.fromRegisterDto(dto);
     const savedClaim = await this.claimRepository.save(newClaim);
-    return savedClaim;
+    return ClaimMapper.toResponseDto(savedClaim);  
   }
+
   async attend(id: number, respuesta: string): Promise<ClaimResponseDto> {
     const claim = await this.claimRepository.findById(id);
     if (!claim)

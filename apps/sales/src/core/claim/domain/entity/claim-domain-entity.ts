@@ -4,6 +4,7 @@ export interface ClaimProps {
   id_reclamo?: number;
   id_comprobante: number;
   id_vendedor_ref: string;
+  codigo_reclamo?: string;     
   motivo: string;
   descripcion: string;
   respuesta?: string;
@@ -39,25 +40,33 @@ export class Claim {
     return new Claim(props);
   }
 
-  static createNew(
-    id_comprobante: number,
-    id_vendedor_ref: string,
-    motivo: string,
-    descripcion: string,
-    id_sede?: number,
-    detalles: ClaimDetail[] = [],
-  ): Claim {
-    return Claim.create({
-      id_comprobante,
-      id_vendedor_ref,
-      motivo,
-      descripcion,
-      estado: ClaimStatus.REGISTRADO,
-      fecha_registro: new Date(),
-      id_sede,
-      detalles,
-    });
-  }
+static createNew(
+  id_comprobante: number,
+  id_vendedor_ref: string,
+  motivo: string,
+  descripcion: string,
+  id_sede?: number,
+  detalles: ClaimDetail[] = [],
+): Claim {
+  return Claim.create({
+    id_comprobante,
+    id_vendedor_ref,
+    motivo,
+    descripcion,
+    codigo_reclamo: Claim.generarCodigo(), // 👈 agregar
+    estado: ClaimStatus.REGISTRADO,
+    fecha_registro: new Date(),
+    id_sede,
+    detalles,
+  });
+}
+
+private static generarCodigo(): string {
+  const now = new Date();
+  const fecha = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const random = Math.floor(Math.random() * 9000) + 1000;
+  return `REC-${fecha}-${random}`;
+}
 
   get id_reclamo(): number | undefined {
     return this.props.id_reclamo;
@@ -98,6 +107,10 @@ export class Claim {
   }
   get id_sede(): number | undefined {
     return this.props.id_sede;
+  }
+
+  get codigo_reclamo(): string | undefined {
+    return this.props.codigo_reclamo;
   }
 
   iniciarReclamo(): Claim {

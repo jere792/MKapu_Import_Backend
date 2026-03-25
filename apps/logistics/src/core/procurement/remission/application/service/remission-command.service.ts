@@ -152,4 +152,19 @@ export class RemissionCommandService implements RemissionCommandPortIn {
       );
     }
   }
+  async changeStatus(
+    idGuia: string,
+    estado: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.remissionRepository.changeStatus(idGuia, estado);
+
+      return {
+        success: true,
+        message: `El estado de la guía se actualizó a ${estado} correctamente`,
+      };
+    } catch (error) {
+      throw new Error(`Error al actualizar el estado: ${error.message}`);
+    }
+  }
 }

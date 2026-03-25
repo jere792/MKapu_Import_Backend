@@ -37,7 +37,7 @@ export interface KpiFilterParams {
   paymentMethodId?: number;
   receiptTypeId?: number;
   search?: string;
-
+}
 export interface EmployeeSalesRaw {
   id_comprobante: number;
   serie: string;

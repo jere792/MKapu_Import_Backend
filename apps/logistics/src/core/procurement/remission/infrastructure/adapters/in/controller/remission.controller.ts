@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -17,6 +18,7 @@ import { RoleGuard } from '@app/common/infrastructure/guard/roles.guard';
 import { Roles } from '@app/common';
 import { ListRemissionFilterDto } from '../../../../application/dto/in/list-remission-filter.dto';
 import { RemissionQueryService } from '../../../../application/service/remission-query.service';
+import { ChangeRemissionStatusDto } from '../../../../application/dto/in/change-remission-status.dto';
 
 @Controller('remission')
 //@UseGuards(JwtAuthGuard, RoleGuard)
@@ -40,8 +42,8 @@ export class RemissionController {
     return await this.remissionQueryService.executeList(filter);
   }
   @Get('summary')
-  async getSummary() {
-    return await this.remissionQueryService.executeGetSummary();
+  async getSummary(@Query() filter: any) {
+    return await this.remissionQueryService.executeGetSummary(filter);
   }
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -55,5 +57,12 @@ export class RemissionController {
   @Get(':id/export/pdf')
   async exportPdf(@Param('id') id: string, @Res() res: Response) {
     return await this.remissionQueryService.exportPdf(id, res);
+  }
+  @Patch(':id/status')
+  async changeStatus(
+    @Param('id') id: string,
+    @Body() payload: ChangeRemissionStatusDto,
+  ) {
+    return await this.service.changeStatus(id, payload.estado);
   }
 }

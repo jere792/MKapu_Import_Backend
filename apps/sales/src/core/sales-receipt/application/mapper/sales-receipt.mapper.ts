@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 import {
   SalesReceipt,
   ReceiptStatus,
@@ -229,7 +230,7 @@ export class SalesReceiptMapper {
       ciudad: empresa.ciudad || 'CIUDAD NO ESPECIFICADA',
       telefono: empresa.telefono || '',
       email: empresa.email || '',
-      logo_url: empresa.logoUrl, 
+      logo_url: empresa.logoUrl,
       sitio_web: empresa.sitioWeb,
     };
   }

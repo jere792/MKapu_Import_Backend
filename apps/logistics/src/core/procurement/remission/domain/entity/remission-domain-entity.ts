@@ -32,9 +32,11 @@ export enum TransportMode {
 }
 
 export enum RemissionStatus {
-  EMITIDO,
-  ANULADO,
-  PROCESADO,
+  EMITIDO = 'EMITIDO',
+  EN_CAMINO = 'EN_CAMINO',
+  ENTREGADO = 'ENTREGADO',
+  ANULADO = 'ANULADO',
+  RECHAZADO = 'RECHAZADO',
 }
 
 export interface RemissionProps {
@@ -239,7 +241,7 @@ export class Remission {
     if (this.props.estado === RemissionStatus.ANULADO) {
       throw new Error('La guía ya se encuentra anulada');
     }
-    if (this.props.estado === RemissionStatus.PROCESADO) {
+    if (this.props.estado === RemissionStatus.EMITIDO) {
       throw new Error(
         'Una guía procesada debe ser dada de baja mediante una comunicación de baja',
       );
@@ -258,7 +260,7 @@ export class Remission {
         'Es obligatorio contar con el ticket de SUNAT para procesar la guía',
       );
     }
-    this.props.estado = RemissionStatus.PROCESADO;
+    this.props.estado = RemissionStatus.EMITIDO;
     this.props.observaciones = `Aceptado por SUNAT: ${ticketSunat}`;
   }
 }
