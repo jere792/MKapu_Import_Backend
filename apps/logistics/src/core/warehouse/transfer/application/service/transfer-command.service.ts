@@ -216,7 +216,7 @@ export class TransferCommandService implements TransferPortsIn {
     const realtimePayload =
       await this.buildRealtimeTransferPayload(savedTransfer);
     this.transferGateway.notifyNewRequest(
-      dto.originHeadquartersId,
+      dto.destinationHeadquartersId,
       realtimePayload,
     );
 
@@ -2251,3 +2251,4 @@ export class TransferCommandService implements TransferPortsIn {
     );
   }
 }
+
