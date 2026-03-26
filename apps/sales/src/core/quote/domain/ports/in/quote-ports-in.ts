@@ -18,4 +18,10 @@ export interface IQuoteQueryPort {
   listEmployeeQuotes(
     filters: ListEmployeeQuotesFilterDto,
   ): Promise<EmployeeQuotesListResponseDto>;
+  autocomplete(
+    q: string,
+    tipo?: string,
+    id_sede?: number,
+  ): Promise<{ id_cotizacion: number; codigo: string; cliente_nombre: string; fec_emision: string; total: number }[]>;
+
 }

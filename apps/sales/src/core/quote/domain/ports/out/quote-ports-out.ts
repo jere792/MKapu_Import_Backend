@@ -25,4 +25,9 @@ export interface IQuoteRepositoryPort {
     limit: number,
   ): Promise<[EmployeeQuoteRaw[], number]>;
   delete(id: number): Promise<void>;
+  autocomplete(
+  q: string,
+  tipo?: string,
+  id_sede?: number,
+): Promise<{ id_cotizacion: number; codigo: string; cliente_nombre: string; fec_emision: string; total: number }[]>;
 }

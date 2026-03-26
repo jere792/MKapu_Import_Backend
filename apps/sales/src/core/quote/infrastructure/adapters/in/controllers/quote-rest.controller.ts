@@ -25,7 +25,6 @@ import {
 } from '../../../../application/dto/out/quote-response.dto';
 import { QuoteQueryFiltersDto } from '../../../../application/dto/in/quote-query-filters.dto';
 import { QuoteQueryService } from '../../../../application/service/quote-query.service';
-
 @Controller('quote')
 export class QuoteController {
   constructor(
@@ -36,15 +35,15 @@ export class QuoteController {
     private readonly quoteQueryService: QuoteQueryService,
   ) {}
 
+  // --- Comandos (Escritura) ---
+
   @Post()
   async create(@Body() dto: CreateQuoteDto): Promise<QuoteResponseDto> {
     return await this.commandPort.create(dto);
   }
 
   @Patch(':id/approve')
-  async approve(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<QuoteResponseDto> {
+  async approve(@Param('id', ParseIntPipe) id: number): Promise<QuoteResponseDto> {
     return await this.commandPort.approve(id);
   }
 
@@ -62,19 +61,37 @@ export class QuoteController {
     return await this.commandPort.delete(id);
   }
 
+  // --- Consultas (Lectura) ---
+
+  @Get()
+  async listQuotes(@Query() filters: QuoteQueryFiltersDto): Promise<QuotePagedResponseDto> {
+    return this.queryPort.findAllPaged(filters);
+  }
+
+  @Get('autocomplete/search')
+  async autocomplete(
+    @Query('q') q: string,
+    @Query('tipo') tipo?: string,
+    @Query('id_sede') id_sede?: string,
+  ) {
+    return this.quoteQueryService.autocomplete(
+      q ?? '',
+      tipo,
+      id_sede ? Number(id_sede) : undefined,
+    );
+  }
+
   @Get('customer/:valor_doc')
-  async getByCustomer(
-    @Param('valor_doc') valor_doc: string,
-  ): Promise<QuoteResponseDto[]> {
+  async getByCustomer(@Param('valor_doc') valor_doc: string): Promise<QuoteResponseDto[]> {
     return await this.queryPort.getByCustomerDocument(valor_doc);
   }
 
-  @Get()
-  async listQuotes(
-    @Query() filters: QuoteQueryFiltersDto,
-  ): Promise<QuotePagedResponseDto> {
-    return this.queryPort.findAllPaged(filters);
+  @Get(':id')
+  async getById(@Param('id', ParseIntPipe) id: number): Promise<QuoteResponseDto | null> {
+    return await this.queryPort.getById(id);
   }
+
+  // --- Exportaciones y Mensajería ---
 
   @Get(':id/export/pdf')
   async exportPdf(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
@@ -82,10 +99,7 @@ export class QuoteController {
   }
 
   @Get(':id/export/thermal')
-  async exportThermalVoucher(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: Response,
-  ) {
+  async exportThermalVoucher(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
     return await this.quoteQueryService.exportThermalVoucher(id, res);
   }
 
@@ -101,13 +115,6 @@ export class QuoteController {
 
   @Post(':id/send-whatsapp')
   async sendByWhatsApp(@Param('id', ParseIntPipe) id: number) {
-    return this.quoteQueryService.sendByWhatsApp(id);
-  }
-
-  @Get(':id')
-  async getById(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<QuoteResponseDto | null> {
-    return await this.queryPort.getById(id);
+    return await this.quoteQueryService.sendByWhatsApp(id);
   }
 }

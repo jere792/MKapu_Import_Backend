@@ -74,6 +74,11 @@ export class QuoteQueryService implements IQuoteQueryPort {
     );
   }
 
+  async autocomplete(q: string, tipo?: string, id_sede?: number) {
+      return this.repository.autocomplete(q, tipo, id_sede);
+  }
+
+
   async findAllPaged(filters: QuoteQueryFiltersDto): Promise<QuotePagedResponseDto> {
     const { data, total } = await this.repository.findAllPaged(filters);
     const page  = Number(filters.page)  || 1;
@@ -86,7 +91,6 @@ export class QuoteQueryService implements IQuoteQueryPort {
           .map((q) => Number(q.id_proveedor)),
     )];
 
-    // â”€â”€ IDs de responsables Ãºnicos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const responsableIds = [
       ...new Set(
         data
