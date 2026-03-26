@@ -34,7 +34,10 @@ import {
 } from '../../domain/entity/transfer-domain-entity';
 import { TransferNotificationMapper } from '../mapper/transfer-notification.mapper';
 import { TransferPortsIn } from '../../domain/ports/in/transfer-ports-in';
-import { TransferPortsOut } from '../../domain/ports/out/transfer-ports-out';
+import {
+  type TransferListSummary,
+  TransferPortsOut,
+} from '../../domain/ports/out/transfer-ports-out';
 import { TransferWebsocketGateway } from '../../infrastructure/adapters/out/transfer-websocket.gateway';
 import type { TransferGatewayTransferPayload } from '../../infrastructure/adapters/out/transfer-websocket.payload';
 import { UsuarioTcpProxy } from '../../infrastructure/adapters/out/TCP/usuario-tcp.proxy';
@@ -60,8 +63,13 @@ type RawUnit = {
 };
 
 type PaginatedTransfersResult = {
-  transfers: Transfer[];
+  transfers: TransferListSummary[];
   total: number;
+};
+
+type TransferListDateRange = {
+  dateFrom?: Date;
+  dateTo?: Date;
 };
 
 type TransferLookupUserDto = {
@@ -100,10 +108,30 @@ type TransferResponseUserDto = {
   apeMat?: string;
 };
 
+type TransferListLookupContext = {
+  headquarterCache: Map<string, TransferLookupHeadquarterDto | null>;
+  userCache: Map<number, TransferLookupUserDto | null>;
+  productCache: Map<number, TransferLookupProductDto | null>;
+};
+
+type ExpiringLookupEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+
 @Injectable()
 export class TransferCommandService implements TransferPortsIn {
   private readonly logger = new Logger(TransferCommandService.name);
   private resolvedAdminDatabaseName: string | null | undefined = undefined;
+  private readonly listLookupCacheTtlMs = 60_000;
+  private readonly transferListUserCache = new Map<
+    number,
+    ExpiringLookupEntry<TransferLookupUserDto | null>
+  >();
+  private readonly transferListProductCache = new Map<
+    number,
+    ExpiringLookupEntry<TransferLookupProductDto | null>
+  >();
 
   constructor(
     @Inject('TransferPortsOut')
@@ -554,27 +582,21 @@ export class TransferCommandService implements TransferPortsIn {
       );
     }
 
+    const { dateFrom, dateTo } = this.resolveTransferListDateRange(query);
     const paginatedResult = await this.loadPaginatedTransfers(
       page,
       pageSize,
       headquartersId,
+      dateFrom,
+      dateTo,
     );
     const { transfers, total } = paginatedResult;
 
-    const headquarterCache = new Map<
-      string,
-      TransferLookupHeadquarterDto | null
-    >();
-    const userCache = new Map<number, TransferLookupUserDto | null>();
-    const productCache = new Map<number, TransferLookupProductDto | null>();
-
-    const data: TransferListResponseDto[] =
-      await this.mapTransfersToListResponse(
-        transfers,
-        headquarterCache,
-        userCache,
-        productCache,
-      );
+    const lookupContext = await this.buildTransferListLookupContext(transfers);
+    const data = this.mapTransfersToListResponseFromLookups(
+      transfers,
+      lookupContext,
+    );
 
     const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
     const response: TransferListPaginatedResponseDto = {
@@ -1132,12 +1154,17 @@ export class TransferCommandService implements TransferPortsIn {
     };
   }
 
-  private normalizeTransferDate(value: Date | null | undefined): string | null {
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+  private normalizeTransferDate(
+    value: Date | string | null | undefined,
+  ): string | null {
+    const resolvedDate =
+      value instanceof Date ? value : value ? new Date(value) : null;
+
+    if (!(resolvedDate instanceof Date) || Number.isNaN(resolvedDate.getTime())) {
       return null;
     }
 
-    return value.toISOString();
+    return resolvedDate.toISOString();
   }
 
   private async validateWarehouseBelongsToHeadquarters(
@@ -1319,6 +1346,405 @@ export class TransferCommandService implements TransferPortsIn {
     return results;
   }
 
+
+  private async buildTransferListLookupContext(
+    transfers: TransferListSummary[],
+  ): Promise<TransferListLookupContext> {
+    const headquarterIds = Array.from(
+      new Set(
+        transfers
+          .flatMap((transfer) => [
+            String(transfer.originHeadquartersId ?? '').trim(),
+            String(transfer.destinationHeadquartersId ?? '').trim(),
+          ])
+          .filter((value) => Boolean(value)),
+      ),
+    );
+    const headquarterCache = new Map<string, TransferLookupHeadquarterDto | null>();
+    headquarterIds.forEach((headquarterId) => {
+      headquarterCache.set(headquarterId, null);
+    });
+
+    const creatorUserIds = Array.from(
+      new Set(
+        transfers
+          .map((transfer) => Number(transfer.creatorUserId))
+          .filter((value) => Number.isInteger(value) && value > 0),
+      ),
+    );
+
+    const productIds = Array.from(
+      new Set(
+        transfers
+          .map((transfer) => Number(transfer.firstProductId))
+          .filter((value) => Number.isInteger(value) && value > 0),
+      ),
+    );
+
+    const [userCache, productCache] = await Promise.all([
+      this.getUsersByIds(creatorUserIds),
+      this.getProductsByIds(productIds),
+    ]);
+
+    return {
+      headquarterCache,
+      userCache,
+      productCache,
+    };
+  }
+
+  private mapTransfersToListResponseFromLookups(
+    transfers: TransferListSummary[],
+    lookupContext: TransferListLookupContext,
+  ): TransferListResponseDto[] {
+    return transfers.map((transfer) =>
+      this.mapTransferToListResponseFromLookups(transfer, lookupContext),
+    );
+  }
+
+  private mapTransferToListResponseFromLookups(
+    transfer: TransferListSummary,
+    lookupContext: TransferListLookupContext,
+  ): TransferListResponseDto {
+    const originHeadquartersId = String(
+      transfer.originHeadquartersId ?? '',
+    ).trim();
+    const destinationHeadquartersId = String(
+      transfer.destinationHeadquartersId ?? '',
+    ).trim();
+
+    const originHeadquarter =
+      lookupContext.headquarterCache.get(originHeadquartersId) ?? null;
+    const destinationHeadquarter =
+      lookupContext.headquarterCache.get(destinationHeadquartersId) ?? null;
+
+    const creatorUserId = Number(transfer.creatorUserId);
+    const creatorUser =
+      Number.isInteger(creatorUserId) && creatorUserId > 0
+        ? (lookupContext.userCache.get(creatorUserId) ?? null)
+        : null;
+
+    const productId = Number(transfer.firstProductId);
+    const product =
+      Number.isInteger(productId) && productId > 0
+        ? (lookupContext.productCache.get(productId) ?? null)
+        : null;
+
+    const nomProducto =
+      product?.nomProducto?.trim() ||
+      product?.descripcion?.trim() ||
+      product?.codigo?.trim() ||
+      '-';
+
+    return {
+      id: transfer.id,
+      originHeadquartersId,
+      originWarehouseId: transfer.originWarehouseId,
+      destinationHeadquartersId,
+      destinationWarehouseId: transfer.destinationWarehouseId,
+      requestDate: this.normalizeTransferDate(transfer.requestDate) ?? '',
+      origin: {
+        id_sede: originHeadquartersId,
+        codigo: originHeadquarter?.codigo ?? '',
+        nomSede:
+          originHeadquarter?.nombre ?? `Sede ${originHeadquartersId || '-'}`,
+      },
+      destination: {
+        id_sede: destinationHeadquartersId,
+        codigo: destinationHeadquarter?.codigo ?? '',
+        nomSede:
+          destinationHeadquarter?.nombre ??
+          `Sede ${destinationHeadquartersId || '-'}`,
+      },
+      totalQuantity: transfer.totalQuantity,
+      status: transfer.status,
+      observation: transfer.observation,
+      nomProducto,
+      creatorUser: this.mapUserToResponse(creatorUser),
+    };
+  }
+
+  private async getProductsByIds(
+    productIds: number[],
+  ): Promise<Map<number, TransferLookupProductDto | null>> {
+    const normalizedIds = Array.from(
+      new Set(
+        (productIds ?? []).filter(
+          (productId) => Number.isInteger(productId) && productId > 0,
+        ),
+      ),
+    );
+    const productMap = new Map<number, TransferLookupProductDto | null>();
+
+    if (normalizedIds.length === 0) {
+      return productMap;
+    }
+
+    const missingProductIds: number[] = [];
+    normalizedIds.forEach((productId) => {
+      const cachedProduct = this.getCachedLookup(
+        this.transferListProductCache,
+        productId,
+      );
+      if (cachedProduct !== undefined) {
+        productMap.set(productId, cachedProduct);
+        return;
+      }
+
+      missingProductIds.push(productId);
+    });
+
+    if (missingProductIds.length === 0) {
+      return productMap;
+    }
+
+    try {
+      const rowsUnknown: unknown = await this.stockRepo.query(
+        `SELECT
+           p.id_producto AS id_producto,
+           p.codigo AS codigo,
+           p.anexo AS nom_producto,
+           p.descripcion AS descripcion,
+           c.id_categoria AS id_categoria,
+           c.nombre AS categoria_nombre
+         FROM producto p
+         LEFT JOIN categoria c ON c.id_categoria = p.id_categoria
+         WHERE p.id_producto IN (${this.buildSqlPlaceholders(missingProductIds.length)})`,
+        missingProductIds,
+      );
+
+      this.getObjectRows(rowsUnknown).forEach((row) => {
+        const resolvedProductId = this.toOptionalPositiveInteger(
+          row['id_producto'],
+        );
+        if (!resolvedProductId) {
+          return;
+        }
+
+        const categoriaId = this.toOptionalPositiveInteger(row['id_categoria']);
+        const categoriaNombre = this.toSafeString(row['categoria_nombre']);
+
+        const resolvedProduct: TransferLookupProductDto = {
+          id_producto: resolvedProductId,
+          codigo: this.toSafeString(row['codigo']),
+          nomProducto: this.toSafeString(row['nom_producto']),
+          descripcion: this.toSafeString(row['descripcion']),
+          categoria: categoriaId
+            ? {
+                id_categoria: categoriaId,
+                nombre: categoriaNombre,
+              }
+            : null,
+        };
+        productMap.set(resolvedProductId, resolvedProduct);
+        this.setCachedLookup(
+          this.transferListProductCache,
+          resolvedProductId,
+          resolvedProduct,
+        );
+      });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron resolver productos para el listado de transferencias: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }`,
+      );
+    }
+
+    missingProductIds.forEach((productId) => {
+      if (!productMap.has(productId)) {
+        productMap.set(productId, null);
+        this.setCachedLookup(this.transferListProductCache, productId, null);
+      }
+    });
+
+    return productMap;
+  }
+
+  private async getUsersByIds(
+    userIds: number[],
+  ): Promise<Map<number, TransferLookupUserDto | null>> {
+    const normalizedIds = Array.from(
+      new Set(
+        (userIds ?? []).filter((userId) => Number.isInteger(userId) && userId > 0),
+      ),
+    );
+    const userMap = new Map<number, TransferLookupUserDto | null>();
+
+    if (normalizedIds.length === 0) {
+      return userMap;
+    }
+
+    const missingUserIds: number[] = [];
+    normalizedIds.forEach((userId) => {
+      const cachedUser = this.getCachedLookup(this.transferListUserCache, userId);
+      if (cachedUser !== undefined) {
+        userMap.set(userId, cachedUser);
+        return;
+      }
+
+      missingUserIds.push(userId);
+    });
+
+    if (missingUserIds.length === 0) {
+      return userMap;
+    }
+
+    const adminDb = await this.resolveAdminDatabaseName();
+    if (adminDb) {
+      try {
+        const rowsUnknown: unknown = await this.stockRepo.query(
+          `SELECT
+             u.id_usuario AS id_usuario,
+             COALESCE(NULLIF(TRIM(u.nombres), ''), '') AS usu_nom,
+             COALESCE(u.ape_pat, '') AS ape_pat,
+             COALESCE(u.ape_mat, '') AS ape_mat
+           FROM \`${adminDb}\`.\`usuario\` u
+           WHERE u.id_usuario IN (${this.buildSqlPlaceholders(missingUserIds.length)})`,
+          missingUserIds,
+        );
+
+        this.getObjectRows(rowsUnknown).forEach((row) => {
+          const resolvedUserId = this.toOptionalPositiveInteger(
+            row['id_usuario'],
+          );
+          if (!resolvedUserId) {
+            return;
+          }
+
+          const resolvedUser: TransferLookupUserDto = {
+            id_usuario: resolvedUserId,
+            usu_nom: this.toSafeString(row['usu_nom']),
+            ape_pat: this.toSafeString(row['ape_pat']),
+            ape_mat: this.toSafeString(row['ape_mat']) || undefined,
+          };
+          userMap.set(resolvedUserId, resolvedUser);
+          this.setCachedLookup(
+            this.transferListUserCache,
+            resolvedUserId,
+            resolvedUser,
+          );
+        });
+      } catch (error) {
+        this.logger.warn(
+          `No se pudieron resolver usuarios del listado de transferencias desde DB admin: ${
+            error instanceof Error ? error.message : 'error desconocido'
+          }`,
+        );
+      }
+    }
+
+    const unresolvedUserIds = missingUserIds.filter(
+      (userId) => !userMap.has(userId),
+    );
+    if (unresolvedUserIds.length > 0) {
+      const tcpUsers = await this.usuarioTcpProxy.getUsersByIds(unresolvedUserIds);
+      tcpUsers.forEach((user) => {
+        const resolvedUser: TransferLookupUserDto = {
+          id_usuario: Number(user.id_usuario),
+          usu_nom: this.toSafeString(user.usu_nom),
+          ape_pat: this.toSafeString(user.ape_pat),
+          ape_mat: this.toSafeString(user.ape_mat) || undefined,
+        };
+        userMap.set(Number(user.id_usuario), resolvedUser);
+        this.setCachedLookup(
+          this.transferListUserCache,
+          Number(user.id_usuario),
+          resolvedUser,
+        );
+      });
+    }
+
+    missingUserIds.forEach((userId) => {
+      if (!userMap.has(userId)) {
+        userMap.set(userId, null);
+        this.setCachedLookup(this.transferListUserCache, userId, null);
+      }
+    });
+
+    return userMap;
+  }
+
+  private async getHeadquartersByIds(
+    headquarterIds: string[],
+  ): Promise<Map<string, TransferLookupHeadquarterDto | null>> {
+    const normalizedIds = Array.from(
+      new Set(
+        (headquarterIds ?? [])
+          .map((headquarterId) => String(headquarterId ?? '').trim())
+          .filter((headquarterId) => Boolean(headquarterId)),
+      ),
+    );
+    const headquarterMap = new Map<string, TransferLookupHeadquarterDto | null>();
+
+    if (normalizedIds.length === 0) {
+      return headquarterMap;
+    }
+
+    const adminDb = await this.resolveAdminDatabaseName();
+    if (!adminDb) {
+      normalizedIds.forEach((headquarterId) => {
+        headquarterMap.set(headquarterId, null);
+      });
+      return headquarterMap;
+    }
+
+    try {
+      const rowsUnknown: unknown = await this.stockRepo.query(
+        `SELECT
+           s.id_sede AS id_sede,
+           s.codigo AS codigo,
+           s.nombre AS nombre
+         FROM \`${adminDb}\`.\`sede\` s
+         WHERE s.id_sede IN (${this.buildSqlPlaceholders(normalizedIds.length)})`,
+        normalizedIds,
+      );
+
+      this.getObjectRows(rowsUnknown).forEach((row) => {
+        const resolvedHeadquarterId =
+          this.toSafeString(row['id_sede']) || '';
+        if (!resolvedHeadquarterId) {
+          return;
+        }
+
+        headquarterMap.set(resolvedHeadquarterId, {
+          id_sede: resolvedHeadquarterId,
+          codigo: this.toSafeString(row['codigo']),
+          nombre: this.toSafeString(row['nombre']),
+        });
+      });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron resolver sedes para el listado de transferencias: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }`,
+      );
+    }
+
+    normalizedIds.forEach((headquarterId) => {
+      if (!headquarterMap.has(headquarterId)) {
+        headquarterMap.set(headquarterId, null);
+      }
+    });
+
+    return headquarterMap;
+  }
+
+  private buildSqlPlaceholders(count: number): string {
+    return Array.from({ length: count }, () => '?').join(', ');
+  }
+
+  private getObjectRows(rowsUnknown: unknown): Record<string, unknown>[] {
+    if (!Array.isArray(rowsUnknown)) {
+      return [];
+    }
+
+    return rowsUnknown.filter(
+      (row): row is Record<string, unknown> =>
+        Boolean(row) && typeof row === 'object' && !Array.isArray(row),
+    );
+  }
+
   private mapUserToResponse(
     user: TransferLookupUserDto | null,
   ): TransferResponseUserDto | null {
@@ -1433,7 +1859,7 @@ export class TransferCommandService implements TransferPortsIn {
       const rowsUnknown: unknown = await this.stockRepo.query(
         `SELECT
            u.id_usuario AS id_usuario,
-           COALESCE(NULLIF(TRIM(u.nombres), ''), NULLIF(TRIM(u.usu_nom), ''), '') AS usu_nom,
+           COALESCE(NULLIF(TRIM(u.nombres), ''), '') AS usu_nom,
            COALESCE(u.ape_pat, '') AS ape_pat,
            COALESCE(u.ape_mat, '') AS ape_mat
          FROM \`${adminDb}\`.\`usuario\` u
@@ -1640,6 +2066,34 @@ export class TransferCommandService implements TransferPortsIn {
     return parsed;
   }
 
+  private getCachedLookup<T>(
+    cache: Map<number, ExpiringLookupEntry<T>>,
+    key: number,
+  ): T | undefined {
+    const cachedEntry = cache.get(key);
+    if (!cachedEntry) {
+      return undefined;
+    }
+
+    if (cachedEntry.expiresAt <= Date.now()) {
+      cache.delete(key);
+      return undefined;
+    }
+
+    return cachedEntry.value;
+  }
+
+  private setCachedLookup<T>(
+    cache: Map<number, ExpiringLookupEntry<T>>,
+    key: number,
+    value: T,
+  ): void {
+    cache.set(key, {
+      value,
+      expiresAt: Date.now() + this.listLookupCacheTtlMs,
+    });
+  }
+
   private requireTransferId(transfer: Transfer): number {
     const transferId = transfer.id;
     if (!Number.isInteger(transferId) || transferId <= 0) {
@@ -1651,16 +2105,114 @@ export class TransferCommandService implements TransferPortsIn {
     return transferId;
   }
 
+  private resolveTransferListDateRange(
+    query: ListTransferQueryDto,
+  ): TransferListDateRange {
+    const rawDateFrom = String(query.dateFrom ?? '').trim();
+    const rawDateTo = String(query.dateTo ?? '').trim();
+
+    if (query.ignoreDateRange) {
+      return {};
+    }
+
+    if (!rawDateFrom && !rawDateTo) {
+      return this.buildWeekDateRange(new Date());
+    }
+
+    const dateFrom = rawDateFrom
+      ? this.normalizeStartOfDay(
+          this.parseTransferQueryDate(rawDateFrom, 'dateFrom'),
+        )
+      : undefined;
+    const dateTo = rawDateTo
+      ? this.normalizeEndOfDay(this.parseTransferQueryDate(rawDateTo, 'dateTo'))
+      : rawDateFrom
+        ? this.normalizeEndOfDay(new Date())
+        : undefined;
+
+    if (dateFrom && dateTo && dateFrom.getTime() > dateTo.getTime()) {
+      throw new BadRequestException(
+        'El parametro dateTo no puede ser menor que dateFrom.',
+      );
+    }
+
+    return { dateFrom, dateTo };
+  }
+
+  private parseTransferQueryDate(
+    value: string,
+    fieldName: 'dateFrom' | 'dateTo',
+  ): Date {
+    const normalized = String(value ?? '').trim();
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+
+    if (dateOnlyMatch) {
+      const year = Number(dateOnlyMatch[1]);
+      const month = Number(dateOnlyMatch[2]);
+      const day = Number(dateOnlyMatch[3]);
+      const parsed = new Date(year, month - 1, day);
+
+      if (
+        parsed.getFullYear() === year &&
+        parsed.getMonth() === month - 1 &&
+        parsed.getDate() === day
+      ) {
+        return parsed;
+      }
+    }
+
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+
+    throw new BadRequestException(
+      `El parametro ${fieldName} no tiene un formato de fecha valido.`,
+    );
+  }
+
+  private buildWeekDateRange(referenceDate: Date): TransferListDateRange {
+    const anchorDate = new Date(referenceDate);
+    anchorDate.setHours(12, 0, 0, 0);
+
+    const dateFrom = new Date(anchorDate);
+    const daysSinceMonday = (dateFrom.getDay() + 6) % 7;
+    dateFrom.setDate(dateFrom.getDate() - daysSinceMonday);
+    dateFrom.setHours(0, 0, 0, 0);
+
+    const dateTo = new Date(dateFrom);
+    dateTo.setDate(dateTo.getDate() + 6);
+    dateTo.setHours(23, 59, 59, 999);
+
+    return { dateFrom, dateTo };
+  }
+
+  private normalizeStartOfDay(date: Date): Date {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    return normalizedDate;
+  }
+
+  private normalizeEndOfDay(date: Date): Date {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(23, 59, 59, 999);
+    return normalizedDate;
+  }
+
   private async loadPaginatedTransfers(
     page: number,
     pageSize: number,
     headquartersId: string,
+    dateFrom?: Date,
+    dateTo?: Date,
   ): Promise<PaginatedTransfersResult> {
     const paginatedRepository = this.transferRepo as {
       findAllPaginated: (
         page: number,
         pageSize: number,
         headquartersId: string,
+        dateFrom?: Date,
+        dateTo?: Date,
       ) => Promise<unknown>;
     };
 
@@ -1668,6 +2220,8 @@ export class TransferCommandService implements TransferPortsIn {
       page,
       pageSize,
       headquartersId,
+      dateFrom,
+      dateTo,
     );
 
     if (!this.isPaginatedTransfersResult(resultUnknown)) {

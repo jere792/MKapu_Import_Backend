@@ -13,16 +13,41 @@ import {
   TransferMode,
   TransferStatus,
 } from '../../../../domain/entity/transfer-domain-entity';
-import { TransferPortsOut } from '../../../../domain/ports/out/transfer-ports-out';
+import {
+  type TransferListSummary,
+  TransferPortsOut,
+} from '../../../../domain/ports/out/transfer-ports-out';
 import { TransferMapper } from '../../../../application/mapper/transfer-mapper';
 import { StoreOrmEntity } from '../../../../../store/infrastructure/entity/store-orm.entity';
 import { TransferDetailOrmEntity } from '../../../entity/transfer-detail-orm.entity';
 import { TransferOrmEntity } from '../../../entity/transfer-orm.entity';
 import { SedeAlmacenTcpProxy } from '../TCP/sede-almacen-tcp.proxy';
 
+type TransferListSummaryRow = {
+  id: number | string;
+  originWarehouseId: number | string;
+  destinationWarehouseId: number | string;
+  requestDate: Date | string | null;
+  status: string | null;
+  observation: string | null;
+  creatorUserId: number | string | null;
+  approveUserId: number | string | null;
+  totalQuantity: number | string | null;
+  firstProductId: number | string | null;
+};
+
 @Injectable()
 export class TransferRepository implements TransferPortsOut {
   private readonly logger = new Logger(TransferRepository.name);
+  private readonly lookupCacheTtlMs = 60_000;
+  private readonly warehousesByHeadquarterCache = new Map<
+    string,
+    { value: number[]; expiresAt: number }
+  >();
+  private readonly headquarterByWarehouseCache = new Map<
+    number,
+    { value: string; expiresAt: number }
+  >();
 
   constructor(
     @InjectRepository(TransferOrmEntity)
@@ -131,14 +156,8 @@ export class TransferRepository implements TransferPortsOut {
       return [];
     }
 
-    const entities = await this.transferRepo.find({
-      where: [
-        { originWarehouseId: In(warehouseIds) },
-        { destinationWarehouseId: In(warehouseIds) },
-      ],
-      relations: ['details'],
-      order: { date: 'DESC' },
-    });
+    const entities =
+      await this.loadTransfersWithDetailsByWarehouseIds(warehouseIds);
 
     return this.mapEntitiesWithHeadquarters(entities);
   }
@@ -152,13 +171,8 @@ export class TransferRepository implements TransferPortsOut {
       return [];
     }
 
-    const entities = await this.transferRepo.find({
-      where: [
-        { originWarehouseId: In(warehouseIds) },
-        { destinationWarehouseId: In(warehouseIds) },
-      ],
-      order: { date: 'DESC' },
-    });
+    const entities =
+      await this.loadTransfersWithDetailsByWarehouseIds(warehouseIds);
 
     return this.mapEntitiesWithHeadquarters(entities);
   }
@@ -166,7 +180,7 @@ export class TransferRepository implements TransferPortsOut {
   async findAll(): Promise<Transfer[]> {
     const entities = await this.transferRepo.find({
       relations: ['details'],
-      order: { date: 'DESC' },
+      order: { date: 'DESC', id: 'DESC' },
     });
 
     return this.mapEntitiesWithHeadquarters(entities);
@@ -176,29 +190,72 @@ export class TransferRepository implements TransferPortsOut {
     page: number,
     pageSize: number,
     headquartersId: string,
-  ): Promise<{ transfers: Transfer[]; total: number }> {
+    dateFrom?: Date,
+    dateTo?: Date,
+  ): Promise<{ transfers: TransferListSummary[]; total: number }> {
     const safePage = Math.max(1, Number(page) || 1);
     const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
 
-    const query = this.transferRepo
-      .createQueryBuilder('transfer')
-      .leftJoinAndSelect('transfer.details', 'detail')
-      .orderBy('transfer.date', 'DESC');
-
+    let scopedWarehouseIds: number[] | null = null;
     if (String(headquartersId ?? '').trim()) {
-      const warehouseIds =
+      scopedWarehouseIds =
         await this.findWarehouseIdsByHeadquarters(headquartersId);
-      if (warehouseIds.length === 0) {
+      if (scopedWarehouseIds.length === 0) {
         return { transfers: [], total: 0 };
       }
-      this.applyHeadquartersFilter(query, warehouseIds);
     }
 
-    query.skip((safePage - 1) * safePageSize).take(safePageSize);
+    const baseQuery = this.transferRepo.createQueryBuilder('transfer');
+    this.applyDateRangeFilter(baseQuery, dateFrom, dateTo);
 
-    const [entities, total] = await query.getManyAndCount();
-    const transfers = await this.mapEntitiesWithHeadquarters(entities);
+    if (scopedWarehouseIds) {
+      this.applyHeadquartersFilter(baseQuery, scopedWarehouseIds);
+    }
+
+    const total = await baseQuery.getCount();
+    if (total === 0) {
+      return { transfers: [], total: 0 };
+    }
+
+    const idRows = await baseQuery
+      .clone()
+      .select('transfer.id', 'id')
+      .orderBy('transfer.date', 'DESC')
+      .addOrderBy('transfer.id', 'DESC')
+      .skip((safePage - 1) * safePageSize)
+      .take(safePageSize)
+      .getRawMany<{ id: number | string }>();
+
+    const transferIds = this.extractTransferIds(idRows);
+    if (transferIds.length === 0) {
+      return { transfers: [], total };
+    }
+
+    const transfers = await this.loadTransferListSummaries(transferIds);
+
     return { transfers, total };
+  }
+
+  private applyDateRangeFilter(
+    query: SelectQueryBuilder<TransferOrmEntity>,
+    dateFrom?: Date,
+    dateTo?: Date,
+  ): void {
+    if (dateFrom && dateTo) {
+      query.andWhere('transfer.date BETWEEN :dateFrom AND :dateTo', {
+        dateFrom,
+        dateTo,
+      });
+      return;
+    }
+
+    if (dateFrom) {
+      query.andWhere('transfer.date >= :dateFrom', { dateFrom });
+    }
+
+    if (dateTo) {
+      query.andWhere('transfer.date <= :dateTo', { dateTo });
+    }
   }
 
   private applyHeadquartersFilter(
@@ -237,6 +294,155 @@ export class TransferRepository implements TransferPortsOut {
     );
   }
 
+  private async loadTransfersWithDetailsByWarehouseIds(
+    warehouseIds: number[],
+  ): Promise<TransferOrmEntity[]> {
+    const idRows = await this.transferRepo
+      .createQueryBuilder('transfer')
+      .select('transfer.id', 'id')
+      .where(
+        '(transfer.originWarehouseId IN (:...warehouseIds) OR transfer.destinationWarehouseId IN (:...warehouseIds))',
+        { warehouseIds },
+      )
+      .orderBy('transfer.date', 'DESC')
+      .addOrderBy('transfer.id', 'DESC')
+      .getRawMany<{ id: number | string }>();
+
+    const transferIds = this.extractTransferIds(idRows);
+    if (transferIds.length === 0) {
+      return [];
+    }
+
+    const entities = await this.loadTransfersWithDetailsByIds(transferIds);
+    return this.sortTransfersByIds(entities, transferIds);
+  }
+
+  private async loadTransfersWithDetailsByIds(
+    transferIds: number[],
+  ): Promise<TransferOrmEntity[]> {
+    if (transferIds.length === 0) {
+      return [];
+    }
+
+    return this.transferRepo.find({
+      where: { id: In(transferIds) },
+      relations: ['details'],
+    });
+  }
+
+  private sortTransfersByIds(
+    entities: TransferOrmEntity[],
+    orderedTransferIds: number[],
+  ): TransferOrmEntity[] {
+    const entitiesById = new Map(
+      entities.map((entity) => [entity.id, entity] as const),
+    );
+
+    return orderedTransferIds
+      .map((transferId) => entitiesById.get(transferId) ?? null)
+      .filter((entity): entity is TransferOrmEntity => entity !== null);
+  }
+
+  private async loadTransferListSummaries(
+    transferIds: number[],
+  ): Promise<TransferListSummary[]> {
+    if (transferIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.transferRepo
+      .createQueryBuilder('transfer')
+      .leftJoin(
+        TransferDetailOrmEntity,
+        'detail',
+        'detail.transferId = transfer.id',
+      )
+      .select('transfer.id', 'id')
+      .addSelect('transfer.originWarehouseId', 'originWarehouseId')
+      .addSelect('transfer.destinationWarehouseId', 'destinationWarehouseId')
+      .addSelect('transfer.date', 'requestDate')
+      .addSelect('transfer.status', 'status')
+      .addSelect('transfer.motive', 'observation')
+      .addSelect('transfer.userIdRefOrigin', 'creatorUserId')
+      .addSelect('transfer.userIdRefDest', 'approveUserId')
+      .addSelect('COALESCE(SUM(detail.quantity), 0)', 'totalQuantity')
+      .addSelect('MIN(detail.productId)', 'firstProductId')
+      .where('transfer.id IN (:...transferIds)', { transferIds })
+      .groupBy('transfer.id')
+      .addGroupBy('transfer.originWarehouseId')
+      .addGroupBy('transfer.destinationWarehouseId')
+      .addGroupBy('transfer.date')
+      .addGroupBy('transfer.status')
+      .addGroupBy('transfer.motive')
+      .addGroupBy('transfer.userIdRefOrigin')
+      .addGroupBy('transfer.userIdRefDest')
+      .getRawMany<TransferListSummaryRow>();
+
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const warehouseIds = Array.from(
+      new Set(
+        rows.flatMap((row) => [
+          Number(row.originWarehouseId),
+          Number(row.destinationWarehouseId),
+        ]),
+      ),
+    ).filter((warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0);
+    const headquartersMap = await this.resolveHeadquartersMap(warehouseIds);
+    const summaryById = new Map<number, TransferListSummary>();
+
+    rows.forEach((row) => {
+      const transferId = Number(row.id);
+      if (!Number.isInteger(transferId) || transferId <= 0) {
+        return;
+      }
+
+      const originWarehouseId = Number(row.originWarehouseId);
+      const destinationWarehouseId = Number(row.destinationWarehouseId);
+      const requestDate =
+        row.requestDate instanceof Date
+          ? row.requestDate
+          : row.requestDate
+            ? new Date(row.requestDate)
+            : null;
+
+      summaryById.set(transferId, {
+        id: transferId,
+        creatorUserId:
+          this.toOptionalPositiveInteger(row.creatorUserId) ?? undefined,
+        approveUserId:
+          this.toOptionalPositiveInteger(row.approveUserId) ?? undefined,
+        originHeadquartersId:
+          headquartersMap.get(originWarehouseId) ?? 'SIN-SEDE',
+        originWarehouseId,
+        destinationHeadquartersId:
+          headquartersMap.get(destinationWarehouseId) ?? 'SIN-SEDE',
+        destinationWarehouseId,
+        firstProductId:
+          this.toOptionalPositiveInteger(row.firstProductId) ?? undefined,
+        totalQuantity: Math.max(0, Number(row.totalQuantity ?? 0)),
+        status: (row.status as TransferStatus) ?? TransferStatus.REQUESTED,
+        observation: row.observation ?? undefined,
+        requestDate:
+          requestDate instanceof Date && !Number.isNaN(requestDate.getTime())
+            ? requestDate
+            : null,
+      });
+    });
+
+    return transferIds
+      .map((transferId) => summaryById.get(transferId) ?? null)
+      .filter((summary): summary is TransferListSummary => summary !== null);
+  }
+
+  private extractTransferIds(rows: Array<{ id: number | string }>): number[] {
+    return rows
+      .map((row) => Number(row.id))
+      .filter((id) => Number.isInteger(id) && id > 0);
+  }
+
   private async findWarehouseIdsByHeadquarters(
     headquartersId: string,
   ): Promise<number[]> {
@@ -245,10 +451,13 @@ export class TransferRepository implements TransferPortsOut {
       return [];
     }
 
-    const tcpWarehouseIds =
-      await this.sedeAlmacenTcpProxy.findWarehouseIdsBySede(
-        normalizedHeadquartersId,
-      );
+    const cachedWarehouseIds = this.getCachedValue(
+      this.warehousesByHeadquarterCache,
+      normalizedHeadquartersId,
+    );
+    if (cachedWarehouseIds) {
+      return [...cachedWarehouseIds];
+    }
 
     const storeRows = await this.storeRepo
       .createQueryBuilder('warehouse')
@@ -264,12 +473,32 @@ export class TransferRepository implements TransferPortsOut {
         (warehouseId) => Number.isInteger(warehouseId) && warehouseId > 0,
       );
 
-    const resolvedWarehouseIds = Array.from(
-      new Set([...tcpWarehouseIds, ...storeWarehouseIds]),
-    );
+    if (storeWarehouseIds.length > 0) {
+      this.setCachedValue(
+        this.warehousesByHeadquarterCache,
+        normalizedHeadquartersId,
+        storeWarehouseIds,
+      );
+      this.logger.debug(
+        `[TransferHeadquarterScope] hq=${normalizedHeadquartersId} source=store total=${storeWarehouseIds.length}`,
+      );
+      return storeWarehouseIds;
+    }
+
+    const tcpWarehouseIds =
+      await this.sedeAlmacenTcpProxy.findWarehouseIdsBySede(
+        normalizedHeadquartersId,
+      );
+    const resolvedWarehouseIds = Array.from(new Set(tcpWarehouseIds));
 
     this.logger.debug(
-      `[TransferHeadquarterScope] hq=${normalizedHeadquartersId} tcp=${tcpWarehouseIds.length} store=${storeWarehouseIds.length} total=${resolvedWarehouseIds.length}`,
+      `[TransferHeadquarterScope] hq=${normalizedHeadquartersId} source=tcp total=${resolvedWarehouseIds.length}`,
+    );
+
+    this.setCachedValue(
+      this.warehousesByHeadquarterCache,
+      normalizedHeadquartersId,
+      resolvedWarehouseIds,
     );
 
     return resolvedWarehouseIds;
@@ -291,21 +520,30 @@ export class TransferRepository implements TransferPortsOut {
       return map;
     }
 
-    const tcpAssignments =
-      await this.sedeAlmacenTcpProxy.findHeadquartersByWarehouseIds(uniqueIds);
-    tcpAssignments.forEach((assignment, warehouseId) => {
-      const headquartersId = String(assignment.id_sede ?? '').trim();
-      if (headquartersId) {
-        map.set(warehouseId, headquartersId);
+    const missingWarehouseIds: number[] = [];
+    uniqueIds.forEach((warehouseId) => {
+      const cachedHeadquarterId = this.getCachedValue(
+        this.headquarterByWarehouseCache,
+        warehouseId,
+      );
+      if (cachedHeadquarterId) {
+        map.set(warehouseId, cachedHeadquarterId);
+        return;
       }
+
+      missingWarehouseIds.push(warehouseId);
     });
+
+    if (missingWarehouseIds.length === 0) {
+      return map;
+    }
 
     const storeRows = await this.storeRepo
       .createQueryBuilder('warehouse')
       .select('warehouse.id_almacen', 'warehouseId')
       .addSelect('warehouse.id_sede', 'headquartersId')
       .where('warehouse.id_almacen IN (:...warehouseIds)', {
-        warehouseIds: uniqueIds,
+        warehouseIds: missingWarehouseIds,
       })
       .getRawMany<{
         warehouseId: number | string;
@@ -322,15 +560,83 @@ export class TransferRepository implements TransferPortsOut {
         !map.has(warehouseId)
       ) {
         map.set(warehouseId, headquartersId);
+        this.setCachedValue(
+          this.headquarterByWarehouseCache,
+          warehouseId,
+          headquartersId,
+        );
       }
     });
+
+    const unresolvedWarehouseIds = uniqueIds.filter(
+      (warehouseId) => !map.has(warehouseId),
+    );
+    if (unresolvedWarehouseIds.length > 0) {
+      const tcpAssignments =
+        await this.sedeAlmacenTcpProxy.findHeadquartersByWarehouseIds(
+          unresolvedWarehouseIds,
+        );
+      tcpAssignments.forEach((assignment, warehouseId) => {
+        const headquartersId = String(assignment.id_sede ?? '').trim();
+        if (headquartersId) {
+          map.set(warehouseId, headquartersId);
+          this.setCachedValue(
+            this.headquarterByWarehouseCache,
+            warehouseId,
+            headquartersId,
+          );
+        }
+      });
+    }
 
     uniqueIds.forEach((warehouseId) => {
       if (!map.has(warehouseId)) {
         map.set(warehouseId, 'SIN-SEDE');
+        this.setCachedValue(
+          this.headquarterByWarehouseCache,
+          warehouseId,
+          'SIN-SEDE',
+        );
       }
     });
 
     return map;
+  }
+
+  private toOptionalPositiveInteger(value: unknown): number | null {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  private getCachedValue<TKey, TValue>(
+    cache: Map<TKey, { value: TValue; expiresAt: number }>,
+    key: TKey,
+  ): TValue | null {
+    const cachedEntry = cache.get(key);
+    if (!cachedEntry) {
+      return null;
+    }
+
+    if (cachedEntry.expiresAt <= Date.now()) {
+      cache.delete(key);
+      return null;
+    }
+
+    return cachedEntry.value;
+  }
+
+  private setCachedValue<TKey, TValue>(
+    cache: Map<TKey, { value: TValue; expiresAt: number }>,
+    key: TKey,
+    value: TValue,
+  ): void {
+    cache.set(key, {
+      value,
+      expiresAt: Date.now() + this.lookupCacheTtlMs,
+    });
   }
 }

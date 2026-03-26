@@ -75,12 +75,20 @@ export class QuoteTypeOrmRepository implements IQuoteRepositoryPort {
     }
     if (tipo) query = query.andWhere('quote.tipo = :tipo', { tipo });
     if (search) {
-      query = query.andWhere(
-        `(CAST(quote.id_cotizacion AS CHAR) LIKE :search 
-          OR LOWER(quote.id_cliente) LIKE :search 
-          OR DATE_FORMAT(quote.fec_emision, '%Y-%m-%d') LIKE :search)`,
-        { search: `%${search.toLowerCase()}%` },
-      );
+      query = query
+        .leftJoin('quote.customer', 'searchCustomer')  // join solo para el search
+        .andWhere(
+          `(
+            quote.codigo LIKE :search
+            OR CAST(quote.id_cotizacion AS CHAR) LIKE :search
+            OR LOWER(quote.id_cliente) LIKE :search
+            OR DATE_FORMAT(quote.fec_emision, '%Y-%m-%d') LIKE :search
+            OR LOWER(searchCustomer.nombres) LIKE :search
+            OR LOWER(searchCustomer.apellidos) LIKE :search
+            OR LOWER(searchCustomer.razon_social) LIKE :search
+          )`,
+          { search: `%${search.toLowerCase()}%` },
+        );
     }
 
     const [result, total] = await query
@@ -116,6 +124,51 @@ export class QuoteTypeOrmRepository implements IQuoteRepositoryPort {
     return { data: dataConNombre, total };
   }
 
+  async autocomplete(
+    q: string,
+    tipo?: string,
+    id_sede?: number,
+  ): Promise<{ id_cotizacion: number; codigo: string; cliente_nombre: string; fec_emision: string; total: number }[]> {
+    const qb = this.repository
+      .createQueryBuilder('quote')
+      .leftJoin('quote.customer', 'cli')
+      .select([
+        'quote.id_cotizacion AS id_cotizacion',
+        'quote.codigo        AS codigo',
+        'quote.fec_emision   AS fec_emision',
+        'quote.total         AS total',
+        `COALESCE(
+          NULLIF(TRIM(cli.razon_social), ''),
+          NULLIF(TRIM(CONCAT(COALESCE(cli.nombres,''), ' ', COALESCE(cli.apellidos,''))), ''),
+          '—'
+        ) AS cliente_nombre`,
+      ])
+      .where('quote.activo = :activo', { activo: true })
+      .andWhere(
+        `(
+          quote.codigo LIKE :q
+          OR LOWER(cli.nombres)      LIKE :q
+          OR LOWER(cli.apellidos)    LIKE :q
+          OR LOWER(cli.razon_social) LIKE :q
+        )`,
+        { q: `%${q.toLowerCase()}%` },
+      )
+      .orderBy('quote.fec_emision', 'DESC')
+      .limit(10);
+
+    if (tipo)    qb.andWhere('quote.tipo = :tipo',       { tipo });
+    if (id_sede) qb.andWhere('quote.id_sede = :id_sede', { id_sede });
+
+    const rows = await qb.getRawMany();
+    return rows.map((r) => ({
+      id_cotizacion:  Number(r.id_cotizacion),
+      codigo:         r.codigo,
+      fec_emision:    r.fec_emision,
+      total:          Number(r.total),
+      cliente_nombre: r.cliente_nombre,
+    }));
+  }
+  
   async findEmployeeQuotesPaginated(
     filters: {
       userId: number;

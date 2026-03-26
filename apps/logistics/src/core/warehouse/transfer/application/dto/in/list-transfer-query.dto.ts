@@ -1,5 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
+  IsDateString,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -7,6 +9,32 @@ import {
   Max,
   Min,
 } from 'class-validator';
+
+const normalizeOptionalDate = ({ value }: { value: unknown }): string | undefined => {
+  const normalized = String(value ?? '').trim();
+  return normalized || undefined;
+};
+
+const normalizeOptionalBoolean = ({ value }: { value: unknown }): boolean | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  return undefined;
+};
 
 export class ListTransferQueryDto {
   @Transform(({ value }) => String(value ?? '').trim())
@@ -26,4 +54,19 @@ export class ListTransferQueryDto {
   @Min(1)
   @Max(100)
   pageSize: number = 20;
+
+  @IsOptional()
+  @Transform(normalizeOptionalDate)
+  @IsDateString()
+  dateFrom?: string;
+
+  @IsOptional()
+  @Transform(normalizeOptionalDate)
+  @IsDateString()
+  dateTo?: string;
+
+  @IsOptional()
+  @Transform(normalizeOptionalBoolean)
+  @IsBoolean()
+  ignoreDateRange?: boolean;
 }

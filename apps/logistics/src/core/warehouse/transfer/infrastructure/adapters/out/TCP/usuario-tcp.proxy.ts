@@ -21,6 +21,13 @@ type FindUsersByIdsReply =
     }
   | { ok: false; message?: string; data?: null };
 
+type TransferTcpUserLookup = {
+  id_usuario: number;
+  usu_nom: string;
+  ape_pat: string;
+  ape_mat?: string;
+};
+
 @Injectable()
 export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(UsuarioTcpProxy.name);
@@ -50,54 +57,71 @@ export class UsuarioTcpProxy implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async getUserById(id: number): Promise<{
-    id_usuario: number;
-    usu_nom: string;
-    ape_pat: string;
-    ape_mat?: string;
-  } | null> {
-    if (!id || Number.isNaN(id)) {
-      return null;
+  async getUserById(id: number): Promise<TransferTcpUserLookup | null> {
+    const users = await this.getUsersByIds([id]);
+    return users[0] ?? null;
+  }
+
+  async getUsersByIds(ids: number[]): Promise<TransferTcpUserLookup[]> {
+    const normalizedIds = Array.from(
+      new Set(
+        (ids ?? [])
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value > 0),
+      ),
+    );
+
+    if (normalizedIds.length === 0) {
+      return [];
     }
 
     const internalSecret = process.env.INTERNAL_COMM_SECRET;
     if (!internalSecret) {
       this.logger.debug(
-        'INTERNAL_COMM_SECRET no configurado. Se omite consulta TCP de usuario y se usa fallback local.',
+        'INTERNAL_COMM_SECRET no configurado. Se omite consulta TCP de usuarios y se usa fallback local.',
       );
-      return null;
+      return [];
     }
 
     try {
-      const payload = { ids: [id], secret: internalSecret };
       const response = await firstValueFrom(
         this.client
-          .send<FindUsersByIdsReply>('users.findByIds', payload)
+          .send<FindUsersByIdsReply>('users.findByIds', {
+            ids: normalizedIds,
+            secret: internalSecret,
+          })
           .pipe(rxTimeout(5000)),
       );
 
-      if (!response || response.ok === false) {
-        return null;
+      if (!response || response.ok === false || !Array.isArray(response.data)) {
+        return [];
       }
 
-      const first = response.data[0];
-      if (!first?.id_usuario) {
-        return null;
+      const users: TransferTcpUserLookup[] = [];
+
+      for (const user of response.data) {
+        const userId = Number(user.id_usuario);
+        if (!Number.isInteger(userId) || userId <= 0) {
+          continue;
+        }
+
+        const middleName = String(user.ape_mat ?? '').trim();
+        users.push({
+          id_usuario: userId,
+          usu_nom: String(user.nombres ?? '').trim(),
+          ape_pat: String(user.ape_pat ?? '').trim(),
+          ape_mat: middleName || undefined,
+        });
       }
 
-      return {
-        id_usuario: Number(first.id_usuario),
-        usu_nom: String(first.nombres ?? '').trim(),
-        ape_pat: String(first.ape_pat ?? '').trim(),
-        ape_mat: String(first.ape_mat ?? '').trim() || undefined,
-      };
+      return users;
     } catch (error: unknown) {
       this.logger.warn(
-        `Error consultando usuario por TCP id=${id}: ${
+        `Error consultando usuarios por TCP: ${
           error instanceof Error ? error.message : 'error desconocido'
         }`,
       );
-      return null;
+      return [];
     }
   }
 }
