@@ -6,21 +6,34 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit');
 import * as QRCode from 'qrcode';
-import * as path from 'path';
+import axios from 'axios';
 import { SalesReceiptPdfData, EmpresaPdfData } from './sales-receipt-pdf.util';
-
-const LOGO_PATH = path.join(
-  process.cwd(),
-  'apps',
-  'sales',
-  'src',
-  'assets',
-  'logo.jpg',
-);
 
 const PAGE_W = 226;
 const MARGIN  = 8;
 const W       = PAGE_W - MARGIN * 2;
+
+// ─── Carga de logo desde Cloudinary ──────────────────────────────────────────
+
+async function loadImageBuffer(url: string): Promise<Buffer | null> {
+  if (!url?.trim()) return null;
+  try {
+    const response = await axios.get<ArrayBuffer>(url.trim(), {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        Accept: 'image/jpeg,image/png,image/*',
+      },
+    });
+    return Buffer.from(response.data);
+  } catch (err: any) {
+    console.error('❌ Error descargando logo (thermal):', err.message);
+    return null;
+  }
+}
+
+// ─── Altura dinámica ──────────────────────────────────────────────────────────
 
 function calcHeight(data: SalesReceiptPdfData): number {
   const esBoleta =
@@ -64,6 +77,8 @@ function calcHeight(data: SalesReceiptPdfData): number {
   return h;
 }
 
+// ─── QR ───────────────────────────────────────────────────────────────────────
+
 function buildQrContent(data: SalesReceiptPdfData, empresa: EmpresaPdfData): string {
   const numero = String(data.numero).padStart(8, '0');
   return [
@@ -78,23 +93,35 @@ function buildQrContent(data: SalesReceiptPdfData, empresa: EmpresaPdfData): str
   ].join(' | ');
 }
 
+// ─── Builder principal ────────────────────────────────────────────────────────
+
 export async function buildSalesReceiptThermalPdf(
   data:    SalesReceiptPdfData,
   esCopia  = false,
   empresa: EmpresaPdfData,
 ): Promise<Buffer> {
+
+  // ── Pre-cargar logo desde Cloudinary ANTES del Promise síncrono ──
+  let logoBuffer: Buffer | null = null;
+  if (empresa.logo_url?.trim()) {
+    logoBuffer = await loadImageBuffer(empresa.logo_url.trim());
+  }
+
+  // ── QR ────────────────────────────────────────────────────────────
   const qrDataUrl = await QRCode.toDataURL(buildQrContent(data, empresa), {
     width: 120,
     margin: 1,
   });
   const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
 
+  // ── Promoción ─────────────────────────────────────────────────────
   const tipoPromo     = (data.promocion?.tipo ?? '').toUpperCase();
   const promoMontoMap = new Map<string, number>();
   if (data.promocion) {
     const afectados = data.promocion.productos_afectados ?? [];
     if (afectados.length > 0) {
-      for (const pa of afectados) promoMontoMap.set(pa.cod_prod, Number(pa.monto_descuento));
+      for (const pa of afectados)
+        promoMontoMap.set(pa.cod_prod, Number(pa.monto_descuento));
     } else {
       const m = Number(data.promocion.monto_descuento) / data.productos.length;
       for (const p of data.productos) promoMontoMap.set(p.cod_prod, m);
@@ -120,8 +147,8 @@ export async function buildSalesReceiptThermalPdf(
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     const doc = new PDFDocument({
-      size:        [PAGE_W, calcHeight(data)],
-      margins:     { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+      size:          [PAGE_W, calcHeight(data)],
+      margins:       { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
       autoFirstPage: true,
       bufferPages:   false,
     });
@@ -175,12 +202,23 @@ export async function buildSalesReceiptThermalPdf(
     };
 
     // ════════════════════════════════════════════
-    //  LOGO
+    //  LOGO desde Cloudinary
     // ════════════════════════════════════════════
     const LOGO_H = 32;
-    try {
-      doc.image(LOGO_PATH, MARGIN + (W - 80) / 2, y, { fit: [80, LOGO_H], align: 'center' });
-    } catch {
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, MARGIN + (W - 80) / 2, y, {
+          fit: [80, LOGO_H],
+          align: 'center',
+        });
+      } catch {
+        doc.fontSize(15).font('Helvetica-Bold').fillColor('#000000')
+           .text('mkapu', MARGIN, y, { width: W, align: 'center', lineBreak: false });
+        y += 16;
+        doc.fontSize(9).font('Helvetica').fillColor('#000000')
+           .text('import', MARGIN, y, { width: W, align: 'center', lineBreak: false });
+      }
+    } else {
       doc.fontSize(15).font('Helvetica-Bold').fillColor('#000000')
          .text('mkapu', MARGIN, y, { width: W, align: 'center', lineBreak: false });
       y += 16;
@@ -192,15 +230,15 @@ export async function buildSalesReceiptThermalPdf(
     dashedLine();
 
     // ════════════════════════════════════════════
-    //  EMPRESA  (datos desde DB)
+    //  EMPRESA
     // ════════════════════════════════════════════
     const nombreMostrar = empresa.nombre_comercial?.trim() || empresa.razon_social;
 
-    cline(nombreMostrar,              { bold: true, size: 8, gap: 9 });
-    cline(`RUC: ${empresa.ruc}`,      { size: 7, gap: 8 });
-    cline(empresa.direccion,          { size: 6, gap: 7 });
-    cline(empresa.ciudad,             { size: 6, gap: 7 });
-    cline(`Celular: ${empresa.telefono}`, { size: 6, gap: 8 });
+    cline(nombreMostrar,                 { bold: true, size: 8, gap: 9 });
+    cline(`RUC: ${empresa.ruc}`,         { size: 7, gap: 8 });
+    cline(empresa.direccion,             { size: 6, gap: 7 });
+    cline(empresa.ciudad,                { size: 6, gap: 7 });
+    cline(`Celular: ${empresa.telefono}`,{ size: 6, gap: 8 });
 
     dashedLine();
 
@@ -249,8 +287,8 @@ export async function buildSalesReceiptThermalPdf(
     //  TABLA PRODUCTOS
     // ════════════════════════════════════════════
     doc.fontSize(6.5).font('Helvetica-Bold').fillColor('#000000');
-    doc.text('#',           MARGIN,       y, { width: 12,        lineBreak: false });
-    doc.text('DESCRIPCIÓN', MARGIN + 12,  y, { width: 88,        lineBreak: false });
+    doc.text('#',           MARGIN,       y, { width: 12,             lineBreak: false });
+    doc.text('DESCRIPCIÓN', MARGIN + 12,  y, { width: 88,             lineBreak: false });
     doc.text('CANT',        MARGIN + 100, y, { width: 28, align: 'center', lineBreak: false });
     doc.text('P.U.',        MARGIN + 128, y, { width: 32, align: 'right',  lineBreak: false });
     doc.text('TOTAL',       MARGIN + 160, y, { width: W - 160, align: 'right', lineBreak: false });
@@ -338,12 +376,12 @@ export async function buildSalesReceiptThermalPdf(
     // ════════════════════════════════════════════
     //  PIE
     // ════════════════════════════════════════════
-    const webEmpresa = empresa.sitio_web || 'https://fe.tumi-soft.com';
-    cline('Representacion impresa de',                    { size: 5.5, gap: 7 });
-    cline(tipoDoc,                                        { size: 5.5, bold: true, gap: 7 });
-    cline('Autorizado mediante Resolucion de Intendencia',{ size: 5.5, gap: 7 });
-    cline('Consulte su comprobante en:',                  { size: 5.5, gap: 7 });
-    cline(webEmpresa,                                     { size: 5.5, gap: 8 });
+    const webEmpresa = empresa.sitio_web || '';
+    cline('Representacion impresa de',                     { size: 5.5, gap: 7 });
+    cline(tipoDoc,                                         { size: 5.5, bold: true, gap: 7 });
+    cline('Autorizado mediante Resolucion de Intendencia', { size: 5.5, gap: 7 });
+    cline('Consulte su comprobante en:',                   { size: 5.5, gap: 7 });
+    cline(webEmpresa,                                      { size: 5.5, gap: 8 });
 
     solidLine(0.8);
 

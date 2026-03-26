@@ -1,5 +1,5 @@
-import * as path from 'path';
 import * as QRCode from 'qrcode';
+import axios from 'axios';
 import { IGV_DIVISOR } from '../constants/fiscal.constants';
 import { SalesReceiptPdfData } from './sales-receipt-pdf.util';
 
@@ -30,17 +30,11 @@ const C = {
   orangeL: '#FFF3E0',
 };
 
-const LOGO_PATH = path.join(
-  process.cwd(),
-  'apps',
-  'sales',
-  'src',
-  'assets',
-  'logo.jpg',
-);
 const PW = 595.28;
 const MAR = 28;
 const INNER = PW - MAR * 2;
+
+// ─── Helpers de dibujo ────────────────────────────────────────────────────────
 
 function box(
   doc: any,
@@ -121,6 +115,28 @@ function valueCell(
     .text(text, x, y, { width: w, ellipsis: true });
 }
 
+// ─── Carga de logo desde Cloudinary ──────────────────────────────────────────
+
+async function loadImageBuffer(url: string): Promise<Buffer | null> {
+  if (!url?.trim()) return null;
+  try {
+    const response = await axios.get<ArrayBuffer>(url.trim(), {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        Accept: 'image/jpeg,image/png,image/*',
+      },
+    });
+    return Buffer.from(response.data);
+  } catch (err: any) {
+    console.error('❌ Error descargando logo:', err.message);
+    return null;
+  }
+}
+
+// ─── QR ───────────────────────────────────────────────────────────────────────
+
 function buildQrContent(
   data: SalesReceiptPdfData,
   empresa: EmpresaPdfData,
@@ -137,6 +153,8 @@ function buildQrContent(
   ].join(' | ');
 }
 
+// ─── Builder principal ────────────────────────────────────────────────────────
+
 export async function buildNotaVentaPdf(
   data: SalesReceiptPdfData,
   empresa: EmpresaPdfData,
@@ -148,6 +166,13 @@ export async function buildNotaVentaPdf(
   const docRef = `${data.serie}-${String(data.numero).padStart(8, '0')}`;
   const tipoDoc = 'NOTA DE VENTA';
 
+  // ── Pre-cargar logo ANTES del Promise síncrono de PDFKit ──────────
+  let logoBuffer: Buffer | null = null;
+  if (empresa.logo_url?.trim()) {
+    logoBuffer = await loadImageBuffer(empresa.logo_url.trim());
+  }
+
+  // ── QR ────────────────────────────────────────────────────────────
   const qrDataUrl = await QRCode.toDataURL(buildQrContent(data, empresa), {
     width: 120,
     margin: 1,
@@ -155,6 +180,7 @@ export async function buildNotaVentaPdf(
   });
   const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
 
+  // ── Promoción ─────────────────────────────────────────────────────
   const tipoPromo = (data.promocion?.tipo ?? '').toUpperCase();
   const promoMontoMap = new Map<string, number>();
   if (data.promocion) {
@@ -189,7 +215,7 @@ export async function buildNotaVentaPdf(
     doc.on('error', reject);
 
     // ═══════════════════════════════════════════
-    //  SELLO DIAGONAL "NOTA DE VENTA"
+    //  SELLO DIAGONAL
     // ═══════════════════════════════════════════
     doc.save();
     doc.opacity(0.07);
@@ -211,13 +237,26 @@ export async function buildNotaVentaPdf(
     const RW = INNER - LW - 8;
     const xRight = MAR + LW + 8;
 
-    try {
-      doc.image(LOGO_PATH, MAR + 6, 10, {
-        fit: [LW - 12, HDR_H - 20],
-        align: 'left',
-        valign: 'center',
-      });
-    } catch {
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, MAR + 6, 10, {
+          fit: [LW - 12, HDR_H - 20],
+          align: 'left',
+          valign: 'center',
+        });
+      } catch {
+        doc
+          .fillColor(C.yellow)
+          .font('Helvetica-Bold')
+          .fontSize(26)
+          .text('mkapu', MAR + 10, 18);
+        doc
+          .fillColor(C.black)
+          .font('Helvetica')
+          .fontSize(12)
+          .text('import', MAR + 10, 48);
+      }
+    } else {
       doc
         .fillColor(C.yellow)
         .font('Helvetica-Bold')
@@ -257,7 +296,6 @@ export async function buildNotaVentaPdf(
       .fontSize(9)
       .text(docRef, xRight, numY + 6, { width: RW, align: 'center' });
 
-    // Badge DOCUMENTO INTERNO (naranja) en lugar del estado
     const badgeY = numY + 26;
     box(doc, xRight, badgeY, RW, 18, { fill: C.orange, radius: 3 });
     doc
@@ -476,7 +514,6 @@ export async function buildNotaVentaPdf(
 
       cells.forEach((cell, i) => {
         const align = i >= 3 ? 'right' : i === 0 ? 'center' : 'left';
-
         if (i === 2 && esRemate) {
           doc
             .fillColor(C.black)
@@ -541,11 +578,13 @@ export async function buildNotaVentaPdf(
     });
 
     // ═══════════════════════════════════════════
-    //  TOTALES  +  QR  (sin desglose IGV)
+    //  TOTALES + QR  (QR con altura mínima)
     // ═══════════════════════════════════════════
     y += 8;
 
     const QR_SIZE = 80;
+    const QR_PAD = 16;
+    const QR_MIN_H = QR_SIZE + QR_PAD * 2; // 112px mínimo
     const QR_BOX_W = QR_SIZE + 24;
     const totW = INNER - QR_BOX_W - 6;
     const totX = MAR;
@@ -562,7 +601,6 @@ export async function buildNotaVentaPdf(
     );
     const descuentoConIgv = Number((montoPromoTotal * IGV_DIVISOR).toFixed(2));
 
-    // Solo subtotal (si hay promo), descuento (si hay promo) y TOTAL — sin IGV ni base imponible
     const totales: [string, string, boolean][] = [
       ...(data.promocion && montoPromoTotal > 0
         ? ([
@@ -608,19 +646,22 @@ export async function buildNotaVentaPdf(
       ty += rh;
     });
 
+    // ✅ Borde del bloque de totales
     box(doc, totX, startTotY, totW, ty - startTotY, {
       stroke: C.border,
       radius: 3,
     });
 
-    const qrBoxH = ty - startTotY;
+    // ✅ Caja QR con altura mínima garantizada
+    const qrBoxH = Math.max(ty - startTotY, QR_MIN_H);
     box(doc, qrBoxX, startTotY, QR_BOX_W, qrBoxH, {
       fill: C.lgray,
       stroke: C.border,
       radius: 3,
     });
+
     const qrImgX = qrBoxX + (QR_BOX_W - QR_SIZE) / 2;
-    const qrImgY = startTotY + (qrBoxH - QR_SIZE - 12) / 2 + 4;
+    const qrImgY = startTotY + (qrBoxH - QR_SIZE - 10) / 2;
     doc.image(qrBuffer, qrImgX, qrImgY, { width: QR_SIZE, height: QR_SIZE });
     doc
       .fillColor(C.gray)
@@ -631,10 +672,12 @@ export async function buildNotaVentaPdf(
         align: 'center',
       });
 
+    // ✅ y avanza al mayor entre totales y caja QR
+    y = startTotY + Math.max(ty - startTotY, qrBoxH) + 12;
+
     // ═══════════════════════════════════════════
-    //  NOTA LEGAL prominente al pie
+    //  NOTA LEGAL
     // ═══════════════════════════════════════════
-    y = ty + 12;
     box(doc, MAR, y, INNER, 28, { fill: C.orange, radius: 4 });
     doc
       .fillColor(C.white)

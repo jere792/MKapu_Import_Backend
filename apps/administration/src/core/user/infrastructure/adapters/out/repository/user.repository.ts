@@ -52,7 +52,7 @@ export class UserRepository implements IUserRepositoryPort {
       .leftJoin('cuenta_usuario', 'cu', 'cu.id_usuario = usuario.id_usuario')
       .leftJoin('cuenta_rol', 'cr', 'cr.id_cuenta = cu.id_cuenta')
       .leftJoin('rol', 'r', 'r.id_rol = cr.id_rol')
-      .addSelect('r.nombre', 'roleName') 
+      .addSelect('r.nombre', 'roleName')
       .where('usuario.id_usuario = :id', { id });
 
     const { entities, raw } = await queryBuilder.getRawAndEntities();
@@ -107,7 +107,6 @@ export class UserRepository implements IUserRepositoryPort {
     const queryBuilder = this.userOrmRepository
       .createQueryBuilder('usuario')
       .leftJoinAndSelect('usuario.sede', 'sede')
-      // --- JOINS MANUALES (1:1 con cuenta_usuario) ---
       .leftJoin('cuenta_usuario', 'cu', 'cu.id_usuario = usuario.id_usuario')
       .leftJoin('cuenta_rol', 'cr', 'cr.id_cuenta = cu.id_cuenta')
       .leftJoin('rol', 'r', 'r.id_rol = cr.id_rol')
@@ -142,6 +141,8 @@ export class UserRepository implements IUserRepositoryPort {
       );
     }
 
+    queryBuilder.orderBy('usuario.id_usuario', 'DESC');
+
     const { entities, raw } = await queryBuilder.getRawAndEntities();
 
     return entities.map((userOrm) => {
@@ -151,17 +152,15 @@ export class UserRepository implements IUserRepositoryPort {
         domain.sedeNombre = userOrm.sede.nombre;
       }
 
-      // raw rows may have different column keys depending on driver/aliasing.
-      // Try several possibilities to extract roleName.
-      const rawRow = raw.find((r) => {
-        // attempt to match row to entity by id field variations
-        return (
-          r.usuario_id_usuario === userOrm.id_usuario ||
-          r.usuario_id === userOrm.id_usuario ||
-          r.id_usuario === userOrm.id_usuario ||
-          r['usuario_idUsuario'] === userOrm.id_usuario
-        );
-      }) || {};
+      const rawRow =
+        raw.find((r) => {
+          return (
+            r.usuario_id_usuario === userOrm.id_usuario ||
+            r.usuario_id === userOrm.id_usuario ||
+            r.id_usuario === userOrm.id_usuario ||
+            r['usuario_idUsuario'] === userOrm.id_usuario
+          );
+        }) || {};
 
       const roleName =
         rawRow.roleName ??

@@ -215,23 +215,18 @@ export class SalesReceiptMapper {
     };
   }
 
-  static toEmpresaPdfData(empresa: Empresa): EmpresaPdfData {
+  static toEmpresaPdfData(empresa: any): EmpresaPdfData {
     return {
-      ruc: empresa.ruc,
-      razon_social: (
-        empresa.razonSocial || empresa.nombreComercial
-      ).toUpperCase(),
-      nombre_comercial: (
-        empresa.nombreComercial ||
-        empresa.razonSocial ||
-        ''
-      ).toUpperCase(),
-      direccion: empresa.direccion || 'DIRECCIÓN NO REGISTRADA',
-      ciudad: empresa.ciudad || 'CIUDAD NO ESPECIFICADA',
-      telefono: empresa.telefono || '',
-      email: empresa.email || '',
-      logo_url: empresa.logoUrl,
-      sitio_web: empresa.sitioWeb,
+      razon_social: empresa?.razon_social ?? empresa?.razonSocial ?? '',
+      nombre_comercial:
+        empresa?.nombre_comercial ?? empresa?.nombreComercial ?? '',
+      ruc: empresa?.ruc ?? '',
+      direccion: empresa?.direccion ?? empresa?.direccionFiscal ?? '',
+      ciudad: empresa?.ciudad ?? '',
+      telefono: empresa?.telefono ?? '',
+      email: empresa?.email ?? '',
+      logo_url: empresa?.logo_url ?? empresa?.logoUrl ?? null, // ✅ fix
+      sitio_web: empresa?.sitio_web ?? empresa?.sitioWeb ?? null,
     };
   }
 }

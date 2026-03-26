@@ -20,7 +20,7 @@ export class CustomerMapper {
       documentTypeSunatCode: customer.tipoDocumentoCodSunat || '',
       documentValue: customer.valor_doc,
       name: customer.nombres,
-      apellido: customer.apellidos,
+      apellidos: customer.apellidos,
       razonsocial: customer.razon_social,
       address: customer.direccion,
       email: customer.email,
@@ -57,15 +57,12 @@ export class CustomerMapper {
   ): Customer {
     const businessName = this.pickString(
       (dto as any).businessName,
-      (dto as any).razon_social,
-      (dto as any).razonSocial,
+      dto.razon_social,
     );
-    const name = this.pickString((dto as any).name, (dto as any).nombres);
-    const lastName = this.pickString(
-      (dto as any).lastName,
-      (dto as any).apellido,
-      (dto as any).apellidos,
-    );
+
+    const name = this.pickString(dto.name, (dto as any).nombres);
+
+    const lastName = this.pickString(dto.apellidos, (dto as any).lastName);
 
     let nombres = name;
     let apellidos: string | undefined = lastName || undefined;
@@ -201,8 +198,9 @@ export class CustomerMapper {
       ? customerOrm.nombres
       : customerOrm.razon_social?.trim() || 'Desconocido';
 
-    const docSeguro =
-      customerOrm.valor_doc?.trim() ? customerOrm.valor_doc : '00000000';
+    const docSeguro = customerOrm.valor_doc?.trim()
+      ? customerOrm.valor_doc
+      : '00000000';
 
     return Customer.create({
       id_cliente: customerOrm.id_cliente,

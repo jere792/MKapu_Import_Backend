@@ -38,6 +38,7 @@ import { PromotionModule } from '../promotion/promotion.module';
 import { EmpresaTcpProxy } from './infrastructure/adapters/out/TCP/empresa-tcp.proxy';
 import { CommissionModule } from '../commission/commission.module';
 
+
 @Module({
   imports: [
     forwardRef(() => CommissionModule),

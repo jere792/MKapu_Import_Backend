@@ -10,7 +10,7 @@ export interface CustomerResponseDto {
   documentTypeSunatCode: string;
   documentValue: string;
   name: string;
-  apellido?: string;     
+  apellidos?: string;     
   razonsocial?: string;  
   address?: string;
   email?: string;

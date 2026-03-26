@@ -6,6 +6,7 @@ import {
   Inject,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 
 import { ISalesReceiptCommandPort } from '../../domain/ports/in/sales_receipt-ports-in';
@@ -13,10 +14,8 @@ import { ISalesReceiptRepositoryPort } from '../../domain/ports/out/sales_receip
 import { ICustomerRepositoryPort } from '../../../customer/domain/ports/out/customer-port-out';
 import { IPaymentRepositoryPort } from '../../domain/ports/out/payment-repository-ports-out';
 import { LogisticsStockProxy } from '../../infrastructure/adapters/out/TCP/logistics-stock.proxy';
-
 import { IPromotionQueryPort } from '../../../promotion/domain/ports/in/promotion-ports-in';
 import { PromotionDto } from '../../../promotion/application/dto/out';
-
 import { RegisterSalesReceiptDto, AnnulSalesReceiptDto } from '../dto/in';
 import {
   SalesReceiptDeletedResponseDto,
@@ -29,12 +28,27 @@ import {
 } from '../../infrastructure/entity/sales-receipt-orm.entity';
 import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.proxy';
 import { ReceiptStatus } from '../../domain/entity/sales-receipt-domain-entity';
-
-// ── Comisiones ────────────────────────────────────────────────────────────────
 import { CommissionCommandService } from '../../../commission/application/service/commission-command.service';
+import { EmpresaPortOut } from '../../domain/ports/out/empresa-port-out';
+import { buildSalesReceiptPdf } from '../../utils/sales-receipt-pdf.util';
+import { SalesReceiptQueryService } from './sales-receipt-query.service';
+
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
+  private readonly logger = new Logger(SalesReceiptCommandService.name);
+
+  private readonly transporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST ?? 'smtp.gmail.com',
+    port: Number(process.env.MAIL_PORT ?? 587),
+    secure: false,
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+  });
+
   constructor(
     @Inject('ISalesReceiptRepositoryPort')
     private readonly receiptRepository: ISalesReceiptRepositoryPort,
@@ -46,13 +60,12 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     private readonly sedeTcpProxy: SedeTcpProxy,
     @Inject('IPromotionQueryPort')
     private readonly promotionQueryPort: IPromotionQueryPort,
-    // ── Inyección del servicio de comisiones ────────────────────────────────
     private readonly commissionCommandService: CommissionCommandService,
+    @Inject('EmpresaPortOut')
+    private readonly empresaPort: EmpresaPortOut,
+    private readonly queryService: SalesReceiptQueryService,
   ) {}
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // REGISTRAR VENTA
-  // ───────────────────────────────────────────────────────────────────────────
   async registerReceipt(
     dto: RegisterSalesReceiptDto,
   ): Promise<SalesReceiptResponseDto> {
@@ -65,11 +78,9 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     );
     const idCaja = cajaActiva ?? String(dto.branchId);
 
-    // 1. Validar cliente
     const customer = await this.customerRepository.findById(dto.customerId);
     if (!customer) throw new NotFoundException(`Cliente no existe.`);
 
-    // 2. Validar promoción y calcular descuento real sobre ítems calificados
     let descuentoCalculado = 0;
 
     if (dto.promotionId) {
@@ -81,11 +92,8 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
 
       const cantidadCompras =
         await this.receiptRepository.findCantidadComprasCliente(dto.customerId);
-
       await this.validarReglas(dto, promo.reglas ?? [], cantidadCompras === 0);
-
       descuentoCalculado = this.calcularDescuentoPromocion(dto, promo);
-
       console.log(
         `🎁 Descuento calculado para promoción ${dto.promotionId}: S/ ${descuentoCalculado}`,
       );
@@ -112,7 +120,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         nextNumber,
       );
       console.log('🧾 receipt.id_sede_ref:', receipt.id_sede_ref);
-
       receipt.validate();
 
       const receiptOrm = SalesReceiptMapper.toOrm(receipt);
@@ -145,7 +152,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
           },
           queryRunner,
         );
-
         await this.paymentRepository.registerCashMovementInTransaction(
           {
             idCaja,
@@ -158,12 +164,9 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         );
       }
 
-      // 3. Registrar descuento_aplicado ──────────────────────────────────────
       if (dto.promotionId && descuentoCalculado > 0) {
         await queryRunner.manager.query(
-          `INSERT INTO mkp_ventas.descuento_aplicado
-             (id_promocion, id_comprobante, monto)
-           VALUES (?, ?, ?)`,
+          `INSERT INTO mkp_ventas.descuento_aplicado (id_promocion, id_comprobante, monto) VALUES (?, ?, ?)`,
           [dto.promotionId, savedOrm.id_comprobante, descuentoCalculado],
         );
         console.log(
@@ -174,7 +177,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       await queryRunner.commitTransaction();
       savedReceiptDomain = SalesReceiptMapper.toDomain(savedOrm);
 
-      // ── 4. Generar comisión (fuera de transacción, no bloquea la venta) ──
       if (!dto.esCreditoPendiente && dto.receiptTypeId !== 3) {
         try {
           await this.commissionCommandService.generateFromReceipt({
@@ -199,7 +201,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
             `💰 Comisión generada para comprobante ${savedOrm.id_comprobante}`,
           );
         } catch (commissionError) {
-          // La comisión falla silenciosamente — no revierte la venta
           console.error(
             `⚠️ Error al generar comisión para comprobante ${savedOrm.id_comprobante}:`,
             commissionError,
@@ -207,7 +208,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
         }
       }
 
-      // 5. Descontar stock (fuera de transacción)
       if (dto.receiptTypeId !== 3 && !dto.esCreditoPendiente) {
         const warehouseId = await this.sedeTcpProxy.getAlmacenBySede(
           dto.branchId,
@@ -224,7 +224,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
           try {
             await this.stockProxy.registerMovement({
               productId: Number(item.productId),
-              warehouseId: warehouseId,
+              warehouseId,
               headquartersId: Number(dto.branchId),
               quantityDelta: -item.quantity,
               reason: 'VENTA',
@@ -252,9 +252,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     return SalesReceiptMapper.toResponseDto(savedReceiptDomain);
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // EMITIR COMPROBANTE (crédito → emitido)
-  // ───────────────────────────────────────────────────────────────────────────
   async emitReceipt(
     id: number,
     paymentTypeId?: number,
@@ -291,7 +288,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
           },
           queryRunner,
         );
-
         await this.paymentRepository.registerCashMovementInTransaction(
           {
             idCaja,
@@ -313,7 +309,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       await queryRunner.release();
     }
 
-    // ── Generar comisión al emitir crédito ────────────────────────────────
     try {
       await this.commissionCommandService.generateFromReceipt({
         id_comprobante: id,
@@ -352,7 +347,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       try {
         await this.stockProxy.registerMovement({
           productId: Number(item.productId),
-          warehouseId: warehouseId,
+          warehouseId,
           headquartersId: Number(receipt.id_sede_ref),
           quantityDelta: -item.quantity,
           reason: 'VENTA',
@@ -368,9 +363,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     return SalesReceiptMapper.toResponseDto(updated!);
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // ANULAR COMPROBANTE
-  // ───────────────────────────────────────────────────────────────────────────
   async annulReceipt(
     dto: AnnulSalesReceiptDto,
   ): Promise<SalesReceiptResponseDto> {
@@ -388,7 +380,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       'RECHAZADO',
     );
 
-    // ── Anular comisión asociada ──────────────────────────────────────────
     try {
       await this.commissionCommandService.annulByReceipt(
         existingReceipt.id_comprobante,
@@ -409,7 +400,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       for (const item of existingReceipt.items) {
         this.stockProxy.registerMovement({
           productId: Number(item.productId),
-          warehouseId: warehouseId,
+          warehouseId,
           headquartersId: savedReceipt.id_sede_ref,
           quantityDelta: item.quantity,
           reason: `ANULACION: ${savedReceipt.getFullNumber()}`,
@@ -423,9 +414,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     return SalesReceiptMapper.toResponseDto(updated!);
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // ACTUALIZAR ESTADO DESPACHO
-  // ───────────────────────────────────────────────────────────────────────────
   async updateDispatchStatus(
     id_venta: number,
     status: string,
@@ -444,9 +432,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     }
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // ELIMINAR COMPROBANTE
-  // ───────────────────────────────────────────────────────────────────────────
   async deleteReceipt(id: number): Promise<SalesReceiptDeletedResponseDto> {
     const existingReceipt = await this.receiptRepository.findById(id);
     if (!existingReceipt)
@@ -459,9 +444,61 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     };
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // HELPERS PRIVADOS
-  // ───────────────────────────────────────────────────────────────────────────
+  async enviarComprobantePorEmail(
+    id: number,
+  ): Promise<{ success: boolean; message: string }> {
+    const pdfData = await this.queryService.buildPdfData(id);
+    const empresaRaw = await this.empresaPort.getEmpresaActiva();
+    const empresa = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
+
+    if (!pdfData.cliente.email)
+      throw new BadRequestException('El cliente no tiene email registrado');
+
+    const pdfBuffer = await buildSalesReceiptPdf(pdfData, empresa);
+    const docRef = `${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}`;
+
+    await this.sendReceiptEmail(
+      pdfData.cliente.email,
+      pdfData.cliente.nombre,
+      docRef,
+      pdfBuffer,
+    );
+
+    return {
+      success: true,
+      message: `Comprobante ${docRef} enviado a ${pdfData.cliente.email}`,
+    };
+  }
+
+  private async sendReceiptEmail(
+    toEmail: string,
+    clientName: string,
+    docRef: string,
+    pdfBuffer: Buffer,
+  ): Promise<void> {
+    await this.transporter.sendMail({
+      from: process.env.MAIL_FROM ?? 'MKapu Import <no-reply@mkapu.com>',
+      to: toEmail,
+      subject: `Comprobante ${docRef} - MKapu Import`,
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #1A1A1A; padding: 16px;">
+          <p>Estimado/a <strong>${clientName}</strong>,</p>
+          <p>Adjuntamos el comprobante <strong>${docRef}</strong> para su revisión.</p>
+          <p>Ante cualquier consulta, no dude en contactarnos.</p>
+          <br/>
+          <p>Atentamente,<br/><strong>MKapu Import</strong></p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: `Comprobante_${docRef}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+    this.logger.log(`✅ Email enviado a ${toEmail} — ${docRef}`);
+  }
 
   private calcularDescuentoPromocion(
     dto: RegisterSalesReceiptDto,
@@ -473,7 +510,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     const reglasCategoria = promo.reglas.filter(
       (r) => r?.tipoCondicion === 'CATEGORIA',
     );
-
     const tieneRestriccionItems =
       reglasProducto.length > 0 || reglasCategoria.length > 0;
 
@@ -488,13 +524,11 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
               item.codigo === r.valorCondicion ||
               item.productId === r.valorCondicion,
           );
-
         const calificaPorCategoria =
           reglasCategoria.length === 0 ||
           reglasCategoria.some(
             (r) => item.categoriaId?.toString() === r.valorCondicion,
           );
-
         return calificaPorProducto && calificaPorCategoria;
       });
 
@@ -538,14 +572,12 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
               `Monto mínimo para esta promoción: S/ ${regla.valorCondicion}`,
             );
           break;
-
         case 'CLIENTE_NUEVO':
           if (!esNuevo)
             throw new BadRequestException(
               'Esta promoción es válida solo para clientes nuevos',
             );
           break;
-
         case 'PRODUCTO': {
           const tieneProducto = dto.items.some(
             (i) =>
@@ -558,7 +590,6 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
             );
           break;
         }
-
         case 'CATEGORIA': {
           const tieneCategoria = dto.items.some(
             (i) => i.categoriaId?.toString() === regla.valorCondicion,
