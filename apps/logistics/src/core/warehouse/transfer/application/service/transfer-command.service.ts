@@ -67,6 +67,11 @@ type PaginatedTransfersResult = {
   total: number;
 };
 
+type TransferListDateRange = {
+  dateFrom?: Date;
+  dateTo?: Date;
+};
+
 type TransferLookupUserDto = {
   id_usuario: number;
   usu_nom: string;
@@ -577,10 +582,13 @@ export class TransferCommandService implements TransferPortsIn {
       );
     }
 
+    const { dateFrom, dateTo } = this.resolveTransferListDateRange(query);
     const paginatedResult = await this.loadPaginatedTransfers(
       page,
       pageSize,
       headquartersId,
+      dateFrom,
+      dateTo,
     );
     const { transfers, total } = paginatedResult;
 
@@ -2097,16 +2105,114 @@ export class TransferCommandService implements TransferPortsIn {
     return transferId;
   }
 
+  private resolveTransferListDateRange(
+    query: ListTransferQueryDto,
+  ): TransferListDateRange {
+    const rawDateFrom = String(query.dateFrom ?? '').trim();
+    const rawDateTo = String(query.dateTo ?? '').trim();
+
+    if (query.ignoreDateRange) {
+      return {};
+    }
+
+    if (!rawDateFrom && !rawDateTo) {
+      return this.buildWeekDateRange(new Date());
+    }
+
+    const dateFrom = rawDateFrom
+      ? this.normalizeStartOfDay(
+          this.parseTransferQueryDate(rawDateFrom, 'dateFrom'),
+        )
+      : undefined;
+    const dateTo = rawDateTo
+      ? this.normalizeEndOfDay(this.parseTransferQueryDate(rawDateTo, 'dateTo'))
+      : rawDateFrom
+        ? this.normalizeEndOfDay(new Date())
+        : undefined;
+
+    if (dateFrom && dateTo && dateFrom.getTime() > dateTo.getTime()) {
+      throw new BadRequestException(
+        'El parametro dateTo no puede ser menor que dateFrom.',
+      );
+    }
+
+    return { dateFrom, dateTo };
+  }
+
+  private parseTransferQueryDate(
+    value: string,
+    fieldName: 'dateFrom' | 'dateTo',
+  ): Date {
+    const normalized = String(value ?? '').trim();
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+
+    if (dateOnlyMatch) {
+      const year = Number(dateOnlyMatch[1]);
+      const month = Number(dateOnlyMatch[2]);
+      const day = Number(dateOnlyMatch[3]);
+      const parsed = new Date(year, month - 1, day);
+
+      if (
+        parsed.getFullYear() === year &&
+        parsed.getMonth() === month - 1 &&
+        parsed.getDate() === day
+      ) {
+        return parsed;
+      }
+    }
+
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+
+    throw new BadRequestException(
+      `El parametro ${fieldName} no tiene un formato de fecha valido.`,
+    );
+  }
+
+  private buildWeekDateRange(referenceDate: Date): TransferListDateRange {
+    const anchorDate = new Date(referenceDate);
+    anchorDate.setHours(12, 0, 0, 0);
+
+    const dateFrom = new Date(anchorDate);
+    const daysSinceMonday = (dateFrom.getDay() + 6) % 7;
+    dateFrom.setDate(dateFrom.getDate() - daysSinceMonday);
+    dateFrom.setHours(0, 0, 0, 0);
+
+    const dateTo = new Date(dateFrom);
+    dateTo.setDate(dateTo.getDate() + 6);
+    dateTo.setHours(23, 59, 59, 999);
+
+    return { dateFrom, dateTo };
+  }
+
+  private normalizeStartOfDay(date: Date): Date {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    return normalizedDate;
+  }
+
+  private normalizeEndOfDay(date: Date): Date {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(23, 59, 59, 999);
+    return normalizedDate;
+  }
+
   private async loadPaginatedTransfers(
     page: number,
     pageSize: number,
     headquartersId: string,
+    dateFrom?: Date,
+    dateTo?: Date,
   ): Promise<PaginatedTransfersResult> {
     const paginatedRepository = this.transferRepo as {
       findAllPaginated: (
         page: number,
         pageSize: number,
         headquartersId: string,
+        dateFrom?: Date,
+        dateTo?: Date,
       ) => Promise<unknown>;
     };
 
@@ -2114,6 +2220,8 @@ export class TransferCommandService implements TransferPortsIn {
       page,
       pageSize,
       headquartersId,
+      dateFrom,
+      dateTo,
     );
 
     if (!this.isPaginatedTransfersResult(resultUnknown)) {

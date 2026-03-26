@@ -156,9 +156,8 @@ export class TransferRepository implements TransferPortsOut {
       return [];
     }
 
-    const entities = await this.loadTransfersWithDetailsByWarehouseIds(
-      warehouseIds,
-    );
+    const entities =
+      await this.loadTransfersWithDetailsByWarehouseIds(warehouseIds);
 
     return this.mapEntitiesWithHeadquarters(entities);
   }
@@ -172,9 +171,8 @@ export class TransferRepository implements TransferPortsOut {
       return [];
     }
 
-    const entities = await this.loadTransfersWithDetailsByWarehouseIds(
-      warehouseIds,
-    );
+    const entities =
+      await this.loadTransfersWithDetailsByWarehouseIds(warehouseIds);
 
     return this.mapEntitiesWithHeadquarters(entities);
   }
@@ -192,21 +190,24 @@ export class TransferRepository implements TransferPortsOut {
     page: number,
     pageSize: number,
     headquartersId: string,
+    dateFrom?: Date,
+    dateTo?: Date,
   ): Promise<{ transfers: TransferListSummary[]; total: number }> {
     const safePage = Math.max(1, Number(page) || 1);
     const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
 
     let scopedWarehouseIds: number[] | null = null;
     if (String(headquartersId ?? '').trim()) {
-      scopedWarehouseIds = await this.findWarehouseIdsByHeadquarters(
-        headquartersId,
-      );
+      scopedWarehouseIds =
+        await this.findWarehouseIdsByHeadquarters(headquartersId);
       if (scopedWarehouseIds.length === 0) {
         return { transfers: [], total: 0 };
       }
     }
 
     const baseQuery = this.transferRepo.createQueryBuilder('transfer');
+    this.applyDateRangeFilter(baseQuery, dateFrom, dateTo);
+
     if (scopedWarehouseIds) {
       this.applyHeadquartersFilter(baseQuery, scopedWarehouseIds);
     }
@@ -233,6 +234,28 @@ export class TransferRepository implements TransferPortsOut {
     const transfers = await this.loadTransferListSummaries(transferIds);
 
     return { transfers, total };
+  }
+
+  private applyDateRangeFilter(
+    query: SelectQueryBuilder<TransferOrmEntity>,
+    dateFrom?: Date,
+    dateTo?: Date,
+  ): void {
+    if (dateFrom && dateTo) {
+      query.andWhere('transfer.date BETWEEN :dateFrom AND :dateTo', {
+        dateFrom,
+        dateTo,
+      });
+      return;
+    }
+
+    if (dateFrom) {
+      query.andWhere('transfer.date >= :dateFrom', { dateFrom });
+    }
+
+    if (dateTo) {
+      query.andWhere('transfer.date <= :dateTo', { dateTo });
+    }
   }
 
   private applyHeadquartersFilter(
@@ -387,15 +410,18 @@ export class TransferRepository implements TransferPortsOut {
 
       summaryById.set(transferId, {
         id: transferId,
-        creatorUserId: this.toOptionalPositiveInteger(row.creatorUserId) ?? undefined,
-        approveUserId: this.toOptionalPositiveInteger(row.approveUserId) ?? undefined,
+        creatorUserId:
+          this.toOptionalPositiveInteger(row.creatorUserId) ?? undefined,
+        approveUserId:
+          this.toOptionalPositiveInteger(row.approveUserId) ?? undefined,
         originHeadquartersId:
           headquartersMap.get(originWarehouseId) ?? 'SIN-SEDE',
         originWarehouseId,
         destinationHeadquartersId:
           headquartersMap.get(destinationWarehouseId) ?? 'SIN-SEDE',
         destinationWarehouseId,
-        firstProductId: this.toOptionalPositiveInteger(row.firstProductId) ?? undefined,
+        firstProductId:
+          this.toOptionalPositiveInteger(row.firstProductId) ?? undefined,
         totalQuantity: Math.max(0, Number(row.totalQuantity ?? 0)),
         status: (row.status as TransferStatus) ?? TransferStatus.REQUESTED,
         observation: row.observation ?? undefined,

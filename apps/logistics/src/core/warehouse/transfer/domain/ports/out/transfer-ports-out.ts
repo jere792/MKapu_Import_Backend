@@ -35,5 +35,7 @@ export interface TransferPortsOut {
     page: number,
     pageSize: number,
     headquartersId: string,
+    dateFrom?: Date,
+    dateTo?: Date,
   ): Promise<{ transfers: TransferListSummary[]; total: number }>;
 }
