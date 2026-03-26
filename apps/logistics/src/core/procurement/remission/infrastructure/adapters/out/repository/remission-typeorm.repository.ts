@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
@@ -21,6 +22,7 @@ import {
   RemissionResponseDto,
   RemissionItemResponseDto,
 } from '../../../../application/dto/out/remission-response.dto';
+import { RemissionDetailResponseDto } from '../../../../application/dto/out/remission-detail-response.dto';
 
 @Injectable()
 export class RemissionTypeormRepository implements RemissionPortOut {
@@ -122,16 +124,42 @@ export class RemissionTypeormRepository implements RemissionPortOut {
   }
 
   async findById(id: string): Promise<any | null> {
-    const ormEntity = await this.repository.findOne({
-      where: { id_guia: id },
-      relations: ['details'],
-    });
+    // 1. Usamos QueryBuilder para traer la guía, los detalles, el traslado y el transporte
+    const ormEntity = await this.repository
+      .createQueryBuilder('guia')
+      .leftJoinAndSelect('guia.details', 'details')
+      .leftJoinAndMapOne(
+        'guia.transfer',
+        GuideTransferOrm,
+        'transfer',
+        'transfer.id_guia = guia.id_guia',
+      )
+      .leftJoinAndMapOne(
+        'guia.driver',
+        DriverOrmEntity,
+        'driver',
+        'driver.id_guia = guia.id_guia',
+      )
+      .leftJoinAndMapOne(
+        'guia.vehicle',
+        VehiculoOrmEntity,
+        'vehicle',
+        'vehicle.id_guia = guia.id_guia',
+      )
+      .leftJoinAndMapOne(
+        'guia.carrier',
+        CarrierOrmEntity,
+        'carrier',
+        'carrier.id_guia = guia.id_guia',
+      )
+      .where('guia.id_guia = :id', { id })
+      .getOne();
 
     if (!ormEntity) {
       return null;
     }
 
-    const dto = new RemissionResponseDto();
+    const dto = new RemissionDetailResponseDto();
     dto.id_guia = ormEntity.id_guia;
     dto.serie = ormEntity.serie;
     dto.numero = ormEntity.numero;
@@ -146,7 +174,6 @@ export class RemissionTypeormRepository implements RemissionPortOut {
     dto.estado = ormEntity.estado;
     dto.id_comprobante_ref = ormEntity.id_comprobante_ref;
 
-    // Mapeo manual de los items
     if (ormEntity.details) {
       dto.items = ormEntity.details.map((det) => {
         const itemDto = new RemissionItemResponseDto();
@@ -159,6 +186,28 @@ export class RemissionTypeormRepository implements RemissionPortOut {
       });
     }
 
+    const transferData = (ormEntity as any).transfer;
+    if (transferData) {
+      dto.direccion_partida = transferData.direccion_origen;
+      dto.direccion_llegada = transferData.direccion_destino;
+
+      (dto as any).ubigeo_partida = transferData.ubigeo_origen;
+      (dto as any).ubigeo_llegada = transferData.ubigeo_destino;
+    } else {
+      dto.direccion_partida = 'No especificada';
+      dto.direccion_llegada = 'No especificada';
+    }
+
+    const transporteCompleto: any = {};
+    if ((ormEntity as any).carrier)
+      transporteCompleto.carrier = (ormEntity as any).carrier;
+    if ((ormEntity as any).driver)
+      transporteCompleto.driver = (ormEntity as any).driver;
+    if ((ormEntity as any).vehicle)
+      transporteCompleto.vehicle = (ormEntity as any).vehicle;
+
+    dto.datos_transporte_completos = transporteCompleto;
+
     return dto;
   }
 
@@ -168,7 +217,6 @@ export class RemissionTypeormRepository implements RemissionPortOut {
     });
   }
 
-  // ✅ SE MANTIENE TU MAPEO AL DTO
   async findAll(filter: any): Promise<{ data: any[]; total: number }> {
     const {
       page = 1,
@@ -188,9 +236,13 @@ export class RemissionTypeormRepository implements RemissionPortOut {
     }
 
     if (search) {
+      const cleanSearch = search.trim();
       queryBuilder.andWhere(
-        '(remission.motivo_traslado LIKE :search OR remission.numero LIKE :search OR remission.serie LIKE :search)',
-        { search: `%${search}%` },
+        `(remission.serie LIKE :search 
+          OR remission.numero LIKE :search 
+          OR CONCAT(remission.serie, '-', remission.numero) LIKE :search
+          OR CONCAT(remission.serie, '-', LPAD(remission.numero, 8, '0')) LIKE :search)`,
+        { search: `%${cleanSearch}%` },
       );
     }
 
