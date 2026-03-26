@@ -248,8 +248,6 @@ export class RemissionQueryService implements RemissionQueryPortIn {
   }
 
   async exportPdf(id: string, res: Response): Promise<void> {
-    // ⚠️ NOTA: ExportPdf ya usa obtenerGuiaParaReporte, que retorna el objeto ORM plano.
-    // Esta lógica no necesita ser modificada, funcionará perfecto.
     const guia = (await this.remissionRepository.obtenerGuiaParaReporte(
       id,
     )) as any;
