@@ -50,14 +50,16 @@ export class CustomerRepository implements ICustomerRepositoryPort {
   }
 
   async existsByDocument(valor_doc: string): Promise<boolean> {
-    const count = await this.customerOrmRepository.count({ where: { valor_doc } });
+    const count = await this.customerOrmRepository.count({
+      where: { valor_doc },
+    });
     return count > 0;
   }
 
   private parseBoolean(value: any): boolean | undefined {
     if (value === undefined || value === null || value === '') return undefined;
     if (typeof value === 'boolean') return value;
-    if (value === 'true'  || value === '1' || value === 1) return true;
+    if (value === 'true' || value === '1' || value === 1) return true;
     if (value === 'false' || value === '0' || value === 0) return false;
     return undefined;
   }
@@ -88,14 +90,24 @@ export class CustomerRepository implements ICustomerRepositoryPort {
 
     if (filters?.search) {
       queryBuilder.andWhere(
-        '(cliente.valor_doc LIKE :search OR cliente.nombres LIKE :search OR cliente.apellidos LIKE :search OR cliente.razon_social LIKE :search OR cliente.email LIKE :search)',
+        `(
+      cliente.valor_doc    LIKE :search OR
+      cliente.nombres      LIKE :search OR
+      cliente.apellidos    LIKE :search OR
+      cliente.razon_social LIKE :search OR
+      cliente.email        LIKE :search OR
+      CONCAT(
+        COALESCE(cliente.nombres,  ''), ' ',
+        COALESCE(cliente.apellidos,'')
+      ) LIKE :search
+    )`,
         { search: `%${filters.search}%` },
       );
     }
 
-    const page  = filters?.page  || 1;
+    const page = filters?.page || 1;
     const limit = filters?.limit || 10;
-    const skip  = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     queryBuilder.skip(skip).take(limit);
     queryBuilder.orderBy('cliente.nombres', 'ASC');

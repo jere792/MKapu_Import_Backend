@@ -37,6 +37,7 @@ import { SedeTcpProxy } from '../../infrastructure/adapters/out/TCP/sede-tcp.pro
 import { LogisticsTcpProxy } from '../../infrastructure/adapters/out/TCP/logistics-tcp.proxy';
 import { buildSalesReceiptThermalPdf } from '../../utils/sales-receipt-thermal.util';
 import { SalesReceiptPdfData } from '../../utils/sales-receipt-pdf.util';
+import { buildNotaVentaPdf } from '../../utils/sales-receipt-nota-venta.util';
 
 import { IGV_DIVISOR } from '../../constants/fiscal.constants';
 
@@ -483,7 +484,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
     return types.map(SalesReceiptMapper.toReceiptTypeDto);
   }
 
-  private async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
+  async buildPdfData(id: number): Promise<SalesReceiptPdfData> {
     const detalle = await this.getDetalleCompleto(id);
     if (!detalle)
       throw new NotFoundException(`Comprobante #${id} no encontrado`);
@@ -549,7 +550,7 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
   async exportThermalVoucher(id: number, res: Response): Promise<void> {
     const data = await this.buildPdfData(id);
-    const empresaRaw = await this.empresaPort.getEmpresa(id);
+    const empresaRaw = await this.empresaPort.getEmpresaActiva();
 
     const empresaMapped = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
     const buffer = await buildSalesReceiptThermalPdf(
@@ -569,6 +570,20 @@ export class SalesReceiptQueryService implements ISalesReceiptQueryPort {
 
   async getEmpresa(id: number): Promise<Empresa> {
     return await this.empresaPort.getEmpresa(id);
+  }
+
+  async exportNotaVenta(id: number, res: Response): Promise<void> {
+    const data = await this.buildPdfData(id);
+    const empresaRaw = await this.empresaPort.getEmpresaActiva();
+    const empresaMapped = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
+    const buffer = await buildNotaVentaPdf(data, empresaMapped);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename=NotaVenta_${id}.pdf`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 }
 

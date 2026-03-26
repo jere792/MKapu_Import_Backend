@@ -2,4 +2,5 @@ import { Empresa } from 'apps/administration/src/core/company/domain/entity/empr
 
 export interface EmpresaPortOut {
   getEmpresa(id: number): Promise<Empresa>;
+  getEmpresaActiva(): Promise<any>;
 }

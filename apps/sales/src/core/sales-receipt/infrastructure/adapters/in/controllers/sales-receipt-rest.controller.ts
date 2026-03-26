@@ -375,7 +375,6 @@ export class SalesReceiptRestController {
       console.log('PDF Data obtenida:', pdfData.id_comprobante);
 
       const empresaEntity = await this.receiptQueryService.getEmpresa(1);
-      console.log('Empresa obtenida:', empresaEntity?.razonSocial);
 
       if (!empresaEntity) {
         throw new Error('No se encontró la configuración de la empresa (ID 1)');
@@ -401,12 +400,22 @@ export class SalesReceiptRestController {
       });
     }
   }
-  
+
   @Get(':id')
   async getReceipt(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<SalesReceiptResponseDto | null> {
     return this.receiptQueryService.getReceiptById(id);
+  }
+
+  @Post(':id/send-email')
+  async sendEmail(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result =
+      await this.receiptCommandService.enviarComprobantePorEmail(id);
+    res.status(HttpStatus.OK).json(result);
   }
 
   // ── TCP ────────────────────────────────────────────────────────────
@@ -440,7 +449,7 @@ export class SalesReceiptRestController {
   async findSaleByCorrelativo(@Payload() correlativo: string) {
     return this.receiptQueryService.findSaleByCorrelativo(correlativo);
   }
- 
+
   @MessagePattern({ cmd: 'get_receipt_detalle' })
   async getReceiptDetalleTcp(@Payload() id_comprobante: number) {
     try {

@@ -31,6 +31,8 @@ export interface ISalesReceiptCommandPort {
     id: number,
     paymentTypeId?: number,
   ): Promise<SalesReceiptResponseDto>;
+
+  enviarComprobantePorEmail(id: number): Promise<{ success: boolean; message: string }>;
 }
 
 export interface ISalesReceiptQueryPort {
@@ -56,7 +58,7 @@ export interface ISalesReceiptQueryPort {
   getAllSaleTypes(): Promise<SaleTypeResponseDto[]>;
   getAllReceiptTypes(): Promise<ReceiptTypeResponseDto[]>;
 
-  getEmpresa(id: number): Promise<Empresa>;
+  getEmpresa(id: number): Promise<any>;
   listEmployeeSales(
     filters: ListEmployeeSalesFilterDto,
   ): Promise<EmployeeSalesListResponseDto>;
