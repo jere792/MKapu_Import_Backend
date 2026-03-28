@@ -1,12 +1,16 @@
+import { toDataURL } from 'qrcode';
 
 // ── Estado de sesión (singleton a nivel de módulo) ────────────────────────────
-let waClient:   any    = null;
+let waClient: any = null;
 let waQrBase64: string | null = null;
-let waReady             = false;
+let waReady = false;
+let waInitializing = false; // ✅ evita doble inicialización
 
 // ── Inicializa el cliente una sola vez ────────────────────────────────────────
 async function ensureWhatsApp(): Promise<void> {
-  if (waClient) return;
+  if (waClient || waInitializing) return;
+
+  waInitializing = true;
 
   const { Client, LocalAuth } = require('whatsapp-web.js');
 
@@ -14,42 +18,64 @@ async function ensureWhatsApp(): Promise<void> {
     authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
     puppeteer: {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
     },
   });
 
   waClient.on('qr', async (qr: string) => {
-    const QRCodeLib = require('qrcode');
-    waQrBase64 = await QRCodeLib.toDataURL(qr);
-    waReady    = false;
+    waQrBase64 = await toDataURL(qr);
+    waReady = false;
+    console.log('📱 QR generado — escanea desde GET /receipts/whatsapp/status');
   });
 
   waClient.on('ready', () => {
-    waReady    = true;
+    waReady = true;
     waQrBase64 = null;
+    waInitializing = false;
+    console.log('✅ WhatsApp listo');
   });
 
-  waClient.on('disconnected', () => {
-    waReady  = false;
-    waClient = null; // permite reinicializar si se desconecta
+  waClient.on('auth_failure', (msg: string) => {
+    console.error('❌ WhatsApp auth failure:', msg);
+    waClient = null;
+    waInitializing = false;
   });
 
-  await waClient.initialize();
+  waClient.on('disconnected', (reason: string) => {
+    console.warn('⚠️ WhatsApp desconectado:', reason);
+    waReady = false;
+    waClient = null;
+    waInitializing = false;
+  });
+
+  // ✅ SIN await — corre en background para no bloquear el event loop
+  waClient.initialize().catch((err: any) => {
+    console.error('❌ Error al inicializar WhatsApp:', err);
+    waClient = null;
+    waInitializing = false;
+  });
 }
 
 // ── Exportadas ────────────────────────────────────────────────────────────────
 
 /**
  * Devuelve el estado de la sesión WhatsApp.
- * Llama a ensureWhatsApp() la primera vez — igual que buildQuotePdf hace require('pdfkit').
+ * Primera llamada arranca Puppeteer en background y espera hasta 20s por el QR.
  */
-export async function getWhatsAppStatus(): Promise<{ ready: boolean; qr: string | null }> {
+export async function getWhatsAppStatus(): Promise<{
+  ready: boolean;
+  qr: string | null;
+}> {
   await ensureWhatsApp();
 
-  // Espera hasta 15s a que llegue el QR si recién se inicializó
+  // Espera hasta 20s a que llegue el QR o se establezca sesión
   if (!waReady && !waQrBase64) {
     await new Promise<void>((resolve) => {
-      const timeout  = setTimeout(resolve, 15_000);
+      const timeout = setTimeout(resolve, 20_000);
       const interval = setInterval(() => {
         if (waQrBase64 || waReady) {
           clearInterval(interval);
@@ -65,16 +91,17 @@ export async function getWhatsAppStatus(): Promise<{ ready: boolean; qr: string 
 
 /**
  * Envía un PDF por WhatsApp al número indicado.
- * Mismo patrón que buildQuotePdf: recibe datos, devuelve resultado.
  */
 export async function sendWhatsApp(
   telefono: string,
-  mensaje:  string,
-  buffer:   Buffer,
+  mensaje: string,
+  buffer: Buffer,
   filename: string,
 ): Promise<void> {
   if (!waReady) {
-    throw new Error('WhatsApp no está conectado. Escanea el QR primero en GET /quote/whatsapp/status');
+    throw new Error(
+      'WhatsApp no está conectado. Escanea el QR primero en GET /receipts/whatsapp/status',
+    );
   }
 
   // Normaliza número peruano → formato whatsapp-web.js
@@ -83,7 +110,11 @@ export async function sendWhatsApp(
   const chatId = `${num}@c.us`;
 
   const { MessageMedia } = require('whatsapp-web.js');
-  const media = new MessageMedia('application/pdf', buffer.toString('base64'), filename);
+  const media = new MessageMedia(
+    'application/pdf',
+    buffer.toString('base64'),
+    filename,
+  );
 
   await waClient.sendMessage(chatId, media, { caption: mensaje });
 }
