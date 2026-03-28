@@ -11,7 +11,10 @@ import { CreateWastageDto } from '../dto/in/create-wastage.dto';
 import { UpdateWastageDto } from '../dto/in/update-wastage.dto';
 import { WastageResponseDto } from '../dto/out/wastage-response.dto';
 import { WastageMapper } from '../mapper/wastage.mapper';
-import { Wastage, WastageDetail } from '../../domain/entity/wastage-domain-intity';
+import {
+  Wastage,
+  WastageDetail,
+} from '../../domain/entity/wastage-domain-intity';
 import { InventoryCommandService } from '../../../../warehouse/inventory/application/service/inventory/inventory-command.service';
 
 @Injectable()
@@ -34,7 +37,7 @@ export class WastageCommandService implements IWastageCommandPort {
       if (!stockDisponible || stockDisponible < item.cantidad) {
         throw new BadRequestException(
           `Stock insuficiente para el producto ID ${item.id_producto}. ` +
-          `Disponible: ${stockDisponible || 0}, Requerido: ${item.cantidad}`,
+            `Disponible: ${stockDisponible || 0}, Requerido: ${item.cantidad}`,
         );
       }
     }
@@ -55,7 +58,9 @@ export class WastageCommandService implements IWastageCommandPort {
     );
 
     if (!detalles || detalles.length === 0) {
-      throw new BadRequestException('Se requiere al menos un detalle de merma.');
+      throw new BadRequestException(
+        'Se requiere al menos un detalle de merma.',
+      );
     }
 
     // 3) Crear entidad de dominio Wastage (cabecera)
@@ -74,7 +79,9 @@ export class WastageCommandService implements IWastageCommandPort {
     //    Política: usamos el id_tipo_merma del primer detalle si no se proporciona otro valor.
     const firstDetailTipo = (detalles[0] as any).id_tipo_merma;
     if (firstDetailTipo === undefined || firstDetailTipo === null) {
-      throw new BadRequestException('Se requiere id_tipo_merma en al menos un detalle.');
+      throw new BadRequestException(
+        'Se requiere id_tipo_merma en al menos un detalle.',
+      );
     }
     // Asignamos un campo ad-hoc en el dominio que el repository debe mapear a orm.id_tipo_merma
     (domain as any).tipo_merma_id = Number(firstDetailTipo);
@@ -88,15 +95,23 @@ export class WastageCommandService implements IWastageCommandPort {
     }
 
     // 5) Log para debugging previo a persistir
-    this.logger.debug('[WastageCommandService] DTO incoming: ' + JSON.stringify(dto));
-    this.logger.debug('[WastageCommandService] Domain before save: ' + JSON.stringify({
-      id_usuario_ref: domain.id_usuario_ref,
-      id_sede_ref: domain.id_sede_ref,
-      id_almacen_ref: domain.id_almacen_ref,
-      motivo: domain.motivo,
-      tipo_merma_id: (domain as any).tipo_merma_id,
-      detalles: domain.detalles?.map(d => ({ id_producto: d.id_producto, id_tipo_merma: (d as any).id_tipo_merma })),
-    }));
+    this.logger.debug(
+      '[WastageCommandService] DTO incoming: ' + JSON.stringify(dto),
+    );
+    this.logger.debug(
+      '[WastageCommandService] Domain before save: ' +
+        JSON.stringify({
+          id_usuario_ref: domain.id_usuario_ref,
+          id_sede_ref: domain.id_sede_ref,
+          id_almacen_ref: domain.id_almacen_ref,
+          motivo: domain.motivo,
+          tipo_merma_id: (domain as any).tipo_merma_id,
+          detalles: domain.detalles?.map((d) => ({
+            id_producto: d.id_producto,
+            id_tipo_merma: (d as any).id_tipo_merma,
+          })),
+        }),
+    );
 
     // 6) Guardar mediante repository (la implementación del repositorio debe mapear domain.tipo_merma_id -> orm.id_tipo_merma)
     const savedWastage = await this.repository.save(domain);
@@ -118,58 +133,12 @@ export class WastageCommandService implements IWastageCommandPort {
     return WastageMapper.toResponseDto(savedWastage);
   }
 
-  async update(id: number, dto: UpdateWastageDto): Promise<WastageResponseDto> {
-    const currentWastage = await this.repository.findById(id);
-    if (!currentWastage) {
-      throw new NotFoundException(`La merma con ID ${id} no existe.`);
-    }
+  async update(
+    id: number,
+    payload: { motivo?: string; id_tipo_merma?: number; observacion?: string },
+  ): Promise<WastageResponseDto> {
+    const updated = await this.repository.update(id, payload);
+    return WastageMapper.toResponseDto(updated);
 
-    const nextMotivo =
-      dto.motivo !== undefined ? dto.motivo.trim() : currentWastage.motivo;
-    if (!nextMotivo) {
-      throw new BadRequestException('El motivo de la merma es obligatorio.');
-    }
-
-    const nextTipoMermaId =
-      dto.id_tipo_merma ??
-      (currentWastage as any).tipo_merma_id ??
-      currentWastage.detalles?.[0]?.id_tipo_merma;
-
-    if (!nextTipoMermaId) {
-      throw new BadRequestException('Se requiere un tipo de merma válido.');
-    }
-
-    const nextObservacion =
-      dto.observacion !== undefined ? dto.observacion.trim() || undefined : undefined;
-
-    const updatedDetails = (currentWastage.detalles ?? []).map(
-      (detail) =>
-        new WastageDetail(
-          detail.id_detalle,
-          detail.id_producto,
-          detail.cod_prod,
-          detail.desc_prod,
-          detail.cantidad,
-          detail.pre_unit,
-          dto.id_tipo_merma ?? detail.id_tipo_merma,
-          dto.observacion !== undefined ? nextObservacion : detail.observacion,
-        ),
-    );
-
-    const updatedWastage = new Wastage(
-      currentWastage.id_merma,
-      currentWastage.id_usuario_ref,
-      currentWastage.id_sede_ref,
-      currentWastage.id_almacen_ref,
-      nextMotivo,
-      currentWastage.fec_merma,
-      currentWastage.estado,
-      updatedDetails,
-    );
-
-    (updatedWastage as any).tipo_merma_id = nextTipoMermaId;
-
-    const savedWastage = await this.repository.update(updatedWastage);
-    return WastageMapper.toResponseDto(savedWastage);
   }
 }

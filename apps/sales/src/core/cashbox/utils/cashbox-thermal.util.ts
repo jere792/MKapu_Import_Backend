@@ -2,128 +2,275 @@
 const PDFDocument = require('pdfkit');
 
 export interface CashboxResumen {
-  totalVentas:    number;
-  totalMonto:     number;
+  totalVentas: number;
+  totalMonto: number;
   ticketPromedio: number;
-  gananciaBruta:  number;
-  cantProductos:  number;
-  montoInicial:   number;
-  dineroEnCaja:   number;
-  saldoVirtual:   number;
-  ventasPorHora:  { hora: string; total: number }[];
+  gananciaBruta: number;
+  cantProductos: number;
+  montoInicial: number;
+  dineroEnCaja: number;
+  saldoVirtual: number;
+  ventasPorHora: { hora: string; total: number }[];
 }
 
-const PAGE_W  = 226;   // 80mm en puntos aprox.
-const MARGIN  = 10;
-const INNER_W = PAGE_W - MARGIN * 2;
-
-function calcHeight(r: CashboxResumen): number {
-  // cabecera + KPIs + tabla horas + footer
-  return 60 + 30 + 10 + (7 * 20) + 10 + 20 + (r.ventasPorHora.length * 13) + 60;
-}
+const PAGE_W = 226;
+const MARGIN = 8;
+const W = PAGE_W - MARGIN * 2;
+const YELLOW = '#F6AF33';
+const BLACK = '#000000';
+const GRAY = '#888888';
 
 function fmt(n: number): string {
-  return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString('es-PE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function now(): string {
   return new Date().toLocaleString('es-PE', {
-    timeZone:     'America/Lima',
-    day:   '2-digit', month: '2-digit', year: 'numeric',
-    hour:  '2-digit', minute: '2-digit',
+    timeZone: 'America/Lima',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
-export function buildCashboxThermalPdf(resumen: CashboxResumen): Promise<Buffer> {
+const BOTTOM_PADDING = 240;
+
+function calcExactHeight(resumen: CashboxResumen): number {
+  let y = MARGIN;
+  y += 30;
+  y += 6;
+  y += 6 * (7 + 7);
+  y += 6;
+  y += 20;
+  y += 7 + 7;
+  y += 6;
+  y += 13;
+  y += 11;
+  y += 6;
+  const filas = resumen.ventasPorHora.filter(v => v.total > 0);
+  y += filas.length > 0 ? filas.length * 14 : 16;
+  y += 6;
+  y += 4 + 6;
+  y += 10;
+  y += MARGIN + 4;
+  return y + BOTTOM_PADDING;
+}
+
+export function buildCashboxThermalPdf(
+  resumen: CashboxResumen,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
     const doc = new PDFDocument({
-      size:    [PAGE_W, calcHeight(resumen)],
+      size: [PAGE_W, calcExactHeight(resumen)],
       margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+      autoFirstPage: true,
+      bufferPages: false,
     });
 
-    const chunks: Buffer[] = [];
-    doc.on('data',  (c: Buffer) => chunks.push(c));
-    doc.on('end',   ()          => resolve(Buffer.concat(chunks)));
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
-
-    const bold    = 'Helvetica-Bold';
-    const regular = 'Helvetica';
 
     let y = MARGIN;
 
-    // ── Cabecera ─────────────────────────────────────────────────────
-    doc.font(bold).fontSize(9).text('RESUMEN DE CAJA', MARGIN, y, { width: INNER_W, align: 'center' });
-    y += 12;
-    doc.font(regular).fontSize(7).text(now(), MARGIN, y, { width: INNER_W, align: 'center' });
-    y += 10;
+    const solidLine = (lw = 0.5, color = BLACK) => {
+      doc
+        .save()
+        .strokeColor(color)
+        .lineWidth(lw)
+        .moveTo(MARGIN, y)
+        .lineTo(MARGIN + W, y)
+        .stroke()
+        .restore();
+      y += 6;
+    };
 
-    // ── Separador ────────────────────────────────────────────────────
-    doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).dash(2, { space: 2 }).stroke(); y += 8;
-    doc.undash();
+    const dashedLine = (lw = 0.4, color = BLACK) => {
+      doc
+        .save()
+        .strokeColor(color)
+        .lineWidth(lw)
+        .dash(2, { space: 2 })
+        .moveTo(MARGIN, y)
+        .lineTo(MARGIN + W, y)
+        .stroke()
+        .undash()
+        .restore();
+      y += 6;
+    };
 
-    // ── KPIs principales ─────────────────────────────────────────────
-    const kpis: [string, string][] = [
-      ['Monto inicial',    `S/ ${fmt(resumen.montoInicial)}`],
-      ['Total ventas',     String(resumen.totalVentas)],
-      ['Total ingresos',   `S/ ${fmt(resumen.totalMonto)}`],
-      ['Ticket promedio',  `S/ ${fmt(resumen.ticketPromedio)}`],
-      ['Ganancia bruta',   `S/ ${fmt(resumen.gananciaBruta)}`],
-      ['Cant. productos',  String(resumen.cantProductos)],
-    ];
+    const cline = (
+      text: string,
+      opts: {
+        size?: number;
+        bold?: boolean;
+        gap?: number;
+        color?: string;
+      } = {},
+    ) => {
+      doc
+        .fontSize(opts.size ?? 7)
+        .font(opts.bold ? 'Helvetica-Bold' : 'Helvetica')
+        .fillColor(opts.color ?? BLACK)
+        .text(text, MARGIN, y, { width: W, align: 'center', lineBreak: false });
+      y += opts.gap ?? 10;
+    };
 
-    for (const [label, value] of kpis) {
-      doc.font(regular).fontSize(7).text(label, MARGIN, y, { width: INNER_W * 0.6, lineBreak: false });
-      doc.font(bold).fontSize(7).text(value, MARGIN + INNER_W * 0.6, y, { width: INNER_W * 0.4, align: 'right', lineBreak: false });
-      y += 13;
-    }
+    const twoCol = (
+      left: string,
+      right: string,
+      opts: {
+        bold?: boolean;
+        size?: number;
+        colorRight?: string;
+        lw?: number;
+      } = {},
+    ) => {
+      const sz = opts.size ?? 7;
+      const lw = opts.lw ?? W * 0.6;
+      doc
+        .fontSize(sz)
+        .font(opts.bold ? 'Helvetica-Bold' : 'Helvetica')
+        .fillColor(BLACK)
+        .text(left, MARGIN, y, { width: lw, lineBreak: false, align: 'left' });
+      doc
+        .fontSize(sz)
+        .font(opts.bold ? 'Helvetica-Bold' : 'Helvetica')
+        .fillColor(opts.colorRight ?? BLACK)
+        .text(right, MARGIN + lw, y, {
+          width: W - lw,
+          lineBreak: false,
+          align: 'right',
+        });
+      y += sz + 7;
+    };
 
-    // ── Separador ────────────────────────────────────────────────────
-    doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).dash(2, { space: 2 }).stroke(); y += 8;
-    doc.undash();
+    doc.rect(MARGIN, y, W, 26).fill(YELLOW);
+    doc
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .fillColor(BLACK)
+      .text('RESUMEN DE CAJA', MARGIN, y + 5, {
+        width: W,
+        align: 'center',
+        lineBreak: false,
+      });
+    doc
+      .fontSize(6.5)
+      .font('Helvetica')
+      .fillColor(BLACK)
+      .text(now(), MARGIN, y + 17, {
+        width: W,
+        align: 'center',
+        lineBreak: false,
+      });
+    y += 30;
 
-    // ── Dinero en caja y saldo virtual ───────────────────────────────
-    doc.font(bold).fontSize(8).text('DINERO EN CAJA:', MARGIN, y, { lineBreak: false });
-    doc.font(bold).fontSize(8).text(`S/ ${fmt(resumen.dineroEnCaja)}`, MARGIN, y, { width: INNER_W, align: 'right', lineBreak: false });
-    y += 14;
-    doc.font(regular).fontSize(7).text('Saldo virtual (transferencias):', MARGIN, y, { lineBreak: false });
-    doc.font(bold).fontSize(7).text(`S/ ${fmt(resumen.saldoVirtual)}`, MARGIN, y, { width: INNER_W, align: 'right', lineBreak: false });
-    y += 10;
+    dashedLine();
 
-    // ── Separador ────────────────────────────────────────────────────
-    doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).dash(2, { space: 2 }).stroke(); y += 8;
-    doc.undash();
+    twoCol('Monto inicial', `S/ ${fmt(resumen.montoInicial)}`);
+    twoCol('Total ventas', String(resumen.totalVentas));
+    twoCol('Total ingresos', `S/ ${fmt(resumen.totalMonto)}`);
+    twoCol('Ticket promedio', `S/ ${fmt(resumen.ticketPromedio)}`);
+    twoCol('Ganancia bruta', `S/ ${fmt(resumen.gananciaBruta)}`, {
+      colorRight: YELLOW,
+      bold: true,
+    });
+    twoCol('Cant. productos', String(resumen.cantProductos));
 
-    // ── Ventas por hora ───────────────────────────────────────────────
-    doc.font(bold).fontSize(7).text('VENTAS POR HORA', MARGIN, y, { width: INNER_W, align: 'center' });
+    dashedLine();
+
+    doc.rect(MARGIN, y, W, 16).fill(YELLOW);
+    doc
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .fillColor(BLACK)
+      .text('DINERO EN CAJA:', MARGIN + 4, y + 5, {
+        width: W * 0.55,
+        lineBreak: false,
+      });
+    doc
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .fillColor(BLACK)
+      .text(`S/ ${fmt(resumen.dineroEnCaja)}`, MARGIN, y + 5, {
+        width: W - 4,
+        align: 'right',
+        lineBreak: false,
+      });
+    y += 20;
+
+    twoCol(
+      'Saldo virtual (transferencias):',
+      `S/ ${fmt(resumen.saldoVirtual)}`,
+      { size: 7 },
+    );
+
+    dashedLine();
+
+    cline('VENTAS POR HORA', { bold: true, size: 7, gap: 13, color: YELLOW });
+
+    doc
+      .fontSize(6.5)
+      .font('Helvetica-Bold')
+      .fillColor(BLACK)
+      .text('Hora', MARGIN, y, { width: 40, lineBreak: false })
+      .text('Monto', MARGIN + 40, y, {
+        width: W - 40,
+        align: 'right',
+        lineBreak: false,
+      });
     y += 11;
 
-    // encabezado tabla
-    doc.font(bold).fontSize(6.5)
-      .text('Hora', MARGIN, y, { width: 40, lineBreak: false })
-      .text('Monto', MARGIN + 40, y, { width: INNER_W - 40, align: 'right', lineBreak: false });
-    y += 10;
+    solidLine(0.8, YELLOW);
 
-    doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).lineWidth(0.5).stroke(); y += 4;
-
-    // filas solo con ventas > 0 (o todas si quieres)
-    const filas = resumen.ventasPorHora.filter(v => v.total > 0);
+    const filas = resumen.ventasPorHora.filter((v) => v.total > 0);
     if (filas.length === 0) {
-      doc.font(regular).fontSize(6.5).text('Sin movimientos registrados', MARGIN, y, { width: INNER_W, align: 'center' });
-      y += 12;
+      doc
+        .fontSize(6.5)
+        .font('Helvetica')
+        .fillColor(GRAY)
+        .text('Sin movimientos registrados', MARGIN, y, {
+          width: W,
+          align: 'center',
+          lineBreak: false,
+        });
+      y += 16;
     } else {
       for (const fila of filas) {
-        doc.font(regular).fontSize(6.5)
+        doc
+          .fontSize(6.5)
+          .font('Helvetica')
+          .fillColor(BLACK)
           .text(fila.hora, MARGIN, y, { width: 40, lineBreak: false })
-          .text(`S/ ${fmt(fila.total)}`, MARGIN + 40, y, { width: INNER_W - 40, align: 'right', lineBreak: false });
-        y += 11;
+          .text(`S/ ${fmt(fila.total)}`, MARGIN + 40, y, {
+            width: W - 40,
+            align: 'right',
+            lineBreak: false,
+          });
+        y += 14;
       }
     }
 
-    // ── Footer ────────────────────────────────────────────────────────
+    solidLine(0.8, YELLOW);
+
     y += 4;
-    doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).dash(2, { space: 2 }).stroke(); y += 8;
-    doc.undash();
-    doc.font(regular).fontSize(6).text('MKapu Import — Sistema de Gestión', MARGIN, y, { width: INNER_W, align: 'center' });
+    dashedLine();
+    doc
+      .fontSize(6)
+      .font('Helvetica')
+      .fillColor(GRAY)
+      .text('MKapu Import — Sistema de Gestión', MARGIN, y, {
+        width: W,
+        align: 'center',
+        lineBreak: false,
+      });
 
     doc.end();
   });

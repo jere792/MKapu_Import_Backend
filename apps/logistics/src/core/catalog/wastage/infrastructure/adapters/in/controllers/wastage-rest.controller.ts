@@ -10,6 +10,8 @@ import { UpdateWastageDto }    from '../../../../application/dto/in/update-wasta
 import { WastageResponseDto, WastagePaginatedResponseDto } from '../../../../application/dto/out/wastage-response.dto';
 import { WastageTypeService }     from '../../../../application/service/wastage-type.service';
 import { WastageTypeResponseDto } from '../../../../application/dto/out/wastage-type-response.dto';
+import { WastageSuggestionDto }   from '../../../../application/dto/out/wastage-suggestion-response.dto';
+
 
 @Controller('catalog/wastage')
 export class WastageRestController {
@@ -20,9 +22,9 @@ export class WastageRestController {
     @Inject('IWastageQueryPort')
     private readonly queryPort: IWastageQueryPort,
 
-    // ── Servicio de tipos de merma (inyección directa, no por token) ─────
     private readonly wastageTypeService: WastageTypeService,
   ) {}
+
 
   // ── POST /catalog/wastage ─────────────────────────────────────────────────
   @Post()
@@ -30,18 +32,31 @@ export class WastageRestController {
     return await this.commandPort.create(dto);
   }
 
+  // ── PUT /catalog/wastage/:id ──────────────────────────────────────────────
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateWastageDto,
+    @Body() payload: { motivo?: string; id_tipo_merma?: number; observacion?: string },
   ): Promise<WastageResponseDto> {
-    return await this.commandPort.update(id, dto);
+    return await this.commandPort.update(id, payload);
+
   }
 
   // ── GET /catalog/wastage/tipos ────────────────────────────────────────────
   @Get('tipos')
   async findTipos(): Promise<WastageTypeResponseDto[]> {
     return await this.wastageTypeService.findAll();
+  }
+
+  // ── GET /catalog/wastage/search?q=daño&id_sede=1&limit=8 ─────────────────
+  @Get('search')
+  async search(
+    @Query('q')                                              q:       string,
+    @Query('id_sede', new DefaultValuePipe(0), ParseIntPipe) id_sede: number,
+    @Query('limit',   new DefaultValuePipe(8), ParseIntPipe) limit:   number,
+  ): Promise<WastageSuggestionDto[]> {
+    if (!q || q.trim().length < 1) return [];
+    return await this.queryPort.search(q.trim(), id_sede || undefined, limit);
   }
 
   // ── GET /catalog/wastage ──────────────────────────────────────────────────
@@ -53,6 +68,7 @@ export class WastageRestController {
   ): Promise<WastagePaginatedResponseDto> {
     return await this.queryPort.findAllPaginated(page, limit, id_sede || undefined);
   }
+
   // ── GET /catalog/wastage/:id ──────────────────────────────────────────────
   @Get(':id')
   async findById(@Param('id', ParseIntPipe) id: number): Promise<WastageResponseDto> {

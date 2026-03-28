@@ -110,6 +110,10 @@ export class InventoryQueryService {
       venta_tcp: 'Comprobante de Venta',
       compra_tcp: 'Ingreso por Compra',
       remision_tcp: 'Guía de Remisión (Externa)',
+      merma: 'Merma',
+      wastage: 'Merma',
+      usuario: 'Ajuste Manual',
+      comprobante_venta: 'Comprobante',
     };
 
     const mappedData: InventoryMovementResponseDto[] = movements.map((mov) => {
@@ -233,12 +237,30 @@ export class InventoryQueryService {
       const friendlyTableLabel =
         labelMap[rawTableName] || mov.refTable || 'Documento';
 
+      // ── Doc. Ref formateado ──────────────────────────────────────
       let docReferenciaFormateado = 'N/A';
       if (mov.refTable) {
-        docReferenciaFormateado = `${friendlyTableLabel} #${mov.refId}`;
+        const esMerma = rawTableName === 'merma' || rawTableName === 'wastage';
+        const esComprobante = rawTableName === 'comprobante_venta';
+        const esGuiaRemision = rawTableName === 'guia_remision';
+        const esTransferencia = rawTableName === 'transferencia';
 
-        if (rawTableName.includes('tcp') && mov.observation) {
-          docReferenciaFormateado += ` (${mov.observation})`;
+        if (esMerma) {
+          docReferenciaFormateado = `${friendlyTableLabel} MER-${String(mov.refId).padStart(4, '0')}`;
+        } else if ((esComprobante || esGuiaRemision) && mov.observation) {
+          // Extrae "F001-00000334" o "T001-00000012" desde el observation
+          const match = mov.observation.match(/([A-Z]{1,4}\d{3}-\d{8})/);
+          const label = esGuiaRemision ? 'Guía' : 'Comprobante';
+          docReferenciaFormateado = match
+            ? `${label} ${match[1]}`
+            : `${friendlyTableLabel} #${mov.refId}`;
+        } else if (esTransferencia) {
+          docReferenciaFormateado = `Transferencia TRF-${String(mov.refId).padStart(6, '0')}`;
+        } else {
+          docReferenciaFormateado = `${friendlyTableLabel} #${mov.refId}`;
+          if (rawTableName.includes('tcp') && mov.observation) {
+            docReferenciaFormateado += ` (${mov.observation})`;
+          }
         }
       }
 

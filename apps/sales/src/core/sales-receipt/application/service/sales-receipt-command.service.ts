@@ -229,6 +229,8 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
               quantityDelta: -item.quantity,
               reason: 'VENTA',
               refId: savedOrm.id_comprobante,
+              serie: savedOrm.serie,
+              numero: String(savedOrm.numero).padStart(8, '0'),
             });
           } catch (error) {
             await this.annulReceiptDueToStockFailure(savedOrm.id_comprobante);
@@ -352,6 +354,8 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
           quantityDelta: -item.quantity,
           reason: 'VENTA',
           refId: id,
+          serie: receipt.serie,
+          numero: String(receipt.numero).padStart(8, '0'),
         });
       } catch (error) {
         await this.annulReceiptDueToStockFailure(id);
@@ -404,6 +408,9 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
           headquartersId: savedReceipt.id_sede_ref,
           quantityDelta: item.quantity,
           reason: `ANULACION: ${savedReceipt.getFullNumber()}`,
+          refId: existingReceipt.id_comprobante,
+          serie: savedReceipt.serie,
+          numero: String(savedReceipt.numero).padStart(8, '0'),
         });
       }
     }

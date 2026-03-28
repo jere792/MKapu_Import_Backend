@@ -17,7 +17,7 @@ export class InventoryFacadeAdapter implements InventoryFacadePort {
       originType: 'VENTA',
       refId: params.refId,
       refTable: 'guia_remision',
-      observation: `Salida por emisión de Guía ${params.serie_numero}`,
+      observation: `Salida por emisión de Guía — Comprobante ${params.serie_numero}`,
       items: params.items.map((item) => ({
         productId: item.id_producto,
         warehouseId: params.warehouseId,

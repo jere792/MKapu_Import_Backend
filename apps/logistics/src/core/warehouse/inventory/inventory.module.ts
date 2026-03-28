@@ -22,6 +22,8 @@ import { ProductOrmEntity } from '../../catalog/product/infrastructure/entity/pr
 import { CategoryOrmEntity } from '../../catalog/product/infrastructure/entity/category-orm.entity';
 import { ProductModule } from '../../catalog/product/product.module';
 import { AdminTcpProxy } from './infrastructure/adapters/out/TCP/admin-tcp.proxy';
+import { InventoryMessageController } from './infrastructure/adapters/in/TCP/inventory-message.controller';
+
 
 @Module({
   imports: [
@@ -48,7 +50,7 @@ import { AdminTcpProxy } from './infrastructure/adapters/out/TCP/admin-tcp.proxy
       CategoryOrmEntity,
     ]),
   ],
-  controllers: [InventoryMovementRestController, InventoryCountController],
+  controllers: [InventoryMovementRestController, InventoryCountController, InventoryMessageController],
   providers: [
     {
       provide: 'IInventoryMovementCommandPort',

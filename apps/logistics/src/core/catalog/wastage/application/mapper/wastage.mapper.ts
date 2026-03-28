@@ -17,6 +17,8 @@ export class WastageMapper {
     };
   }
 
+  
+
   static toResponseDto(domain: Wastage): WastageResponseDto {
     const dto = new WastageResponseDto();
 
