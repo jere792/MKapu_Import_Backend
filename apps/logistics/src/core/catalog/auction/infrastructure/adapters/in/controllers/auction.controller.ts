@@ -1,22 +1,30 @@
 import {
-  Controller, Get, Post, Put, Delete,
-  Param, Query, Body,
-  ParseIntPipe, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Query,
+  Body,
+  ParseIntPipe,
+  HttpCode,
+  HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
 import { AuctionCommandService } from '../../../../application/service/auction-command.service';
-import { AuctionQueryService }   from '../../../../application/service/auction-query.service';
-import { CreateAuctionDto }      from '../../../../application/dto/in/create-auction.dto';
-import { UpdateAuctionDto }      from '../../../../application/dto/in/update-auction.dto';
-import { ListAuctionFilterDto }  from '../../../../application/dto/in/list-auction-filter.dto';
-import { AuctionResponseDto }    from '../../../../application/dto/out/auction-response.dto';
+import { AuctionQueryService } from '../../../../application/service/auction-query.service';
+import { CreateAuctionDto } from '../../../../application/dto/in/create-auction.dto';
+import { UpdateAuctionDto } from '../../../../application/dto/in/update-auction.dto';
+import { ListAuctionFilterDto } from '../../../../application/dto/in/list-auction-filter.dto';
+import { AuctionResponseDto } from '../../../../application/dto/out/auction-response.dto';
 import { AuctionAutocompleteItem } from '../../../../domain/port/out/auction.port.out';
 
 @Controller('auctions')
 export class AuctionController {
   constructor(
     private readonly commandService: AuctionCommandService,
-    private readonly queryService:   AuctionQueryService,
+    private readonly queryService: AuctionQueryService,
   ) {}
 
   @Get('autocomplete')
@@ -31,7 +39,7 @@ export class AuctionController {
     }
 
     const sedeId = id_sede && Number(id_sede) > 0 ? Number(id_sede) : undefined;
-    const data   = await this.queryService.autocomplete(search.trim(), sedeId);
+    const data = await this.queryService.autocomplete(search.trim(), sedeId);
 
     return { data };
   }
@@ -43,7 +51,7 @@ export class AuctionController {
   async list(@Query() filters: ListAuctionFilterDto): Promise<{
     items: AuctionResponseDto[];
     total: number;
-    page:  number;
+    page: number;
     limit: number;
   }> {
     return this.queryService.list(filters);
@@ -51,9 +59,15 @@ export class AuctionController {
 
   /** GET /auctions/:id */
   @Get(':id')
-  async getById(@Param('id', ParseIntPipe) id: number): Promise<AuctionResponseDto> {
+  async getById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<AuctionResponseDto> {
     const dto = await this.queryService.findById(id);
-    if (!dto) throw { status: HttpStatus.NOT_FOUND, message: `Auction not found: ${id}` };
+    if (!dto)
+      throw {
+        status: HttpStatus.NOT_FOUND,
+        message: `Auction not found: ${id}`,
+      };
     return dto;
   }
 
@@ -75,14 +89,18 @@ export class AuctionController {
   /** POST /auctions/:id/finalize */
   @Post(':id/finalize')
   @HttpCode(HttpStatus.OK)
-  async finalize(@Param('id', ParseIntPipe) id: number): Promise<AuctionResponseDto> {
+  async finalize(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<AuctionResponseDto> {
     return this.commandService.finalize(id);
   }
 
   /** POST /auctions/:id/cancel */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  async cancel(@Param('id', ParseIntPipe) id: number): Promise<AuctionResponseDto> {
+  async cancel(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<AuctionResponseDto> {
     return this.commandService.cancel(id);
   }
 

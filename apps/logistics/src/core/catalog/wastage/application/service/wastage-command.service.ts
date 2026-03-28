@@ -3,10 +3,12 @@ import {
   Inject,
   BadRequestException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { IWastageCommandPort } from '../../domain/ports/in/wastage.port.in';
 import { IWastageRepositoryPort } from '../../domain/ports/out/wastage.port.out';
 import { CreateWastageDto } from '../dto/in/create-wastage.dto';
+import { UpdateWastageDto } from '../dto/in/update-wastage.dto';
 import { WastageResponseDto } from '../dto/out/wastage-response.dto';
 import { WastageMapper } from '../mapper/wastage.mapper';
 import {
@@ -137,5 +139,6 @@ export class WastageCommandService implements IWastageCommandPort {
   ): Promise<WastageResponseDto> {
     const updated = await this.repository.update(id, payload);
     return WastageMapper.toResponseDto(updated);
+
   }
 }

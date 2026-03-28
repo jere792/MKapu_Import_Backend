@@ -6,6 +6,7 @@ import {
 import { IWastageCommandPort } from '../../../../domain/ports/in/wastage.port.in';
 import { IWastageQueryPort }   from '../../../../domain/ports/in/wastage.port.in';
 import { CreateWastageDto }    from '../../../../application/dto/in/create-wastage.dto';
+import { UpdateWastageDto }    from '../../../../application/dto/in/update-wastage.dto';
 import { WastageResponseDto, WastagePaginatedResponseDto } from '../../../../application/dto/out/wastage-response.dto';
 import { WastageTypeService }     from '../../../../application/service/wastage-type.service';
 import { WastageTypeResponseDto } from '../../../../application/dto/out/wastage-type-response.dto';
@@ -38,6 +39,7 @@ export class WastageRestController {
     @Body() payload: { motivo?: string; id_tipo_merma?: number; observacion?: string },
   ): Promise<WastageResponseDto> {
     return await this.commandPort.update(id, payload);
+
   }
 
   // ── GET /catalog/wastage/tipos ────────────────────────────────────────────

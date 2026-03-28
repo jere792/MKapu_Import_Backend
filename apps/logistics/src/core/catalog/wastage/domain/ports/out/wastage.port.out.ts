@@ -8,3 +8,4 @@ export interface IWastageRepositoryPort {
   findAndCount(skip: number, take: number, id_sede?: number): Promise<[Wastage[], number]>;
   searchSuggestions(q: string, id_sede?: number, limit?: number): Promise<Wastage[]>;
 }
+

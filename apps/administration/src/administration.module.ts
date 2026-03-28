@@ -27,6 +27,11 @@ import { RolePermissionModule } from './core/role-permission/role-permission.mod
 import { EmpresaOrmEntity } from './core/company/infrastructure/entity/empresa.orm-entity';
 import { CompanyModule } from './core/company/company.module';
 import { CommonModule } from '@app/common';
+import { TerminosCondicionesEntity } from './core/terms-conditions/infrastructure/entity/terms-conditions.entity';
+import { TerminosSeccionEntity } from './core/terms-conditions/infrastructure/entity/terms-section.entity';
+import { TerminosItemEntity } from './core/terms-conditions/infrastructure/entity/terms-item.entity';
+import { TerminosParrafoEntity } from './core/terms-conditions/infrastructure/entity/terms-paragraph.entity';
+import { TerminosCondicionesModule } from './core/terms-conditions/terms-conditions.module';
 
 @Module({
   imports: [
@@ -54,7 +59,11 @@ import { CommonModule } from '@app/common';
           CuentaUsuarioOrmEntity,  
           CuentaRolOrmEntity, 
           RolePermissionOrmEntity,    
-          EmpresaOrmEntity,        
+          EmpresaOrmEntity,      
+          TerminosCondicionesEntity,  
+          TerminosItemEntity,
+          TerminosParrafoEntity,
+          TerminosSeccionEntity,
         ],
         synchronize: false
         ,
@@ -70,6 +79,7 @@ import { CommonModule } from '@app/common';
     RolePermissionModule,
     CompanyModule,
     CommonModule,
+    TerminosCondicionesModule,
   ],
   controllers: [
     AdministrationController,

@@ -1,4 +1,5 @@
 import { CreateWastageDto } from '../../../application/dto/in/create-wastage.dto';
+import { UpdateWastageDto } from '../../../application/dto/in/update-wastage.dto';
 import { WastageResponseDto, WastagePaginatedResponseDto } from '../../../application/dto/out/wastage-response.dto';
 import { WastageSuggestionDto } from '../../../application/dto/out/wastage-suggestion-response.dto';
 export interface IWastageCommandPort {
@@ -12,3 +13,4 @@ export interface IWastageQueryPort {
   findById(id: number): Promise<WastageResponseDto>;
   search(q: string, id_sede?: number, limit?: number): Promise<WastageSuggestionDto[]>;
 }
+
