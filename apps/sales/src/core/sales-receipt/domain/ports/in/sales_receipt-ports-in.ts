@@ -21,6 +21,8 @@ import { KpiFilterParams } from '../out/sales_receipt-ports-out';
 
 import { Empresa } from 'apps/administration/src/core/company/domain/entity/empresa.entity';
 export interface ISalesReceiptCommandPort {
+  getWhatsAppStatus(): Promise<{ ready: boolean; qr: string | null }>;
+  enviarComprobantePorWhatsApp(id: number): Promise<{ message: string; sentTo: string }>;
   registerReceipt(
     dto: RegisterSalesReceiptDto,
   ): Promise<SalesReceiptResponseDto>;

@@ -65,7 +65,9 @@ export class HeadquarterRepository implements IHeadquartersRepositoryPort {
    }): Promise<Headquarters[]> {
       const queryBuilder = this.headquartersOrmRepository.createQueryBuilder('sede');
 
-      if (filters?.activo !== undefined) {
+      if (filters?.activo === undefined) {
+         queryBuilder.andWhere('sede.activo = :activo', { activo: 1 });
+      } else if (filters.activo !== undefined) {
          queryBuilder.andWhere('sede.activo = :activo', { activo: filters.activo ? 1 : 0 });
       }
 

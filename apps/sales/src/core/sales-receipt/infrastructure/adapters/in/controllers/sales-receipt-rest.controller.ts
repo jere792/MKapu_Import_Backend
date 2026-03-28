@@ -290,6 +290,49 @@ export class SalesReceiptRestController {
     return this.receiptQueryService.listReceiptsPaginated(filters);
   }
 
+  // ── WhatsApp ───────────────────────────────────────────────────────
+
+  /**
+   * GET /receipts/whatsapp/status
+   * Devuelve { ready: boolean, qr: string | null }
+   * El frontend hace polling a este endpoint hasta que ready === true.
+   */
+  @Get('whatsapp/status')
+  @HttpCode(HttpStatus.OK)
+  async getWhatsAppStatus(@Res() res: Response): Promise<void> {
+    try {
+      const status = await this.receiptCommandService.getWhatsAppStatus();
+      res.status(HttpStatus.OK).json(status);
+    } catch (error) {
+      // Devuelve not-ready en lugar de 500 para que el frontend no rompa el polling
+      res.status(HttpStatus.OK).json({ ready: false, qr: null });
+    }
+  }
+
+  /**
+   * POST /receipts/:id/send-whatsapp
+   * Envía el comprobante por WhatsApp al número registrado del cliente.
+   * Devuelve { message: string, sentTo: string }
+   */
+  @Post(':id/send-whatsapp')
+  @HttpCode(HttpStatus.OK)
+  async sendWhatsApp(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const result = await this.receiptCommandService.enviarComprobantePorWhatsApp(id);
+      res.status(HttpStatus.OK).json(result);
+    } catch (error) {
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: 'No se pudo enviar el comprobante por WhatsApp',
+        error: (error as Error).message,
+      });
+    }
+  }
+
+  // ── Email ──────────────────────────────────────────────────────────
+
   @Get('serie/:serie')
   async getReceiptsBySerie(
     @Param('serie') serie: string,

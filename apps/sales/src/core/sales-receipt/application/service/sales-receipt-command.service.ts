@@ -33,6 +33,9 @@ import { EmpresaPortOut } from '../../domain/ports/out/empresa-port-out';
 import { buildSalesReceiptPdf } from '../../utils/sales-receipt-pdf.util';
 import { SalesReceiptQueryService } from './sales-receipt-query.service';
 
+// ── Mismo util que usa AccountReceivableQueryService ─────────────────────────
+import { getWhatsAppStatus, sendWhatsApp } from 'libs/whatsapp.util';
+
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
@@ -65,6 +68,55 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     private readonly empresaPort: EmpresaPortOut,
     private readonly queryService: SalesReceiptQueryService,
   ) {}
+
+  // ── WhatsApp ───────────────────────────────────────────────────────
+
+  async getWhatsAppStatus(): Promise<{ ready: boolean; qr: string | null }> {
+    return getWhatsAppStatus();
+  }
+
+  async enviarComprobantePorWhatsApp(
+    id: number,
+  ): Promise<{ message: string; sentTo: string }> {
+    const pdfData = await this.queryService.buildPdfData(id);
+
+    const telefono = pdfData.cliente.telefono?.trim();
+    if (!telefono) {
+      throw new BadRequestException(
+        'El cliente no tiene teléfono registrado para enviar por WhatsApp',
+      );
+    }
+
+    const empresaRaw = await this.empresaPort.getEmpresaActiva();
+    const empresa    = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
+    const pdfBuffer  = await buildSalesReceiptPdf(pdfData, empresa);
+
+    const docRef   = `${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}`;
+    const filename = `Comprobante_${docRef}.pdf`;
+    const mensaje  = [
+      `🧾 *Comprobante ${docRef} - MKapu Import*`,
+      ``,
+      `Estimado/a *${pdfData.cliente.nombre}*,`,
+      `Adjuntamos su comprobante de pago:`,
+      ``,
+      `💰 *Total:* S/. ${pdfData.total.toFixed(2)}`,
+      `📅 *Fecha:* ${new Date(pdfData.fec_emision).toLocaleDateString('es-PE')}`,
+      `💳 *Método de pago:* ${pdfData.metodo_pago}`,
+      ``,
+      `Gracias por su compra 🛍️`,
+    ].join('\n');
+
+    await sendWhatsApp(telefono, mensaje, pdfBuffer, filename);
+
+    this.logger.log(`✅ Comprobante ${docRef} enviado por WhatsApp a ${telefono}`);
+
+    return {
+      message: `Comprobante ${docRef} enviado por WhatsApp`,
+      sentTo:  telefono,
+    };
+  }
+
+  // ── Comandos ───────────────────────────────────────────────────────
 
   async registerReceipt(
     dto: RegisterSalesReceiptDto,
@@ -377,7 +429,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       throw new NotFoundException(`ID ${dto.receiptId} no encontrado.`);
 
     const annulledReceipt = existingReceipt.anular();
-    const savedReceipt = await this.receiptRepository.update(annulledReceipt);
+    const savedReceipt    = await this.receiptRepository.update(annulledReceipt);
 
     await this.receiptRepository.updateStatus(
       existingReceipt.id_comprobante,
@@ -454,15 +506,15 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
   async enviarComprobantePorEmail(
     id: number,
   ): Promise<{ success: boolean; message: string }> {
-    const pdfData = await this.queryService.buildPdfData(id);
+    const pdfData    = await this.queryService.buildPdfData(id);
     const empresaRaw = await this.empresaPort.getEmpresaActiva();
-    const empresa = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
+    const empresa    = SalesReceiptMapper.toEmpresaPdfData(empresaRaw);
 
     if (!pdfData.cliente.email)
       throw new BadRequestException('El cliente no tiene email registrado');
 
     const pdfBuffer = await buildSalesReceiptPdf(pdfData, empresa);
-    const docRef = `${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}`;
+    const docRef    = `${pdfData.serie}-${String(pdfData.numero).padStart(8, '0')}`;
 
     await this.sendReceiptEmail(
       pdfData.cliente.email,
@@ -484,8 +536,8 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     pdfBuffer: Buffer,
   ): Promise<void> {
     await this.transporter.sendMail({
-      from: process.env.MAIL_FROM ?? 'MKapu Import <no-reply@mkapu.com>',
-      to: toEmail,
+      from:    process.env.MAIL_FROM ?? 'MKapu Import <no-reply@mkapu.com>',
+      to:      toEmail,
       subject: `Comprobante ${docRef} - MKapu Import`,
       html: `
         <div style="font-family: Arial, sans-serif; color: #1A1A1A; padding: 16px;">
@@ -498,8 +550,8 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       `,
       attachments: [
         {
-          filename: `Comprobante_${docRef}.pdf`,
-          content: pdfBuffer,
+          filename:    `Comprobante_${docRef}.pdf`,
+          content:     pdfBuffer,
           contentType: 'application/pdf',
         },
       ],
@@ -507,18 +559,15 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     this.logger.log(`✅ Email enviado a ${toEmail} — ${docRef}`);
   }
 
+  // ── Helpers privados ───────────────────────────────────────────────
+
   private calcularDescuentoPromocion(
     dto: RegisterSalesReceiptDto,
     promo: PromotionDto,
   ): number {
-    const reglasProducto = promo.reglas.filter(
-      (r) => r?.tipoCondicion === 'PRODUCTO',
-    );
-    const reglasCategoria = promo.reglas.filter(
-      (r) => r?.tipoCondicion === 'CATEGORIA',
-    );
-    const tieneRestriccionItems =
-      reglasProducto.length > 0 || reglasCategoria.length > 0;
+    const reglasProducto  = promo.reglas.filter((r) => r?.tipoCondicion === 'PRODUCTO');
+    const reglasCategoria = promo.reglas.filter((r) => r?.tipoCondicion === 'CATEGORIA');
+    const tieneRestriccionItems = reglasProducto.length > 0 || reglasCategoria.length > 0;
 
     let baseDescuento: number;
 
@@ -551,9 +600,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
       );
     } else {
       baseDescuento = Number((dto.total / 1.18).toFixed(2));
-      console.log(
-        `🔍 Sin restricción de ítems | Base total sin IGV: S/ ${baseDescuento}`,
-      );
+      console.log(`🔍 Sin restricción de ítems | Base total sin IGV: S/ ${baseDescuento}`);
     }
 
     let monto = 0;
@@ -611,9 +658,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     }
   }
 
-  private async annulReceiptDueToStockFailure(
-    receiptId: number,
-  ): Promise<void> {
+  private async annulReceiptDueToStockFailure(receiptId: number): Promise<void> {
     const queryRunner = this.receiptRepository.getQueryRunner();
     try {
       await queryRunner.connect();
@@ -626,10 +671,7 @@ export class SalesReceiptCommandService implements ISalesReceiptCommandPort {
     } catch (err) {
       if (queryRunner.isTransactionActive)
         await queryRunner.rollbackTransaction();
-      console.error(
-        `🚨 ERROR CRÍTICO: Fallo al compensar venta ${receiptId}`,
-        err,
-      );
+      console.error(`🚨 ERROR CRÍTICO: Fallo al compensar venta ${receiptId}`, err);
     } finally {
       await queryRunner.release();
     }
